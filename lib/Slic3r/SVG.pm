@@ -34,7 +34,7 @@ sub svg {
 }
 
 sub output {
-    my ($filename, %things) = @_;
+    my ($print, $filename, %things) = @_;
     
     my $svg = svg();
     
