@@ -341,7 +341,13 @@ sub export_gcode {
     # skein the STL into layers
     # each layer has surfaces with holes
     $status_cb->(10, "Processing triangulated mesh");
-    $_->slice for @{$self->objects};
+    if ($Slic3r::Config->adaptive_slicing) {
+    	$status_cb->(15, "Slice adaptive");
+    	$_->slice_adaptive for @{$self->objects};
+    }else{
+    	$status_cb->(15, "Slice regular");
+    	$_->slice for @{$self->objects};
+    }
     
     if ($Slic3r::Config->resolution) {
         $status_cb->(15, "Simplifying input");

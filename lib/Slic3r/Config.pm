@@ -1021,6 +1021,15 @@ END
         type    => 'f',
         default => 20,
     },
+    
+    # adaptive slicing options
+    'adaptive_slicing' => {
+        label   => 'Adaptive Slicing',
+        tooltip => 'Automatically determine layer heights by a number of parameters and the objects topology.',
+        cli     => 'adaptive-slicing!',
+        type    => 'bool',
+        default => 0,
+    },
 };
 
 # generate accessors

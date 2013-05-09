@@ -39,40 +39,43 @@ sub BUILD {
     }
     
     # loop until we have at least one layer and the max slice_z reaches the object height
-    my $max_z = unscale $self->size->[Z];
-    while (!@{$self->layers} || ($slice_z - $height) <= $max_z) {
-        my $id = $#{$self->layers} + 1;
-        
-        # assign the default height to the layer according to the general settings
-        $height = ($id == 0)
-            ? $Slic3r::Config->get_value('first_layer_height')
-            : $Slic3r::Config->layer_height;
-        
-        # look for an applicable custom range
-        if (my $range = first { $_->[0] <= $slice_z && $_->[1] > $slice_z } @{$self->layer_height_ranges}) {
-            $height = $range->[2];
-        
-            # if user set custom height to zero we should just skip the range and resume slicing over it
-            if ($height == 0) {
-                $slice_z += $range->[1] - $range->[0];
-                next;
-            }
-        }
-        
-        $print_z += $height;
-        $slice_z += $height/2;
-        
-        ### Slic3r::debugf "Layer %d: height = %s; slice_z = %s; print_z = %s\n", $id, $height, $slice_z, $print_z;
-        
-        push @{$self->layers}, Slic3r::Layer->new(
-            object  => $self,
-            id      => $id,
-            height  => $height,
-            print_z => scale $print_z,
-            slice_z => scale $slice_z,
-        );
-        
-        $slice_z += $height/2;   # add the other half layer
+    # since layer heights are determined in the slicing process, adaptive slicing generates layers "on the fly"
+    if (!$Slic3r::Config->adaptive_slicing) {
+	    my $max_z = unscale $self->size->[Z];
+	    while (!@{$self->layers} || ($slice_z - $height) <= $max_z) {
+	        my $id = $#{$self->layers} + 1;
+	        
+	        # assign the default height to the layer according to the general settings
+	        $height = ($id == 0)
+	            ? $Slic3r::Config->get_value('first_layer_height')
+	            : $Slic3r::Config->layer_height;
+	        
+	        # look for an applicable custom range
+	        if (my $range = first { $_->[0] <= $slice_z && $_->[1] > $slice_z } @{$self->layer_height_ranges}) {
+	            $height = $range->[2];
+	        
+	            # if user set custom height to zero we should just skip the range and resume slicing over it
+	            if ($height == 0) {
+	                $slice_z += $range->[1] - $range->[0];
+	                next;
+	            }
+	        }
+	        
+	        $print_z += $height;
+	        $slice_z += $height/2;
+	        
+	        ### Slic3r::debugf "Layer %d: height = %s; slice_z = %s; print_z = %s\n", $id, $height, $slice_z, $print_z;
+	        
+	        push @{$self->layers}, Slic3r::Layer->new(
+	            object  => $self,
+	            id      => $id,
+	            height  => $height,
+	            print_z => scale $print_z,
+	            slice_z => scale $slice_z,
+	        );
+	        
+	        $slice_z += $height/2;   # add the other half layer
+	    }
     }
 }
 
@@ -109,6 +112,64 @@ sub get_layer_range {
         }
     }
     return ($min_layer, $max_layer);
+}
+
+sub slice_adaptive {
+	my $self = shift;
+		
+	my $height = my $slice_z = 0;
+	my $print_z = ($#{$self->layers} > 0) ? unscale $self->layers->[$#{$self->layers}]->print_z : 0; 
+	
+	# prepare raft layers
+	foreach my $layer (@{ $self->layers }) {
+		# make sure all layers contain layer region objects for all regions
+        $layer->region($_) for 0 .. ($self->print->regions_count-1);
+        $layer->make_slices; 
+	}
+		
+	while ($slice_z <= unscale $self->size->[Z]) {
+      	# generate next layer
+       	my $id = $#{$self->layers} + 1;
+       	
+       	# determine next layer height
+       	$height = 0.4; #dummy value 
+       	
+       	$print_z += $height;
+	    $slice_z += $height/2;
+       	
+       	Slic3r::debugf "Layer %d: height = %s; slice_z = %s; print_z = %s\n", $id, $height, $slice_z, $print_z;
+	        
+	    push @{$self->layers}, Slic3r::Layer->new(
+	        object  => $self,
+	        id      => $id,
+	        height  => $height,
+	        print_z => scale $print_z,
+	        slice_z => scale $slice_z,
+	    );
+	    
+	    my $layer = $self->layers->[$#{$self->layers}];      	
+       	
+       	for my $region_id (0 .. $#{$self->meshes}) {
+        	my $mesh = $self->meshes->[$region_id];  # ignore undef meshes
+        	
+        	my @lines = $mesh->slice_layer($self, scale $slice_z);
+        	my ($slicing_errors, $loops) = Slic3r::TriangleMesh::make_loops(\@lines);
+        	$layer->slicing_errors(1) if $slicing_errors;
+        	$layer->region($region_id)->make_surfaces($loops);
+		}
+
+		$layer->make_slices;
+		
+		$slice_z += $height/2;
+       	       
+	}
+	
+	die "Invalid input file\n" if !@{$self->layers};
+	# free memory
+    $self->meshes(undef);
+		
+	#require "Slic3r/SVG.pm";
+	#Slic3r::SVG::output_polygons($self->print, "/home/florens/uni/ma/adaptive.svg", $loops);
 }
 
 sub slice {

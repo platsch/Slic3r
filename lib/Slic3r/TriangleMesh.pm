@@ -392,6 +392,113 @@ sub size {
     return Slic3r::Geometry::size_3D($self->vertices);
 }
 
+
+#REMOVE this sub after ma.sc.
+sub print_facet {
+	my $self = shift;
+	my ($facet_id) = @_;
+	my @vertices = @{$self->facets->[$facet_id]}[-3..-1];
+	printf "facet id: %d\n", $facet_id;
+	printf " vertice_ids: %d, %d, %d\n", @{$self->facets->[$facet_id]};
+	printf " edge_ids:    %d, %d, %d\n", @{$self->facets_edges->[$facet_id]};
+	printf " edge_points: [%d, %d], [%d, %d], [%d, %d]\n", map @{$self->edges->[$_]}, @{$self->facets_edges->[$facet_id]};
+	printf " vertices: [%f, %f, %f], [%f, %f, %f], [%f, %f, %f]\n", map @{$self->vertices->[$_]}, @vertices;
+}
+
+# slice object at given height
+sub slice_layer {
+	my $self = shift;
+	my ($print_object, $z) = @_;
+	
+	Slic3r::debugf "slice object at z = %f\n", $z;
+	my $facet_id = 0;
+	my @lines;
+	my @z_f;
+	
+	# Es könnte Sinnvoll sein die Facets nach Z_min zu sortieren, dann kann man abbrechen wenn Z größer Schnitthöhe ist.
+	
+	foreach my $facet (@{$self->facets}) {
+		
+		@z_f = (map $self->vertices->[$_][Z], @$facet);
+		
+		if(($z_f[0] == $z_f[1]) && ($z_f[0] == $z_f[2])) { # horizontal facet, ignoring
+			#printf "horizontal facet\n\n";
+			$facet_id++;
+			next;
+		}
+		
+		if(($z_f[0] <= $z) && ($z_f[1] >= $z || $z_f[2] >= $z)) {
+			push @lines, $self->intersect_facet($facet_id, $z);
+		}
+		$facet_id++;
+	}
+	
+#	# find initial facet for marching
+#	foreach my $facet (@{$self->facets}) {
+#		printf "facet: %d\n",$facet_id;
+#		
+#		@z_f = (map $self->vertices->[$_][Z], @$facet);
+#		printf "z0: %f, z1: %f, z2: %f\n", $z_f[0], $z_f[1], $z_f[2];
+#		
+#		if(($z_f[0] == $z_f[1]) && ($z_f[0] == $z_f[2])) { # horizontal facet, ignoring
+#			#printf "horizontal facet\n\n";
+#			$facet_id++;
+#			next;
+#		}
+#		
+#		if(($z_f[0] <= $z) && ($z_f[1] >= $z || $z_f[2] >= $z)) {
+#			printf "initial facet!\n\n";
+#			$initial_facet = $facet_id;
+#			last;
+#		}
+#		
+#		$facet_id++; 
+#		printf "\n";
+#	}
+#	
+#	# march over adjacent facets 
+#	$facet_id = -1; 
+#	my @edge;
+#	my @lines;  # [ lines ]
+#	
+#	while($facet_id != $initial_facet) {
+#		$facet_id = $initial_facet if ($facet_id == -1); # first iteration
+#		
+#	    push @lines, $self->intersect_facet($facet_id, $z);
+#		
+#		printf "current_facet: %d\n", $facet_id;
+#		$self->print_facet($facet_id);
+#		
+#		@z_f = (map $self->vertices->[$_][Z], @{$self->facets->[$facet_id]});  # get z values
+#		if($z_f[2] > $z) {	# use edge v2, v0
+#			printf "use edge v2, v0\n";
+#			@edge = ($self->facets->[$facet_id]->[2], $self->facets->[$facet_id]->[0]);
+#		}else{				# use edge v1, v2
+#			@edge = ($self->facets->[$facet_id]->[1], $self->facets->[$facet_id]->[2]);
+#			printf "use edge v1, v2\n";
+#		}
+#		
+#		printf "original edge points: %d, %d\n", $edge[0], $edge[1];
+#		
+#		my %facets = ();
+#	    foreach my $edge_id (@{$self->facets_edges->[$facet_id]}) {
+#	    	my @cmp_edge = @{$self->edges->[$edge_id]};
+#	    	printf "compare edge: %d ", $edge_id;
+#	    	if(($cmp_edge[0] == $edge[0] && $cmp_edge[1] == $edge[1]) || ($cmp_edge[0] == $edge[1] && $cmp_edge[1] == $edge[0])) {
+#	        	$facets{$_} = 1 for @{$self->edges_facets->[$edge_id]};
+#	        	printf "compare hit!\n"
+#	    	}
+#	    }
+#	    delete $facets{$facet_id};
+#	    for (keys %facets) {
+#	    	$facet_id = $_;
+#	    }
+#	    printf "\n\n";
+#	}
+	
+	return @lines;
+}
+
 sub slice_facet {
     my $self = shift;
     my ($print_object, $facet_id) = @_;
