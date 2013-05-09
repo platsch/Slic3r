@@ -12,7 +12,7 @@ my $build = Module::Build->new(
         'File::Basename'            => '0',
         'File::Spec'                => '0',
         'Getopt::Long'              => '0',
-        'Math::Clipper'             => '1.17',
+        'Math::Clipper'             => '1.18',
         'Math::ConvexHull::MonotoneChain' => '0.01',
         'Math::Geometry::Voronoi'   => '1.3',
         'Math::PlanePath'           => '53',
@@ -28,7 +28,6 @@ my $build = Module::Build->new(
     recommends     => {
         'Class::XSAccessor' => '0',
         'Growl::GNTP' => '0.15',
-        'Net::DBus'   => '0',
         'XML::SAX::ExpatXS' => '0',
         'Wx'          => '0.9901',
     },

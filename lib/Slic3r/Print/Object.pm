@@ -98,17 +98,32 @@ sub get_layer_range {
     
     # $min_layer is the uppermost layer having slice_z <= $min_z
     # $max_layer is the lowermost layer having slice_z >= $max_z
-    my ($min_layer, $max_layer) = (0, undef);
-    for my $i (0 .. $#{$self->layers}) {
-        if ($self->layers->[$i]->slice_z >= $min_z) {
-            $min_layer = $i - 1;
-            for my $k ($i .. $#{$self->layers}) {
-                if ($self->layers->[$k]->slice_z >= $max_z) {
-                    $max_layer = $k - 1;
-                    last;
-                }
-            }
+    my ($min_layer, $max_layer);
+
+    my ($bottom, $top) = (0, $#{$self->layers});
+    while (1) {
+        my $mid = $bottom+int(($top - $bottom)/2);
+        if ($mid == $top || $mid == $bottom) {
+            $min_layer = $mid;
             last;
+        }
+        if ($self->layers->[$mid]->slice_z >= $min_z) {
+            $top = $mid;
+        } else {
+            $bottom = $mid;
+        }
+    }
+    $top = $#{$self->layers};
+    while (1) {
+        my $mid = $bottom+int(($top - $bottom)/2);
+        if ($mid == $top || $mid == $bottom) {
+            $max_layer = $mid;
+            last;
+        }
+        if ($self->layers->[$mid]->slice_z < $max_z) {
+            $bottom = $mid;
+        } else {
+            $top = $mid;
         }
     }
     return ($min_layer, $max_layer);
@@ -683,10 +698,15 @@ sub discover_horizontal_shells {
                         # if some parts are going to collapse, let's grow them and add the extra area to the neighbor layer
                         # as well as to our original surfaces so that we support this additional area in the next shell too
                         if (@$too_narrow) {
+                            # consider the actual fill area
+                            my @fill_boundaries = $Slic3r::Config->fill_density > 0
+                                ? @neighbor_fill_surfaces
+                                : grep $_->surface_type != S_TYPE_INTERNAL, @neighbor_fill_surfaces;
+                            
                             # make sure our grown surfaces don't exceed the fill area
                             my @grown = map @$_, @{intersection_ex(
                                 [ offset([ map @$_, @$too_narrow ], +$margin) ],
-                                [ map $_->p, @neighbor_fill_surfaces ],
+                                [ map $_->p, @fill_boundaries ],
                             )};
                             $new_internal_solid = union_ex([ @grown, (map @$_, @$new_internal_solid) ]);
                             $solid = union_ex([ @grown, (map @$_, @$solid) ]);
@@ -969,10 +989,7 @@ sub generate_support_material {
             push @angles, $angles[0] + 90;
         }
         
-        my $filler = Slic3r::Fill->filler($pattern);
-        $filler->bounding_box([ Slic3r::Geometry::bounding_box([ map @$_, map @$_, @areas ]) ])
-            if $filler->can('bounding_box');
-        
+        my $filler = $self->print->fill_maker->filler($pattern);
         my $make_pattern = sub {
             my ($expolygon, $density) = @_;
             
@@ -1057,7 +1074,7 @@ sub generate_support_material {
             
             # make a solid base on bottom layer
             if ($layer_id == 0) {
-                my $filler = Slic3r::Fill->filler('rectilinear');
+                my $filler = $self->print->fill_maker->filler('rectilinear');
                 $filler->angle($Slic3r::Config->support_material_angle + 90);
                 foreach my $expolygon (@$islands) {
                     my @paths = $filler->fill_surface(

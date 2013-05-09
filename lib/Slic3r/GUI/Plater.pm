@@ -5,9 +5,9 @@ use utf8;
 
 use File::Basename qw(basename dirname);
 use List::Util qw(max sum first);
+use Math::Clipper qw(offset JT_ROUND);
 use Math::ConvexHull::MonotoneChain qw(convex_hull);
 use Slic3r::Geometry qw(X Y Z X1 Y1 X2 Y2 MIN MAX);
-use Slic3r::Geometry::Clipper qw(offset JT_ROUND);
 use threads::shared qw(shared_clone);
 use Wx qw(:bitmap :brush :button :cursor :dialog :filedialog :font :keycode :icon :id :listctrl :misc :panel :pen :sizer :toolbar :window);
 use Wx::Event qw(EVT_BUTTON EVT_COMMAND EVT_KEY_DOWN EVT_LIST_ITEM_ACTIVATED EVT_LIST_ITEM_DESELECTED EVT_LIST_ITEM_SELECTED EVT_MOUSE_EVENTS EVT_PAINT EVT_TOOL EVT_CHOICE);
@@ -525,18 +525,20 @@ sub export_gcode {
     }
     
     # get config before spawning the thread because ->config needs GetParent and it's not available there
-    my $print = $self->_init_print;
+    my $print = $self->skeinpanel->init_print;
     
     # select output file
     $self->{output_file} = $main::opt{output};
     {
         $self->{output_file} = $print->expanded_output_filepath($self->{output_file}, $self->{objects}[0]->input_file);
-        my $dlg = Wx::FileDialog->new($self, 'Save G-code file as:', dirname($self->{output_file}),
+        my $dlg = Wx::FileDialog->new($self, 'Save G-code file as:', Slic3r::GUI->output_path(dirname($self->{output_file})),
             basename($self->{output_file}), &Slic3r::GUI::SkeinPanel::FILE_WILDCARDS->{gcode}, wxFD_SAVE);
         if ($dlg->ShowModal != wxID_OK) {
             $dlg->Destroy;
             return;
         }
+        $Slic3r::GUI::Settings->{_}{last_output_path} = dirname($dlg->GetPath);
+        Slic3r::GUI->save_settings;
         $self->{output_file} = $Slic3r::GUI::SkeinPanel::last_output_file = $dlg->GetPath;
         $dlg->Destroy;
     }
@@ -578,21 +580,6 @@ sub export_gcode {
             catch_error => sub { Slic3r::GUI::catch_error($self, @_) && $self->on_export_failed },
         );
     }
-}
-
-sub _init_print {
-    my $self = shift;
-    
-    my %extra_variables = ();
-    if ($self->skeinpanel->{mode} eq 'expert') {
-        $extra_variables{"${_}_preset"} = $self->skeinpanel->{options_tabs}{$_}->current_preset->{name}
-            for qw(print filament printer);
-    }
-    
-    return Slic3r::Print->new(
-        config => $self->skeinpanel->config,
-        extra_variables => { %extra_variables },
-    );
 }
 
 sub export_gcode2 {
@@ -685,7 +672,7 @@ sub _get_export_file {
     
     my $output_file = $main::opt{output};
     {
-        $output_file = $self->_init_print->expanded_output_filepath($output_file, $self->{objects}[0]->input_file);
+        $output_file = $self->skeinpanel->init_print->expanded_output_filepath($output_file, $self->{objects}[0]->input_file);
         $output_file =~ s/\.gcode$/$suffix/i;
         my $dlg = Wx::FileDialog->new($self, "Save $format file as:", dirname($output_file),
             basename($output_file), &Slic3r::GUI::SkeinPanel::MODEL_WILDCARD, wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
