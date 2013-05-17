@@ -1028,7 +1028,7 @@ END
         tooltip => 'Automatically determine layer heights by a number of parameters and the objects topology.',
         cli     => 'adaptive-slicing!',
         type    => 'bool',
-        default => 1,
+        default => 0,
     },
 };
 
