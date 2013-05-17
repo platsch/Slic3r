@@ -6,6 +6,7 @@ use Slic3r::ExtrusionPath ':roles';
 use Slic3r::Geometry qw(Z PI scale unscale deg2rad rad2deg scaled_epsilon chained_path_points);
 use Slic3r::Geometry::Clipper qw(diff_ex intersection_ex union_ex offset collapse_ex);
 use Slic3r::Surface ':types';
+use Slic3r::AdaptiveSlicing;
 
 has 'print'             => (is => 'ro', weak_ref => 1, required => 1);
 has 'input_file'        => (is => 'rw', required => 0);
@@ -134,6 +135,10 @@ sub slice_adaptive {
 		
 	my $height = my $slice_z = 0;
 	my $print_z = ($#{$self->layers} > 0) ? unscale $self->layers->[$#{$self->layers}]->print_z : 0; 
+	my $adaptive_slicing = Slic3r::AdaptiveSlicing->new(
+		mesh => $self->meshes->[0],
+		size => $self->size->[Z],
+	);
 	
 	# prepare raft layers
 	foreach my $layer (@{ $self->layers }) {
@@ -142,17 +147,20 @@ sub slice_adaptive {
         $layer->make_slices; 
 	}
 		
-	while ($slice_z <= unscale $self->size->[Z]) {
+	while (scale $slice_z <= $self->size->[Z]) {
       	# generate next layer
-       	my $id = $#{$self->layers} + 1;
+       	my $id = $#{$self->layers} +1;
        	
        	# determine next layer height
-       	$height = 0.4; #dummy value 
+       	# get cusp height
+       	my $cusp_height = $adaptive_slicing->cusp_height(scale $slice_z, 0.1, 0.1, 0.45);
+       	$height = ($id == 0)
+	        ? $Slic3r::Config->get_value('first_layer_height')
+       		: $cusp_height;
        	
        	$print_z += $height;
 	    $slice_z += $height/2;
        	
-       	Slic3r::debugf "Layer %d: height = %s; slice_z = %s; print_z = %s\n", $id, $height, $slice_z, $print_z;
 	        
 	    push @{$self->layers}, Slic3r::Layer->new(
 	        object  => $self,
@@ -175,8 +183,7 @@ sub slice_adaptive {
 
 		$layer->make_slices;
 		
-		$slice_z += $height/2;
-       	       
+		$slice_z += $height/2;       	       
 	}
 	
 	die "Invalid input file\n" if !@{$self->layers};

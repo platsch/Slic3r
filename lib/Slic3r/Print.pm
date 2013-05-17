@@ -349,10 +349,10 @@ sub export_gcode {
     # each layer has surfaces with holes
     $status_cb->(10, "Processing triangulated mesh");
     if ($Slic3r::Config->adaptive_slicing) {
-    	$status_cb->(15, "Slice adaptive");
+    	$status_cb->(11, "Slice adaptive");
     	$_->slice_adaptive for @{$self->objects};
     }else{
-    	$status_cb->(15, "Slice regular");
+    	$status_cb->(11, "Slice static");
     	$_->slice for @{$self->objects};
     }
     

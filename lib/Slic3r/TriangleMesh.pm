@@ -410,7 +410,7 @@ sub slice_layer {
 	my $self = shift;
 	my ($print_object, $z) = @_;
 	
-	Slic3r::debugf "slice object at z = %f\n", $z;
+	Slic3r::debugf "slice object at z = %f\n", unscale $z;
 	my $facet_id = 0;
 	my @lines;
 	my @z_f;
