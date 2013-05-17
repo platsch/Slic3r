@@ -370,6 +370,9 @@ $j
     --infill-extruder   Extruder to use for infill (1+, default: 1)
     --support-material-extruder
                         Extruder to use for support material (1+, default: 1)
+              
+    Adaptive Slicing Options: [!EXPERIMENTAL!]
+     --adaptive-slicing	Use adaptive slicing algorithm to determine layer heights automatically
     
 EOF
     exit ($exit_code || 0);
