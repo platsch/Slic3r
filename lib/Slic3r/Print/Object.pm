@@ -139,6 +139,8 @@ sub slice_adaptive {
 		mesh => $self->meshes->[0],
 		size => $self->size->[Z],
 	);
+	my $min_height = 0.1;
+	my $max_height = 0.45;
 	
 	# prepare raft layers
 	foreach my $layer (@{ $self->layers }) {
@@ -147,16 +149,32 @@ sub slice_adaptive {
         $layer->make_slices; 
 	}
 		
-	while (scale $slice_z <= $self->size->[Z]) {
+	while (scale $slice_z < $self->size->[Z]) {
       	# generate next layer
        	my $id = $#{$self->layers} +1;
        	
        	# determine next layer height
        	# get cusp height
-       	my $cusp_height = $adaptive_slicing->cusp_height(scale $slice_z, 0.1, 0.1, 0.45);
+       	my $cusp_height = $adaptive_slicing->cusp_height(scale $slice_z, 0.1, $min_height, $max_height);
+       	# check for horizontal features and object size
+       	my $horizontal_dist = $adaptive_slicing->horizontal_facet_distance(scale $slice_z+$cusp_height, $min_height);
+       	if($horizontal_dist < $min_height) {
+       		Slic3r::debugf "Horizontal feature ahead, distance: %f\n", $horizontal_dist;
+       		# can we shrink the current layer a bit?
+       		if($cusp_height-($min_height-$horizontal_dist) > $min_height) {
+       			# yes we can
+       			$cusp_height = $cusp_height-($min_height-$horizontal_dist);
+       			Slic3r::debugf "Shrink layer height to %f\n", $cusp_height;
+       		}else{
+       			# no, current layer would become too thin
+       			$cusp_height = $cusp_height+$horizontal_dist;
+       			Slic3r::debugf "Widen layer height to %f\n", $cusp_height;
+       		}
+       	}
+       	
        	$height = ($id == 0)
 	        ? $Slic3r::Config->get_value('first_layer_height')
-       		: $cusp_height;
+       		: $cusp_height;       		
        	
        	$print_z += $height;
 	    $slice_z += $height/2;
@@ -189,6 +207,9 @@ sub slice_adaptive {
 	die "Invalid input file\n" if !@{$self->layers};
 	# free memory
     $self->meshes(undef);
+    
+    # remove last layer(s) if empty
+    pop @{$self->layers} while ($#{$self->layers->[-1]->slices} < 0);
 		
 	#require "Slic3r/SVG.pm";
 	#Slic3r::SVG::output_polygons($self->print, "/home/florens/uni/ma/adaptive.svg", $loops);
