@@ -210,6 +210,9 @@ sub slice_adaptive {
     
     # remove last layer(s) if empty
     pop @{$self->layers} while ($#{$self->layers->[-1]->slices} < 0);
+    
+    # detect and repair slicing errors
+    $self->repair_slicing_errors();
 		
 	#require "Slic3r/SVG.pm";
 	#Slic3r::SVG::output_polygons($self->print, "/home/florens/uni/ma/adaptive.svg", $loops);
@@ -292,8 +295,14 @@ sub slice {
         $layer->make_slices;
     }
     
-    # detect slicing errors
-    my $warning_thrown = 0;
+    # detect and repair slicing errors
+    $self->repair_slicing_errors();
+}
+
+sub repair_slicing_errors {
+	my $self = shift;
+	
+	my $warning_thrown = 0;
     for my $i (0 .. $#{$self->layers}) {
         my $layer = $self->layers->[$i];
         next unless $layer->slicing_errors;
