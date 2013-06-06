@@ -1,0 +1,85 @@
+use Test::More tests => 6;
+use strict;
+use warnings;
+
+BEGIN {
+    use FindBin;
+    use lib "$FindBin::Bin/../lib";
+}
+
+use List::Util qw(first);
+use Slic3r;
+use Slic3r::Test qw(_eq);
+use Slic3r::Geometry qw(Z PI scale unscale);
+
+my $config = Slic3r::Config->new_from_defaults;
+
+my $test = sub {
+    my ($conf) = @_;
+    $conf ||= $config;
+    
+    my $print = Slic3r::Test::init_print('slopy_cube', config => $conf);
+    
+    
+    1;
+};
+
+# ok $test->(), "generate slopy cube";
+
+my $print = Slic3r::Test::init_print('slopy_cube', config => $config);
+my $adaptive_slicing = Slic3r::AdaptiveSlicing->new(
+	mesh => $print->objects->[0]->meshes->[0],
+	size => $print->objects->[0]->size->[Z],
+);
+
+# test cases:
+# - maximale cusp height durch extruderbegrenzung
+
+subtest 'max cusp_height limited by extruder capabilities' => sub {
+    plan tests => 3;
+
+	is  ($adaptive_slicing->cusp_height(scale 1, 0.2, 0.1, 0.15), 0.15, 'low');
+	is  ($adaptive_slicing->cusp_height(scale 1, 0.2, 0.1, 0.4), 0.4, 'higher');
+	is  ($adaptive_slicing->cusp_height(scale 1, 0.2, 0.1, 0.65), 0.65, 'highest');
+};
+  
+subtest 'min cusp_height limited by extruder capabilities' => sub {
+    plan tests => 3;
+
+	is  ($adaptive_slicing->cusp_height(scale 4, 0.01, 0.1, 0.15), 0.1, 'low');
+	is  ($adaptive_slicing->cusp_height(scale 4, 0.02, 0.2, 0.4), 0.2, 'higher');
+	is  ($adaptive_slicing->cusp_height(scale 4, 0.01, 0.3, 0.65), 0.3, 'highest');
+};
+
+subtest 'correct cusp_height depending on the facet normals' => sub {
+    plan tests => 3;
+
+	ok  (_eq($adaptive_slicing->cusp_height(scale 1, 0.1, 0.1, 0.5), 0.5), 'limit');
+	ok  (_eq($adaptive_slicing->cusp_height(scale 4, 0.1, 0.1, 0.5), 0.1414), '45deg facet, cusp_value: 0.1');
+	ok  (_eq($adaptive_slicing->cusp_height(scale 4, 0.15, 0.1, 0.5), 0.2121), '45deg facet, cusp_value: 0.15');
+};
+
+
+# 2.92893 ist lower slope edge
+# distance to slope must be higher than min extruder cap.
+# slopes cusp height must be greater than the distance to the slope
+ok  (_eq($adaptive_slicing->cusp_height(scale 2.798, 0.1, 0.1, 0.5), 0.1414), 'reducing cusp_height due to higher slopy facet');
+
+# slopes cusp height must be smaller than the distance to the slope
+ok  (_eq($adaptive_slicing->cusp_height(scale 2.6289, 0.15, 0.1, 0.5), 0.3), 'reducing cusp_height to z-diff');
+
+subtest 'horizontal planes' => sub {
+    plan tests => 3;
+
+	ok  (_eq($adaptive_slicing->horizontal_facet_distance(scale 1, 1.2), 1.2), 'max_height limit');
+	ok  (_eq($adaptive_slicing->horizontal_facet_distance(scale 8.5, 4), 1.5), 'normal horizontal facet');
+	ok  (_eq($adaptive_slicing->horizontal_facet_distance(scale 17, 5), 3.0), 'object maximum');
+};
+
+TODO: {
+	# - verkleinern des layers um einen weiteren unterhalb der horizontalen fläche zu ermöglichen
+	# - vergrößern des layers wenn das nicht möglich ist
+	# beides noch nicht vernünftig implementierbar, da die parameter nur testweise fest im code stehen
+}
+
+__END__

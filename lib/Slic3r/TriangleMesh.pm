@@ -422,7 +422,6 @@ sub slice_layer {
 		@z_f = (map $self->vertices->[$_][Z], @$facet);
 		
 		if(($z_f[0] == $z_f[1]) && ($z_f[0] == $z_f[2])) { # horizontal facet, ignoring
-			#printf "horizontal facet\n\n";
 			$facet_id++;
 			next;
 		}
@@ -432,6 +431,7 @@ sub slice_layer {
 		}
 		$facet_id++;
 	}
+	return @lines;
 	
 #	# find initial facet for marching
 #	foreach my $facet (@{$self->facets}) {
@@ -495,8 +495,6 @@ sub slice_layer {
 #	    }
 #	    printf "\n\n";
 #	}
-	
-	return @lines;
 }
 
 sub slice_facet {

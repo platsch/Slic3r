@@ -11,26 +11,35 @@ use List::Util qw(first);
 use Slic3r::Geometry qw(epsilon X Y Z);
 
 my %cuboids = (
-    '20mm_cube' => [20,20,20],
-    '2x20x10'   => [2, 20,10],
+    '20mm_cube'  => [20,20,20],
+    '2x20x10'    => [2, 20,10],
+    'slopy_cube' => [20,20,20],
 );
 
 sub model {
     my ($model_name) = @_;
     
+    my $model;
     my ($vertices, $facets);
     if ($cuboids{$model_name}) {
-        my ($x, $y, $z) = @{ $cuboids{$model_name} };
-        $vertices = [
-            [$x,$y,0], [$x,0,0], [0,0,0], [0,$y,0], [$x,$y,$z], [0,$y,$z], [0,0,$z], [$x,0,$z],
-        ];
-        $facets = [
-            [0,1,2], [0,2,3], [4,5,6], [4,6,7], [0,4,7], [0,7,1], [1,7,6], [1,6,2], [2,6,5], [2,5,3], [4,0,3], [4,3,5],
-        ],
+    	if($model_name eq 'slopy_cube') {
+    		# insert vertices and facets here
+    		$model = Slic3r::Model->read_from_file('slopy_cube.stl');
+    	}else{
+	        my ($x, $y, $z) = @{ $cuboids{$model_name} };
+	        $vertices = [
+	            [$x,$y,0], [$x,0,0], [0,0,0], [0,$y,0], [$x,$y,$z], [0,$y,$z], [0,0,$z], [$x,0,$z],
+	        ];
+	        $facets = [
+	            [0,1,2], [0,2,3], [4,5,6], [4,6,7], [0,4,7], [0,7,1], [1,7,6], [1,6,2], [2,6,5], [2,5,3], [4,0,3], [4,3,5],
+	        ];
+    	}
+    	if(!defined $model) {
+    		$model = Slic3r::Model->new;
+    		$model->add_object(vertices => $vertices)->add_volume(facets => $facets);
+    	}
     }
     
-    my $model = Slic3r::Model->new;
-    $model->add_object(vertices => $vertices)->add_volume(facets => $facets);
     return $model;
 }
 
@@ -42,6 +51,7 @@ sub init_print {
     $config->set('gcode_comments', 1) if $ENV{SLIC3R_TESTS_GCODE};
     
     my $print = Slic3r::Print->new(config => $config);
+    model($model_name);
     $print->add_model(model($model_name));
     $print->validate;
     

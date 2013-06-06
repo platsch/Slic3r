@@ -27,7 +27,7 @@ sub BUILD {
 		$facet_id++;
 	}
 	
-	# generate a list of facet_ids, containing maximum and minimum Z-Value of the facet ordered by minimum Z
+	# generate a list of facet_ids, containing maximum and minimum Z-Value of the facet, ordered by minimum Z
 	my @sort_facets;
 	for ($facet_id = 0; $facet_id <= $#{$self->mesh->facets}; $facet_id++) {
 		my $max_a = $self->mesh->vertices->[$self->mesh->facets->[$facet_id]->[1]]->[Z];
@@ -98,7 +98,7 @@ sub cusp_height {
 			}else{
 				Slic3r::debugf "cusp computation, height is reduced from %f", $height;
 				$height = $z_diff;
-				Slic3r::debugf "to to z-diff: %f\n", $height;
+				Slic3r::debugf "to z-diff: %f\n", $height;
 			}
 			
 			$ordered_id++;	
@@ -110,6 +110,7 @@ sub cusp_height {
 	return $height; 
 }
 
+# computes the cusp height from a given facets normal and the cusp_value
 sub _facet_cusp_height {
 	my $self = shift;
 	my ($ordered_id, $cusp_value) = @_;
