@@ -20,7 +20,7 @@ has 'polyline' => (
 
 # height is the vertical thickness of the extrusion expressed in mm
 has 'height'       => (is => 'rw');
-has 'flow_spacing' => (is => 'rw');
+has 'flow_spacing' => (is => 'rw', required => 1);
 has 'role'         => (is => 'rw', required => 1);
 
 use constant EXTR_ROLE_PERIMETER                    => 0;
@@ -109,6 +109,12 @@ sub is_fill {
     return $self->role == EXTR_ROLE_FILL
         || $self->role == EXTR_ROLE_SOLIDFILL
         || $self->role == EXTR_ROLE_TOPSOLIDFILL;
+}
+
+sub is_bridge {
+    my $self = shift;
+    return $self->role == EXTR_ROLE_BRIDGE
+        || $self->role == EXTR_ROLE_INTERNALBRIDGE;
 }
 
 sub split_at_acute_angles {
@@ -235,6 +241,7 @@ sub detect_arcs {
             my $arc = Slic3r::ExtrusionPath::Arc->new(
                 polyline    => Slic3r::Polyline->new(\@arc_points),
                 role        => $self->role,
+                flow_spacing => $self->flow_spacing,
                 orientation => $orientation,
                 center      => $arc_center,
                 radius      => $arc_center->distance_to($points[$i]),
@@ -244,6 +251,7 @@ sub detect_arcs {
             push @paths, (ref $self)->new(
                 polyline        => Slic3r::Polyline->new(@points[0..$i]),
                 role            => $self->role,
+                flow_spacing    => $self->flow_spacing,
                 height          => $self->height,
             ) if $i > 0;
             
@@ -263,6 +271,7 @@ sub detect_arcs {
     push @paths, (ref $self)->new(
         polyline        => Slic3r::Polyline->new(\@points),
         role            => $self->role,
+        flow_spacing    => $self->flow_spacing,
         height          => $self->height,
     ) if @points > 1;
     

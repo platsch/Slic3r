@@ -49,9 +49,12 @@ sub new {
             $self->{tabpanel},
             on_value_change     => sub {
                 $self->{plater}->on_config_change(@_) if $self->{plater}; # propagate config change events to the plater
-                if ($self->{mode} eq 'simple' && $init) {  # don't save while loading for the first time
-                    # save config
-                    $self->config->save("$Slic3r::GUI::datadir/simple.ini");
+                if ($init) {  # don't save while loading for the first time
+                    if ($self->{mode} eq 'simple') {
+                        # save config
+                        $self->config->save("$Slic3r::GUI::datadir/simple.ini");
+                    }
+                    $self->config->save($Slic3r::GUI::autosave) if $Slic3r::GUI::autosave;
                 }
             },
             on_presets_changed  => sub {
@@ -73,7 +76,7 @@ sub new {
     return $self;
 }
 
-sub do_slice {
+sub quick_slice {
     my $self = shift;
     my %params = @_;
     
@@ -331,7 +334,7 @@ sub config {
     
     # retrieve filament presets and build a single config object for them
     my $filament_config;
-    if ($self->{plater}->filament_presets == 1 || $self->{mode} eq 'simple') {
+    if (!$self->{plater} || $self->{plater}->filament_presets == 1 || $self->{mode} eq 'simple') {
         $filament_config = $self->{options_tabs}{filament}->config;
     } else {
         # TODO: handle dirty presets.

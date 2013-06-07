@@ -9,6 +9,7 @@ use List::Util qw(first);
 our @Ignore = qw(duplicate_x duplicate_y multiply_x multiply_y support_material_tool acceleration);
 
 my $serialize_comma     = sub { join ',', @{$_[0]} };
+my $serialize_comma_bool = sub { join ',', map $_ // 0, @{$_[0]} };
 my $deserialize_comma   = sub { [ split /,/, $_[0] ] };
 
 our $Options = {
@@ -586,9 +587,16 @@ our $Options = {
         type    => 'bool',
         default => 0,
     },
+    'spiral_vase' => {
+        label   => 'Spiral vase',
+        tooltip => 'This experimental feature will raise Z gradually while printing a single-walled object in order to remove any visible seam. By enabling this option other settings will be overridden to enforce a single perimeter, no infill, no top solid layers, no support material. You can still set any number of bottom solid layers as well as skirt/brim loops. It won\'t work when printing more than an object.',
+        cli     => 'spiral-vase!',
+        type    => 'bool',
+        default => 0,
+    },
     'only_retract_when_crossing_perimeters' => {
         label   => 'Only retract when crossing perimeters',
-        tooltip => 'Disables retraction when travelling between infill paths inside the same island.',
+        tooltip => 'Disables retraction when the travel path does not exceed the upper layer\'s perimeters (and thus any ooze will be probably invisible).',
         cli     => 'only-retract-when-crossing-perimeters!',
         type    => 'bool',
         default => 1,
@@ -790,7 +798,7 @@ END
         tooltip => 'This flag enforces a retraction whenever a Z move is done.',
         cli     => 'retract-layer-change!',
         type    => 'bool',
-        serialize   => $serialize_comma,
+        serialize   => $serialize_comma_bool,
         deserialize => $deserialize_comma,
         default => [1],
     },
@@ -799,7 +807,7 @@ END
         tooltip => 'This flag will move the nozzle while retracting to minimize the possible blob on leaky extruders.',
         cli     => 'wipe!',
         type    => 'bool',
-        serialize   => $serialize_comma,
+        serialize   => $serialize_comma_bool,
         deserialize => $deserialize_comma,
         default => [0],
     },
@@ -826,8 +834,8 @@ END
     
     # cooling options
     'cooling' => {
-        label   => 'Enable cooling',
-        tooltip => 'This flag enables all the cooling features.',
+        label   => 'Enable auto cooling',
+        tooltip => 'This flag enables the automatic cooling logic that adjusts print speed and fan speed according to layer printing time.',
         cli     => 'cooling!',
         type    => 'bool',
         default => 1,
@@ -1330,6 +1338,10 @@ sub validate {
         if $self->extruder_clearance_radius <= 0;
     die "Invalid value for --extruder-clearance-height\n"
         if $self->extruder_clearance_height <= 0;
+    
+    # --extrusion-multiplier
+    die "Invalid value for --extrusion-multiplier\n"
+        if defined first { $_ <= 0 } @{$self->extrusion_multiplier};
 }
 
 sub replace_options {

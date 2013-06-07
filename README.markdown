@@ -93,6 +93,7 @@ The author of the Silk icon set is Mark James.
       GUI options:
         --no-plater         Disable the plater tab
         --gui-mode          Overrides the configured mode (simple/expert)
+        --autosave <file>   Automatically export current configuration to the specified file
     
       Output options:
         --output-filename-format
@@ -198,6 +199,8 @@ The author of the Silk icon set is Mark James.
         --randomize-start   Randomize starting point across layers (default: yes)
         --avoid-crossing-perimeters Optimize travel moves so that no perimeters are crossed (default: no)
         --external-perimeters-first Reverse perimeter order. (default: no)
+        --spiral-vase       Experimental option to raise Z gradually when printing single-walled vases
+                            (default: no)
         --only-retract-when-crossing-perimeters
                             Disable retraction when travelling between infill paths inside the same island.
                             (default: yes)

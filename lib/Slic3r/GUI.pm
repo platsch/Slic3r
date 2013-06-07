@@ -14,6 +14,8 @@ use Slic3r::GUI::SkeinPanel;
 use Slic3r::GUI::SimpleTab;
 use Slic3r::GUI::Tab;
 
+our $have_OpenGL = 0 && eval "use Slic3r::GUI::PreviewCanvas; 1";
+
 use Wx 0.9901 qw(:bitmap :dialog :frame :icon :id :misc :systemsettings :toplevelwindow);
 use Wx::Event qw(EVT_CLOSE EVT_MENU);
 use base 'Wx::App';
@@ -43,6 +45,7 @@ use constant MI_DOCUMENTATION => &Wx::NewId;
 our $datadir;
 our $no_plater;
 our $mode;
+our $autosave;
 
 our $Settings = {
     _ => {
@@ -116,20 +119,21 @@ sub OnInit {
         $fileMenu->Append(wxID_EXIT, "&Quit", 'Quit Slic3r');
         EVT_MENU($frame, MI_LOAD_CONF, sub { $self->{skeinpanel}->load_config_file });
         EVT_MENU($frame, MI_EXPORT_CONF, sub { $self->{skeinpanel}->export_config });
-        EVT_MENU($frame, MI_QUICK_SLICE, sub { $self->{skeinpanel}->do_slice;
+        EVT_MENU($frame, MI_QUICK_SLICE, sub { $self->{skeinpanel}->quick_slice;
                                                $repeat->Enable(defined $Slic3r::GUI::SkeinPanel::last_input_file) });
-        EVT_MENU($frame, MI_REPEAT_QUICK, sub { $self->{skeinpanel}->do_slice(reslice => 1) });
-        EVT_MENU($frame, MI_QUICK_SAVE_AS, sub { $self->{skeinpanel}->do_slice(save_as => 1);
+        EVT_MENU($frame, MI_REPEAT_QUICK, sub { $self->{skeinpanel}->quick_slice(reslice => 1) });
+        EVT_MENU($frame, MI_QUICK_SAVE_AS, sub { $self->{skeinpanel}->quick_slice(save_as => 1);
                                                  $repeat->Enable(defined $Slic3r::GUI::SkeinPanel::last_input_file) });
-        EVT_MENU($frame, MI_SLICE_SVG, sub { $self->{skeinpanel}->do_slice(save_as => 1, export_svg => 1) });
+        EVT_MENU($frame, MI_SLICE_SVG, sub { $self->{skeinpanel}->quick_slice(save_as => 1, export_svg => 1) });
         EVT_MENU($frame, MI_COMBINE_STLS, sub { $self->{skeinpanel}->combine_stls });
         EVT_MENU($frame, wxID_PREFERENCES, sub { Slic3r::GUI::Preferences->new($frame)->ShowModal });
         EVT_MENU($frame, wxID_EXIT, sub {$_[0]->Close(0)});
     }
     
     # Plater menu
-    my $platerMenu = Wx::Menu->new;
-    {
+    my $platerMenu;
+    unless ($no_plater) {
+        $platerMenu = Wx::Menu->new;
         $platerMenu->Append(MI_PLATER_EXPORT_GCODE, "Export G-code...", 'Export current plate as G-code');
         $platerMenu->Append(MI_PLATER_EXPORT_STL, "Export STL...", 'Export current plate as STL');
         $platerMenu->Append(MI_PLATER_EXPORT_AMF, "Export AMF...", 'Export current plate as AMF');
@@ -141,14 +145,15 @@ sub OnInit {
     # Window menu
     my $windowMenu = Wx::Menu->new;
     {
-        $windowMenu->Append(MI_TAB_PLATER, "Select &Plater Tab\tCtrl+1", 'Show the plater');
+        my $tab_count = $no_plater ? 3 : 4;
+        $windowMenu->Append(MI_TAB_PLATER, "Select &Plater Tab\tCtrl+1", 'Show the plater') unless $no_plater;
         $windowMenu->Append(MI_TAB_PRINT, "Select P&rint Settings Tab\tCtrl+2", 'Show the print settings');
         $windowMenu->Append(MI_TAB_FILAMENT, "Select &Filament Settings Tab\tCtrl+3", 'Show the filament settings');
         $windowMenu->Append(MI_TAB_PRINTER, "Select Print&er Settings Tab\tCtrl+4", 'Show the printer settings');
-        EVT_MENU($frame, MI_TAB_PLATER, sub { $self->{skeinpanel}->select_tab(0) });
-        EVT_MENU($frame, MI_TAB_PRINT, sub { $self->{skeinpanel}->select_tab(1) });
-        EVT_MENU($frame, MI_TAB_FILAMENT, sub { $self->{skeinpanel}->select_tab(2) });
-        EVT_MENU($frame, MI_TAB_PRINTER, sub { $self->{skeinpanel}->select_tab(3) });
+        EVT_MENU($frame, MI_TAB_PLATER, sub { $self->{skeinpanel}->select_tab(0) }) unless $no_plater;
+        EVT_MENU($frame, MI_TAB_PRINT, sub { $self->{skeinpanel}->select_tab($tab_count-3) });
+        EVT_MENU($frame, MI_TAB_FILAMENT, sub { $self->{skeinpanel}->select_tab($tab_count-2) });
+        EVT_MENU($frame, MI_TAB_PRINTER, sub { $self->{skeinpanel}->select_tab($tab_count-1) });
     }
     
     # Help menu
@@ -175,7 +180,7 @@ sub OnInit {
     {
         my $menubar = Wx::MenuBar->new;
         $menubar->Append($fileMenu, "&File");
-        $menubar->Append($platerMenu, "&Plater");
+        $menubar->Append($platerMenu, "&Plater") if $platerMenu;
         $menubar->Append($windowMenu, "&Window");
         $menubar->Append($helpMenu, "&Help");
         $frame->SetMenuBar($menubar);
@@ -284,6 +289,7 @@ sub check_version {
     my %p = @_;
     Slic3r::debugf "Checking for updates...\n";
     
+    @_ = ();
     threads->create(sub {
         my $ua = LWP::UserAgent->new;
         $ua->timeout(10);

@@ -96,8 +96,7 @@ sub _build_width {
 
 sub _build_spacing {
     my $self = shift;
-    my $width = $self->width;
-    return $width + &Slic3r::OVERLAP_FACTOR * ($width * PI / 4 - $width);
+    return $self->width + 0.05;
 }
 
 1;

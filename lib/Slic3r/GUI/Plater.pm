@@ -476,7 +476,7 @@ sub split_object {
     my $model_object = $current_object->get_model_object;
     
     if (@{$model_object->volumes} > 1) {
-        Slic3r::GUI::warning_catcher($self)->("The selected object couldn't be splitted because it contains more than one volume/material.");
+        Slic3r::GUI::warning_catcher($self)->("The selected object couldn't be split because it contains more than one volume/material.");
         return;
     }
     
@@ -485,7 +485,7 @@ sub split_object {
     
     my @new_meshes = $mesh->split_mesh;
     if (@new_meshes == 1) {
-        Slic3r::GUI::warning_catcher($self)->("The selected object couldn't be splitted because it already contains a single part.");
+        Slic3r::GUI::warning_catcher($self)->("The selected object couldn't be split because it already contains a single part.");
         return;
     }
     
@@ -544,7 +544,13 @@ sub export_gcode {
     }
     
     $self->statusbar->StartBusy;
+    
+    # It looks like declaring a local $SIG{__WARN__} prevents the ugly
+    # "Attempt to free unreferenced scalar" warning...
+    local $SIG{__WARN__} = Slic3r::GUI::warning_catcher($self);
+    
     if ($Slic3r::have_threads) {
+        @_ = ();
         $self->{export_thread} = threads->create(sub {
             $self->export_gcode2(
                 $print,
@@ -692,6 +698,12 @@ sub make_model {
     my $model = Slic3r::Model->new;
     foreach my $plater_object (@{$self->{objects}}) {
         my $model_object = $plater_object->get_model_object;
+        
+        # if we need to alter the mesh, clone it first
+        if ($plater_object->scale != 1) {
+            $model_object = $model_object->clone;
+        }
+        
         my $new_model_object = $model->add_object(
             vertices    => $model_object->vertices,
             input_file  => $plater_object->input_file,
@@ -705,12 +717,14 @@ sub make_model {
             $model->set_material($volume->material_id || 0, {});
         }
         $new_model_object->scale($plater_object->scale);
+        $new_model_object->align_to_origin;
         $new_model_object->add_instance(
-            rotation    => $plater_object->rotate,
-            offset      => [ @$_ ],
+            rotation    => $plater_object->rotate,  # around center point
+            offset      => Slic3r::Point->new($_),
         ) for @{$plater_object->instances};
     }
     
+    $model->align_to_origin;
     return $model;
 }
 
@@ -732,6 +746,7 @@ sub make_thumbnail {
         }
     };
     
+    @_ = ();
     $Slic3r::have_threads ? threads->create($cb)->detach : $cb->();
 }
 
@@ -868,7 +883,7 @@ sub repaint {
             # if sequential printing is enabled and we have more than one object
             if ($parent->{config}->complete_objects && (map @{$_->instances}, @{$parent->{objects}}) > 1) {
             	my $convex_hull = Slic3r::Polygon->new(convex_hull([ map @{$_->contour}, @{$parent->{object_previews}->[-1][2]->expolygons} ]));
-                my ($clearance) = offset([$convex_hull], $parent->{config}->extruder_clearance_radius / 2 * $parent->{scaling_factor}, 1, JT_ROUND);
+                my ($clearance) = @{offset([$convex_hull], $parent->{config}->extruder_clearance_radius / 2 * $parent->{scaling_factor}, 100, JT_ROUND)};
                 $dc->SetPen($parent->{clearance_pen});
                 $dc->SetBrush($parent->{transparent_brush});
                 $dc->DrawPolygon($parent->_y($clearance), 0, 0);
@@ -879,7 +894,7 @@ sub repaint {
     # draw skirt
     if (@{$parent->{object_previews}} && $parent->{config}->skirts) {
         my $convex_hull = Slic3r::Polygon->new(convex_hull([ map @{$_->contour}, map @{$_->[2]->expolygons}, @{$parent->{object_previews}} ]));
-        ($convex_hull) = offset([$convex_hull], $parent->{config}->skirt_distance * $parent->{scaling_factor}, 1, JT_ROUND);
+        ($convex_hull) = @{offset([$convex_hull], $parent->{config}->skirt_distance * $parent->{scaling_factor}, 100, JT_ROUND)};
         $dc->SetPen($parent->{skirt_pen});
         $dc->SetBrush($parent->{transparent_brush});
         $dc->DrawPolygon($parent->_y($convex_hull), 0, 0) if $convex_hull;
@@ -1091,7 +1106,7 @@ sub free_model_object {
     my $self = shift;
     
     # only delete mesh from memory if we can retrieve it from the original file
-    return unless $self->input_file && $self->input_file_object_id;
+    return unless $self->input_file && defined $self->input_file_object_id;
     $self->model_object(undef);
 }
 
@@ -1114,7 +1129,6 @@ sub instances_count {
 sub make_thumbnail {
     my $self = shift;
     
-    my @points = map [ @$_[X,Y] ], @{$self->model_object->mesh->vertices};
     my $mesh = $self->model_object->mesh;
     my $thumbnail = Slic3r::ExPolygon::Collection->new(
     	expolygons => (@{$mesh->facets} <= 5000)

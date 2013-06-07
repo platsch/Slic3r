@@ -35,8 +35,10 @@ sub model {
 	        ];
     	}
     	if(!defined $model) {
-    		$model = Slic3r::Model->new;
-    		$model->add_object(vertices => $vertices)->add_volume(facets => $facets);
+			$model = Slic3r::Model->new;
+			my $object = $model->add_object(vertices => $vertices);
+			$object->add_volume(facets => $facets);
+			$object->add_instance(offset => [0,0]);
     	}
     }
     
@@ -51,8 +53,9 @@ sub init_print {
     $config->set('gcode_comments', 1) if $ENV{SLIC3R_TESTS_GCODE};
     
     my $print = Slic3r::Print->new(config => $config);
-    model($model_name);
-    $print->add_model(model($model_name));
+    
+    $model_name = [$model_name] if ref($model_name) ne 'ARRAY';
+    $print->add_model(model($_)) for @$model_name;
     $print->validate;
     
     return $print;
@@ -84,71 +87,6 @@ sub add_facet {
             $v = $#$vertices;
         }
         $facets->[-1][$i] = $v;
-    }
-}
-
-package Slic3r::Test::GCodeReader;
-use Moo;
-
-has 'gcode' => (is => 'ro', required => 1);
-has 'X' => (is => 'rw', default => sub {0});
-has 'Y' => (is => 'rw', default => sub {0});
-has 'Z' => (is => 'rw', default => sub {0});
-has 'E' => (is => 'rw', default => sub {0});
-has 'F' => (is => 'rw', default => sub {0});
-
-our $Verbose = 0;
-my @AXES = qw(X Y Z E);
-
-sub parse {
-    my $self = shift;
-    my ($cb) = @_;
-    
-    foreach my $line (split /\R+/, $self->gcode) {
-        print "$line\n" if $Verbose || $ENV{SLIC3R_TESTS_GCODE};
-        $line =~ s/\s*;(.*)//; # strip comment
-        next if $line eq '';
-        my $comment = $1;
-        
-        # parse command
-        my ($command, @args) = split /\s+/, $line;
-        my %args = map { /([A-Z])(.*)/; ($1 => $2) } @args;
-        my %info = ();
-        
-        # check retraction
-        if ($command =~ /^G[01]$/) {
-            foreach my $axis (@AXES) {
-                if (exists $args{$axis}) {
-                    $info{"dist_$axis"} = $args{$axis} - $self->$axis;
-                    $info{"new_$axis"}  = $args{$axis};
-                } else {
-                    $info{"dist_$axis"} = 0;
-                    $info{"new_$axis"}  = $self->$axis;
-                }
-            }
-            $info{dist_XY} = Slic3r::Line->new([0,0], [@info{qw(dist_X dist_Y)}])->length;
-            if (exists $args{E}) {
-                if ($info{dist_E} > 0) {
-                    $info{extruding} = 1;
-                } elsif ($info{dist_E} < 0) {
-                    $info{retracting} = 1
-                }
-            } else {
-                $info{travel} = 1;
-            }
-        }
-        
-        # run callback
-        $cb->($self, $command, \%args, \%info);
-        
-        # update coordinates
-        if ($command =~ /^(?:G[01]|G92)$/) {
-            for (@AXES, 'F') {
-                $self->$_($args{$_}) if exists $args{$_};
-            }
-        }
-        
-        # TODO: update temperatures
     }
 }
 
