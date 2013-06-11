@@ -32,8 +32,6 @@ my $adaptive_slicing = Slic3r::AdaptiveSlicing->new(
 	size => $print->objects->[0]->size->[Z],
 );
 
-# test cases:
-# - maximale cusp height durch extruderbegrenzung
 
 subtest 'max cusp_height limited by extruder capabilities' => sub {
     plan tests => 3;
