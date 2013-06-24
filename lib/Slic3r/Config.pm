@@ -143,6 +143,26 @@ our $Options = {
         deserialize => $deserialize_comma,
         default => [0.5],
     },
+    'min_layer_height' => {
+        label   => 'min',
+        tooltip => 'This is the lowest printable layer height for this extruder and limits the resolution for adaptive slicing. Typical values are 0.1 or 0.05.',
+        cli     => 'min-layer-height=f@',
+        type    => 'f',
+        sidetext => 'mm',
+        serialize   => $serialize_comma,
+        deserialize => $deserialize_comma,
+        default => [0.1],
+    },
+    'max_layer_height' => {
+        label   => 'max',
+        tooltip => 'This is the highest printable layer height for this extruder and limits the resolution for adaptive slicing. Typical values are slightly smaller than nozzle_diameter.',
+        cli     => 'min-layer-height=f@',
+        type    => 'f',
+        sidetext => 'mm',
+        serialize   => $serialize_comma,
+        deserialize => $deserialize_comma,
+        default => [0.45],
+    },
     'filament_diameter' => {
         label   => 'Diameter',
         tooltip => 'Enter your filament diameter here. Good precision is required, so use a caliper and do multiple measurements along the filament, then compute the average.',
@@ -1032,11 +1052,19 @@ END
     
     # adaptive slicing options
     'adaptive_slicing' => {
-        label   => 'Adaptive Slicing',
+        label   => 'Use adaptive slicing',
         tooltip => 'Automatically determine layer heights by a number of parameters and the objects topology.',
         cli     => 'adaptive-slicing!',
         type    => 'bool',
         default => 0,
+    },
+    'cusp_value' => {
+        label   => 'Cusp value',
+        tooltip => 'Erklärung!',
+        sidetext => 'mm',
+        cli     => 'cusp-value=f',
+        type    => 'f',
+        default => 0.2,
     },
 };
 

@@ -428,6 +428,13 @@ sub build {
         },
     ]);
     
+    $self->add_options_page('Adaptive slicing', 'shape_align_bottom.png', optgroups => [
+        {
+            title => 'Adaptive slicing',
+            options => [qw(adaptive_slicing cusp_value)],
+        },
+    ]);
+    
     $self->add_options_page('Speed', 'time.png', optgroups => [
         {
             title => 'Speed for print moves',
@@ -723,6 +730,17 @@ sub _build_extruder_pages {
             {
                 title => 'Size',
                 options => ['nozzle_diameter#' . $extruder_idx],
+                
+            },
+            {
+            	title => 'Limits',
+                options => ['min_layer_height#' . $extruder_idx, 'max_layer_height#' . $extruder_idx],
+            	lines => [
+	                {
+	                    label   => 'Layer height limits',
+	                    options => ['min_layer_height#' . $extruder_idx, 'max_layer_height#' . $extruder_idx],
+	                },
+	             ],
             },
             {
                 title => 'Position (for multi-extruder printers)',
