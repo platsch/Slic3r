@@ -1,7 +1,7 @@
 package Slic3r::Print::Object;
 use Moo;
 
-use List::Util qw(min sum first);
+use List::Util qw(min max sum first);
 use Slic3r::ExtrusionPath ':roles';
 use Slic3r::Geometry qw(Z PI scale unscale deg2rad rad2deg scaled_epsilon chained_path_points);
 use Slic3r::Geometry::Clipper qw(diff_ex intersection_ex union_ex offset collapse_ex
@@ -147,15 +147,32 @@ sub bounding_box {
 
 sub slice_adaptive {
 	my $self = shift;
+	
+	my $cusp_value = $Slic3r::Config->get_value('cusp_value');
 		
 	my $height = my $slice_z = 0;
 	my $print_z = ($#{$self->layers} > 0) ? unscale $self->layers->[$#{$self->layers}]->print_z : 0; 
-	my $adaptive_slicing = Slic3r::AdaptiveSlicing->new(
-		mesh => $self->meshes->[0],
-		size => $self->size->[Z],
-	);
-	my $min_height = 0.1;
-	my $max_height = 0.45;
+	my @adaptive_slicing;
+	for my $region_id (0 .. $#{$self->meshes}) {		
+		$adaptive_slicing[$region_id] = Slic3r::AdaptiveSlicing->new(
+			mesh => $self->meshes->[$region_id],
+			size => $self->size->[Z],
+		);
+	}
+	
+	# determine min and max layer height from perimeter extruder capabilities. Prepared for more sophisticated 
+	# algorithm for multi-extruder environments.
+	my $min_height;
+	my $max_height;
+	# multimaterial object
+	if($#{$self->meshes} > 0) {
+		$min_height = max(map {$Slic3r::Config->get('min_layer_height')->[$_]} (0..$#{$self->meshes}));
+		$max_height = min(map {$Slic3r::Config->get('max_layer_height')->[$_]} (0..$#{$self->meshes}));
+	}else{ #single material object
+		my $perimeter_extruder = $Slic3r::Config->get_value('perimeter_extruder')-1;
+		$min_height = $Slic3r::Config->get('min_layer_height')->[$perimeter_extruder];
+		$max_height = $Slic3r::Config->get('max_layer_height')->[$perimeter_extruder];
+	}
 	
 	# prepare raft layers
 	foreach my $layer (@{ $self->layers }) {
@@ -169,27 +186,29 @@ sub slice_adaptive {
        	my $id = $#{$self->layers} +1;
        	
        	# determine next layer height
-       	# get cusp height
-       	my $cusp_height = $adaptive_slicing->cusp_height(scale $slice_z, 0.1, $min_height, $max_height);
-       	# check for horizontal features and object size
-       	my $horizontal_dist = $adaptive_slicing->horizontal_facet_distance(scale $slice_z+$cusp_height, $min_height);
-       	if($horizontal_dist < $min_height) {
-       		Slic3r::debugf "Horizontal feature ahead, distance: %f\n", $horizontal_dist;
-       		# can we shrink the current layer a bit?
-       		if($cusp_height-($min_height-$horizontal_dist) > $min_height) {
-       			# yes we can
-       			$cusp_height = $cusp_height-($min_height-$horizontal_dist);
-       			Slic3r::debugf "Shrink layer height to %f\n", $cusp_height;
-       		}else{
-       			# no, current layer would become too thin
-       			$cusp_height = $cusp_height+$horizontal_dist;
-       			Slic3r::debugf "Widen layer height to %f\n", $cusp_height;
-       		}
-       	}
-       	
-       	$height = ($id == 0)
+       	$height = 999;
+       	for my $region_id (0 .. $#{$self->meshes}) {
+	       	# get cusp height
+	       	my $cusp_height = $adaptive_slicing[$region_id]->cusp_height(scale $slice_z, $cusp_value, $min_height, $max_height);
+	       	# check for horizontal features and object size
+	       	my $horizontal_dist = $adaptive_slicing[$region_id]->horizontal_facet_distance(scale $slice_z+$cusp_height, $min_height);
+	       	if($horizontal_dist < $min_height) {
+	       		Slic3r::debugf "Horizontal feature ahead, distance: %f\n", $horizontal_dist;
+	       		# can we shrink the current layer a bit?
+	       		if($cusp_height-($min_height-$horizontal_dist) > $min_height) {
+	       			# yes we can
+	       			$cusp_height = $cusp_height-($min_height-$horizontal_dist);
+	       			Slic3r::debugf "Shrink layer height to %f\n", $cusp_height;
+	       		}else{
+	       			# no, current layer would become too thin
+	       			$cusp_height = $cusp_height+$horizontal_dist;
+	       			Slic3r::debugf "Widen layer height to %f\n", $cusp_height;
+	       		}
+	       	}
+	       	$height = ($id == 0)
 	        ? $Slic3r::Config->get_value('first_layer_height')
-       		: $cusp_height;       		
+       		: min($cusp_height, $height);
+       	}
        	
        	$print_z += $height;
 	    $slice_z += $height/2;
