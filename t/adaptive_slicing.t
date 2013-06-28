@@ -1,4 +1,4 @@
-use Test::More tests => 6;
+use Test::More tests => 8;
 use strict;
 use warnings;
 
@@ -20,11 +20,28 @@ my $test = sub {
     
     my $print = Slic3r::Test::init_print('slopy_cube', config => $conf);
     
+    my @z = ();
+    my @increments = ();
+    Slic3r::GCode::Reader->new(gcode => Slic3r::Test::gcode($print))->parse(sub {
+        my ($self, $cmd, $args, $info) = @_;
+        
+        if ($info->{dist_Z}) {
+            push @z, 1*$args->{Z};
+            push @increments, $info->{dist_Z};
+        }
+    });
+    
+    ok  (_eq($z[0], $config->get_value('first_layer_height') + $config->z_offset), 'first layer height.');
+    
+    ok  (_eq($z[1], $config->get_value('first_layer_height') + $config->get('max_layer_height')->[0] + $config->z_offset), 'second layer height.');
+        
+    cmp_ok((first { _eq($_, 10.0) } @z[1..$#z]), '>', 0, 'horizontal facet matched');
     
     1;
 };
 
-# ok $test->(), "generate slopy cube";
+
+
 
 my $print = Slic3r::Test::init_print('slopy_cube', config => $config);
 my $adaptive_slicing = Slic3r::AdaptiveSlicing->new(
@@ -74,10 +91,29 @@ subtest 'horizontal planes' => sub {
 	ok  (_eq($adaptive_slicing->horizontal_facet_distance(scale 17, 5), 3.0), 'object maximum');
 };
 
-TODO: {
-	# - verkleinern des layers um einen weiteren unterhalb der horizontalen fläche zu ermöglichen
-	# - vergrößern des layers wenn das nicht möglich ist
-	# beides noch nicht vernünftig implementierbar, da die parameter nur testweise fest im code stehen
-}
+# shrink current layer to fit another layer under horizontal facet
+$config->set('start_gcode', '');  # to avoid dealing with the nozzle lift in start G-code
+$config->set('z_offset', 0);
+
+$config->set('adaptive_slicing', 1);
+$config->set('first_layer_height', 0.42893); # to catch lower slope edge
+$config->set('nozzle_diameter', [0.5]);
+$config->set('min_layer_height', [0.1]);
+$config->set('max_layer_height', [0.5]);
+$config->set('cusp_value', [0.19]);
+# slope height: 7,07107 (2.92893 to 10)
+
+subtest 'shrink to match horizontal facets' => sub {
+	plan tests => 3;
+	$test->();
+};
+	
+# widen current layer to match horizontal facet
+$config->set('cusp_value', [0.1]);
+
+subtest 'widen to match horizontal facets' => sub {
+	plan tests => 3;
+	$test->();
+};
 
 __END__
