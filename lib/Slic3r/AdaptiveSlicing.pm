@@ -86,26 +86,33 @@ sub cusp_height {
 			
 			# Compute cusp-height for this facet and check against height.
 			# Cusp height is computed for the lower surface of the this slice only, changes in geometry
-			# straight above this plane are not taken into account up to this point.
+			# directly above this plane are not taken into account up to this point.
 			my $cusp = $self->_facet_cusp_height($ordered_id, $cusp_value);
-			my $z_diff = unscale ($self->ordered_facets->[$ordered_id]->[1] - $z); 
-			if( $cusp > $z_diff) {
-				if($cusp < $height) {
-					Slic3r::debugf "cusp computation, height is reduced from %f", $height;
-					$height = $cusp;
-					Slic3r::debugf "to %f due to new cusp height\n", $height;
-				}
-			}else{
+			my $z_diff = unscale ($self->ordered_facets->[$ordered_id]->[1] - $z);
+			# handle horizontal facets
+			if ($self->normal->[$self->ordered_facets->[$ordered_id]->[0]]->[Z] > 0.999) {
 				Slic3r::debugf "cusp computation, height is reduced from %f", $height;
 				$height = $z_diff;
-				Slic3r::debugf "to z-diff: %f\n", $height;
+				Slic3r::debugf "to %f due to near horizontal facet\n", $height;
+			}else{
+				if( $cusp > $z_diff) {
+					if($cusp < $height) {
+						Slic3r::debugf "cusp computation, height is reduced from %f", $height;
+						$height = $cusp;
+						Slic3r::debugf "to %f due to new cusp height\n", $height;
+					}
+				}else{
+					Slic3r::debugf "cusp computation, height is reduced from %f", $height;
+					$height = $z_diff;
+					Slic3r::debugf "to z-diff: %f\n", $height;
+				}
 			}
 			
 			$ordered_id++;	
 		}
 	}
 	
-	Slic3r::debugf "cusp computation, slize at z:%f, cusp_value:%f, resulting layer height:%f\n", unscale $z, $cusp_value, $height;
+	Slic3r::debugf "cusp computation, layer-bottom at z:%f, cusp_value:%f, resulting layer height:%f\n", unscale $z, $cusp_value, $height;
 	
 	return $height; 
 }

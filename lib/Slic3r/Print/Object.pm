@@ -185,6 +185,8 @@ sub slice_adaptive {
       	# generate next layer
        	my $id = $#{$self->layers} +1;
        	
+       	Slic3r::debugf "\n Slice layer: %d\n", $id;
+       	
        	# determine next layer height
        	$height = 999;
        	for my $region_id (0 .. $#{$self->meshes}) {
