@@ -194,7 +194,7 @@ sub slice_adaptive {
 	       	my $cusp_height = $adaptive_slicing[$region_id]->cusp_height(scale $slice_z, $cusp_value, $min_height, $max_height);
 	       	# check for horizontal features and object size
 	       	my $horizontal_dist = $adaptive_slicing[$region_id]->horizontal_facet_distance(scale $slice_z+$cusp_height, $min_height);
-	       	if($horizontal_dist < $min_height) {
+	       	if(($horizontal_dist < $min_height) && ($horizontal_dist > 0)) {
 	       		Slic3r::debugf "Horizontal feature ahead, distance: %f\n", $horizontal_dist;
 	       		# can we shrink the current layer a bit?
 	       		if($cusp_height-($min_height-$horizontal_dist) > $min_height) {

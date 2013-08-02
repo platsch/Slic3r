@@ -54,7 +54,7 @@ sub cusp_height {
 	while ($ordered_id <= $#{$self->ordered_facets}) {
 		
 		# facet's minimum is higher than slice_z -> end loop
-		if($self->ordered_facets->[$ordered_id]->[1] > $z) {
+		if($self->ordered_facets->[$ordered_id]->[1] >= $z) {
 			last;
 		}
 		
@@ -66,6 +66,13 @@ sub cusp_height {
 				$self->current_facet($ordered_id);
 			} 
 			
+			#skip touching facets which could otherwise cause small cusp values
+			if($self->ordered_facets->[$ordered_id]->[2] <= $z+1)
+			{
+				$ordered_id++;
+				next;
+			}
+			
 			# compute cusp-height for this facet and store minimum of all heights
 			my $cusp = $self->_facet_cusp_height($ordered_id, $cusp_value);
 			$height = $cusp if($cusp < $height);			
@@ -75,20 +82,29 @@ sub cusp_height {
 	# lower height limit due to printer capabilities
 	$height = $min_height if($height < $min_height);
 	
+	
 	# check for sloped facets inside the determined layer and correct height if necessary
 	if($height > $min_height){
 		while ($ordered_id <= $#{$self->ordered_facets}) {
 			
 			# facet's minimum is higher than slice_z + height -> end loop
-			if($self->ordered_facets->[$ordered_id]->[1] > ($z + scale $height)) {
+			if($self->ordered_facets->[$ordered_id]->[1] >= ($z + scale $height)) {
 				last;
 			}
 			
+			#skip touching facets which could otherwise cause small cusp values
+			if($self->ordered_facets->[$ordered_id]->[2] <= $z+1)
+			{
+				$ordered_id++;
+				next;
+			}
+			
 			# Compute cusp-height for this facet and check against height.
-			# Cusp height is computed for the lower surface of the this slice only, changes in geometry
-			# directly above this plane are not taken into account up to this point.
 			my $cusp = $self->_facet_cusp_height($ordered_id, $cusp_value);
+			
 			my $z_diff = unscale ($self->ordered_facets->[$ordered_id]->[1] - $z);
+
+
 			# handle horizontal facets
 			if ($self->normal->[$self->ordered_facets->[$ordered_id]->[0]]->[Z] > 0.999) {
 				Slic3r::debugf "cusp computation, height is reduced from %f", $height;
@@ -110,6 +126,8 @@ sub cusp_height {
 			
 			$ordered_id++;	
 		}
+		# lower height limit due to printer capabilities again
+		$height = $min_height if($height < $min_height);
 	}
 	
 	Slic3r::debugf "cusp computation, layer-bottom at z:%f, cusp_value:%f, resulting layer height:%f\n", unscale $z, $cusp_value, $height;
