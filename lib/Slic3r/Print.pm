@@ -103,9 +103,13 @@ sub add_model {
     # optimization: if avoid_crossing_perimeters is enabled, split
     # this mesh into distinct objects so that we reduce the complexity
     # of the graphs 
-    $model->split_meshes if $Slic3r::Config->avoid_crossing_perimeters && !$Slic3r::Config->complete_objects;
+    # -- Disabling this one because there are too many legit objects having nested shells
+    ###$model->split_meshes if $Slic3r::Config->avoid_crossing_perimeters && !$Slic3r::Config->complete_objects;
     
     foreach my $object (@{ $model->objects }) {
+        # we align object to origin before applying transformations
+        my @align = $object->align_to_origin;
+        
         # extract meshes by material
         my @meshes = ();  # by region_id
         foreach my $volume (@{$object->volumes}) {
@@ -120,21 +124,24 @@ sub add_model {
         foreach my $mesh (grep $_, @meshes) {
             $mesh->check_manifoldness;
             
-            # we ignore the per-instance rotation currently and only 
+            # the order of these transformations must be the same as the one used in plater
+            # to make the object positioning consistent with the visual preview
+            
+            # we ignore the per-instance transformations currently and only 
             # consider the first one
-            $mesh->rotate($object->instances->[0]->rotation, $mesh->center)
-                if @{ $object->instances // [] };
+            if ($object->instances && @{$object->instances}) {
+                $mesh->rotate($object->instances->[0]->rotation, $object->center);
+                $mesh->scale($object->instances->[0]->scaling_factor);
+            }
             
             $mesh->scale(1 / &Slic3r::SCALING_FACTOR);
         }
         
-        # align the object to origin; not sure this is required by the toolpath generation
-        # algorithms, but it's good practice to avoid negative coordinates; it probably 
-        # provides also some better performance in infill generation
-        my @extents = Slic3r::Geometry::bounding_box_3D([ map @{$_->used_vertices}, grep $_, @meshes ]);
-        foreach my $mesh (grep $_, @meshes) {
-            $mesh->move(map -$extents[$_][MIN], X,Y,Z);
-        }
+        # we also align object after transformations so that we only work with positive coordinates
+        # and the assumption that bounding_box === size works
+        my $bb = Slic3r::Geometry::BoundingBox->new_from_points_3D([ map @{$_->used_vertices}, grep $_, @meshes ]);
+        my @align2 = map -$bb->extents->[$_][MIN], (X,Y,Z);
+        $_->move(@align2) for grep $_, @meshes;
         
         # initialize print object
         push @{$self->objects}, Slic3r::Print::Object->new(
@@ -142,10 +149,10 @@ sub add_model {
             meshes      => [ @meshes ],
             copies      => [
                 $object->instances
-                    ? (map [ (scale $_->offset->[X]) + $extents[X][MIN], (scale $_->offset->[Y]) + $extents[Y][MIN] ], @{$object->instances})
+                    ? (map [ scale($_->offset->[X] - $align[X]) - $align2[X], scale($_->offset->[Y] - $align[Y]) - $align2[Y] ], @{$object->instances})
                     : [0,0],
             ],
-            size        => [ map $extents[$_][MAX] - $extents[$_][MIN], (X,Y,Z) ],
+            size        => $bb->size,  # transformed size
             input_file  => $object->input_file,
             layer_height_ranges => $object->layer_height_ranges,
         );
@@ -285,19 +292,15 @@ sub bounding_box {
         foreach my $copy (@{$object->copies}) {
             push @points,
                 [ $copy->[X], $copy->[Y] ],
-                [ $copy->[X] + $object->size->[X], $copy->[Y] ],
-                [ $copy->[X] + $object->size->[X], $copy->[Y] + $object->size->[Y] ],
-                [ $copy->[X], $copy->[Y] + $object->size->[Y] ];
+                [ $copy->[X] + $object->size->[X], $copy->[Y] + $object->size->[Y] ];
         }
     }
-    return Slic3r::Geometry::bounding_box(\@points);
+    return Slic3r::Geometry::BoundingBox->new_from_points(\@points);
 }
 
 sub size {
     my $self = shift;
-    
-    my @bb = $self->bounding_box;
-    return [ $bb[X2] - $bb[X1], $bb[Y2] - $bb[Y1] ];
+    return $self->bounding_box->size;
 }
 
 sub _simplify_slices {
@@ -720,7 +723,7 @@ sub write_gcode {
         multiple_extruders  => (@{$self->extruders} > 1),
         layer_count         => $self->layer_count,
     );
-    print $fh "G21 ; set units to millimeters\n" if $Slic3r::Config->gcode_flavor ne 'makerbot';
+    print $fh "G21 ; set units to millimeters\n" if $Slic3r::Config->gcode_flavor ne 'makerware';
     print $fh $gcodegen->set_fan(0, 1) if $Slic3r::Config->cooling && $Slic3r::Config->disable_fan_first_layers;
     
     # write start commands to file
@@ -738,7 +741,7 @@ sub write_gcode {
         printf $fh $gcodegen->set_temperature($self->extruders->[$t]->first_layer_temperature, 1, $t)
             if $self->extruders->[$t]->first_layer_temperature && $Slic3r::Config->start_gcode !~ /M(?:109|104)/i;
     }
-    print  $fh "G90 ; use absolute coordinates\n" if $Slic3r::Config->gcode_flavor ne 'makerbot';
+    print  $fh "G90 ; use absolute coordinates\n" if $Slic3r::Config->gcode_flavor ne 'makerware';
     if ($Slic3r::Config->gcode_flavor =~ /^(?:reprap|teacup)$/) {
         printf $fh $gcodegen->reset_e;
         if ($Slic3r::Config->use_relative_e_distances) {
@@ -749,10 +752,11 @@ sub write_gcode {
     }
     
     # calculate X,Y shift to center print around specified origin
-    my @print_bb = $self->bounding_box;
+    my $print_bb = $self->bounding_box;
+    my $print_size = $print_bb->size;
     my @shift = (
-        $Slic3r::Config->print_center->[X] - (unscale ($print_bb[X2] - $print_bb[X1]) / 2) - unscale $print_bb[X1],
-        $Slic3r::Config->print_center->[Y] - (unscale ($print_bb[Y2] - $print_bb[Y1]) / 2) - unscale $print_bb[Y1],
+        $Slic3r::Config->print_center->[X] - unscale($print_size->[X]/2 + $print_bb->x_min),
+        $Slic3r::Config->print_center->[Y] - unscale($print_size->[Y]/2 + $print_bb->y_min),
     );
     
     # initialize a motion planner for object-to-object travel moves

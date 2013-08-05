@@ -253,6 +253,7 @@ sub warning_catcher {
     my ($self, $message_dialog) = @_;
     return sub {
         my $message = shift;
+        return if $message =~ /GLUquadricObjPtr|Attempt to free unreferenced scalar/;
         my @params = ($message, 'Warning', wxOK | wxICON_WARNING);
         $message_dialog
             ? $message_dialog->(@params)
@@ -281,7 +282,8 @@ sub save_settings {
 sub have_version_check {
     my $class = shift;
     
-    return $Slic3r::have_threads && $Slic3r::build && eval "use LWP::UserAgent; 1";
+    # return an explicit 0
+    return ($Slic3r::have_threads && $Slic3r::build && eval "use LWP::UserAgent; 1") || 0;
 }
 
 sub check_version {

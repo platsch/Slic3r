@@ -142,7 +142,7 @@ sub bounding_box {
     my $self = shift;
     
     # since the object is aligned to origin, bounding box coincides with size
-    return Slic3r::Geometry::bounding_box([ [0,0], $self->size ]);
+    return Slic3r::Geometry::BoundingBox->new_from_points([ [0,0], $self->size ]);
 }
 
 sub slice_adaptive {
@@ -502,7 +502,6 @@ sub detect_surfaces_type {
             1,
         );
         return map Slic3r::Surface->new(expolygon => $_, surface_type => $result_type),
-            grep $_->is_printable($layerm->perimeter_flow->scaled_width),
             @$expolygons;
     };
     
@@ -716,7 +715,8 @@ sub discover_horizontal_shells {
         for (my $i = 0; $i < $self->layer_count; $i++) {
             my $layerm = $self->layers->[$i]->regions->[$region_id];
             
-            if ($Slic3r::Config->solid_infill_every_layers && ($i % $Slic3r::Config->solid_infill_every_layers) == 0) {
+            if ($Slic3r::Config->solid_infill_every_layers && $Slic3r::Config->fill_density > 0
+                && ($i % $Slic3r::Config->solid_infill_every_layers) == 0) {
                 $_->surface_type(S_TYPE_INTERNALSOLID)
                     for grep $_->surface_type == S_TYPE_INTERNAL, @{$layerm->fill_surfaces};
             }
@@ -1120,7 +1120,7 @@ sub generate_support_material {
                         $_;
                     }
                     map $_->clip_with_expolygon($expolygon),
-                    ###map $_->clip_with_polygon($expolygon->bounding_box_polygon),  # currently disabled as a workaround for Boost failing at being idempotent
+                    ###map $_->clip_with_polygon($expolygon->bounding_box->polygon),  # currently disabled as a workaround for Boost failing at being idempotent
                     ($is_interface && @$support_interface_patterns)
                         ? @{$support_interface_patterns->[ $layer_id % @$support_interface_patterns ]}
                         : @{$support_patterns->[ $layer_id % @$support_patterns ]};

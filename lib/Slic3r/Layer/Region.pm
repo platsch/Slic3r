@@ -3,9 +3,9 @@ use Moo;
 
 use List::Util qw(sum first);
 use Slic3r::ExtrusionPath ':roles';
-use Slic3r::Geometry qw(PI X1 X2 Y1 Y2 A B scale chained_path_items points_coincide);
+use Slic3r::Geometry qw(PI A B scale chained_path_items points_coincide);
 use Slic3r::Geometry::Clipper qw(safety_offset union_ex diff_ex intersection_ex 
-    offset offset2_ex PFT_EVENODD union_pt traverse_pt);
+    offset offset2_ex PFT_EVENODD union_pt traverse_pt diff intersection);
 use Slic3r::Surface ':types';
 
 has 'layer' => (
@@ -233,6 +233,11 @@ sub make_perimeters {
     my $contours_pt = union_pt(\@contours, PFT_EVENODD);
     my $holes_pt    = union_pt(\@holes, PFT_EVENODD);
     
+    # get lower layer slices for overhang check
+    my @lower_slices = $self->id == 0
+        ? ()
+        : map @$_, @{$self->layer->object->layers->[$self->id-1]->slices};
+    
     # prepare a coderef for traversing the PolyTree object
     # external contours are root items of $contours_pt
     # internal contours are the ones next to external
@@ -249,7 +254,9 @@ sub make_perimeters {
         my @loops = ();
         foreach my $polynode (@nodes) {
             push @loops, $traverse->($polynode->{children}, $depth+1, $is_contour);
-
+            
+            my $polygon = Slic3r::Polygon->new($polynode->{outer} // [ reverse @{$polynode->{hole}} ]);
+            
             my $role = EXTR_ROLE_PERIMETER;
             if ($is_contour ? $depth == 0 : !@{ $polynode->{children} }) {
                 # external perimeters are root level in case of contours
@@ -258,8 +265,18 @@ sub make_perimeters {
             } elsif ($depth == 1 && $is_contour) {
                 $role = EXTR_ROLE_CONTOUR_INTERNAL_PERIMETER;
             }
+            
+            if ($self->id > 0) {
+                # A perimeter is considered overhang if its centerline exceeds the lower layer slices
+                my $is_overhang = $is_contour
+                    ? @{diff([$polygon], \@lower_slices)}
+                    : !@{intersection([$polygon], \@lower_slices)};
+                
+                $role = EXTR_ROLE_OVERHANG_PERIMETER if $is_overhang;
+            }
+            
             push @loops, Slic3r::ExtrusionLoop->pack(
-                polygon         => Slic3r::Polygon->new($polynode->{outer} // [ reverse @{$polynode->{hole}} ]),
+                polygon         => $polygon,
                 role            => $role,
                 flow_spacing    => $self->perimeter_flow->spacing,
             );
@@ -315,8 +332,12 @@ sub _fill_gaps {
         1,
     )};
     
+    # medial axis-based gap fill should benefit from detection of larger gaps too, so 
+    # we could try with 1.5*$w for example, but that doesn't work well for zigzag fill
+    # because it tends to create very sparse points along the gap when the infill direction
+    # is not parallel to the gap (1.5*$w thus may only work well with a straight line)
     my $w = $self->perimeter_flow->width;
-    my @widths = (1.5 * $w, $w, 0.4 * $w);  # worth trying 0.2 too?
+    my @widths = ($w, 0.4 * $w);  # worth trying 0.2 too?
     foreach my $width (@widths) {
         my $flow = $self->perimeter_flow->clone(width => $width);
         
@@ -357,7 +378,7 @@ sub _fill_gaps {
                 
                 push @{ $self->thin_fills },
                     map {
-                        $_->polyline->simplify($flow->scaled_width / 3);
+                        $_->simplify($flow->scaled_width/3);
                         $_->pack;
                     }
                     map Slic3r::ExtrusionPath->new(
@@ -537,10 +558,10 @@ sub _detect_bridges {
                 $_->rotate($angle, [0,0]) for @$inset, @$anchors;
                 
                 # generate lines in this direction
-                my $bounding_box = [ Slic3r::Geometry::bounding_box([ map @$_, map @$_, @$anchors ]) ];
+                my $bounding_box = Slic3r::Geometry::BoundingBox->new_from_points([ map @$_, map @$_, @$anchors ]);
                 my @lines = ();
-                for (my $x = $bounding_box->[X1]; $x <= $bounding_box->[X2]; $x += $line_increment) {
-                    push @lines, [ [$x, $bounding_box->[Y1]], [$x, $bounding_box->[Y2]] ];
+                for (my $x = $bounding_box->x_min; $x <= $bounding_box->x_max; $x += $line_increment) {
+                    push @lines, [ [$x, $bounding_box->y_min], [$x, $bounding_box->y_max] ];
                 }
                 
                 # TODO: use a multi_polygon_multi_linestring_intersection() call

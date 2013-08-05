@@ -49,6 +49,7 @@ sub _build_speeds {
 my %role_speeds = (
     &EXTR_ROLE_PERIMETER                    => 'perimeter',
     &EXTR_ROLE_EXTERNAL_PERIMETER           => 'external_perimeter',
+    &EXTR_ROLE_OVERHANG_PERIMETER           => 'external_perimeter',
     &EXTR_ROLE_CONTOUR_INTERNAL_PERIMETER   => 'perimeter',
     &EXTR_ROLE_FILL                         => 'infill',
     &EXTR_ROLE_SOLIDFILL                    => 'solid_infill',
@@ -88,7 +89,7 @@ sub change_layer {
     }
     
     my $gcode = "";
-    if ($self->config->gcode_flavor =~ /^(?:makerbot|sailfish)$/) {
+    if ($self->config->gcode_flavor =~ /^(?:makerware|sailfish)$/) {
         $gcode .= sprintf "M73 P%s%s\n",
             int(99 * ($layer->id / ($self->layer_count - 1))),
             ($self->config->gcode_comments ? ' ; update progress' : '');
@@ -208,13 +209,13 @@ sub extrude_path {
         $acceleration = $self->config->perimeter_acceleration;
     } elsif ($self->config->infill_acceleration && $path->is_fill) {
         $acceleration = $self->config->infill_acceleration;
-    } elsif ($self->config->infill_acceleration && ($path->role == EXTR_ROLE_BRIDGE || $path->role == EXTR_ROLE_INTERNALBRIDGE)) {
+    } elsif ($self->config->infill_acceleration && $path->is_bridge) {
         $acceleration = $self->config->bridge_acceleration;
     }
     $gcode .= $self->set_acceleration($acceleration) if $acceleration;
     
     my $area;  # mm^3 of extrudate per mm of tool movement 
-    if ($path->role == EXTR_ROLE_BRIDGE || $path->role == EXTR_ROLE_INTERNALBRIDGE) {
+    if ($path->is_bridge) {
         my $s = $path->flow_spacing;
         $area = ($s**2) * PI/4;
     } else {
@@ -420,7 +421,7 @@ sub retract {
     # this makes sure we leave sufficient precision in the firmware
     $gcode .= $self->reset_e;
     
-    $gcode .= "M103 ; extruder off\n" if $self->config->gcode_flavor eq 'makerbot';
+    $gcode .= "M103 ; extruder off\n" if $self->config->gcode_flavor eq 'makerware';
     
     return $gcode;
 }
@@ -429,7 +430,7 @@ sub unretract {
     my $self = shift;
     
     my $gcode = "";
-    $gcode .= "M101 ; extruder on\n" if $self->config->gcode_flavor eq 'makerbot';
+    $gcode .= "M101 ; extruder on\n" if $self->config->gcode_flavor eq 'makerware';
     
     if ($self->lifted) {
         $self->speed('travel');
@@ -451,7 +452,7 @@ sub unretract {
 
 sub reset_e {
     my $self = shift;
-    return "" if $self->config->gcode_flavor =~ /^(?:mach3|makerbot)$/;
+    return "" if $self->config->gcode_flavor =~ /^(?:mach3|makerware)$/;
     
     $self->extruder->e(0) if $self->extruder;
     return sprintf "G92 %s0%s\n", $self->config->extrusion_axis, ($self->config->gcode_comments ? ' ; reset extrusion distance' : '')
@@ -591,7 +592,7 @@ sub set_extruder {
     # set the new extruder
     $self->extruder($extruder);
     $gcode .= sprintf "%s%d%s\n", 
-        ($self->config->gcode_flavor eq 'makerbot'
+        ($self->config->gcode_flavor eq 'makerware'
             ? 'M135 T'
             : $self->config->gcode_flavor eq 'sailfish'
                 ? 'M108 T'
@@ -613,12 +614,12 @@ sub set_fan {
         if ($speed == 0) {
             my $code = $self->config->gcode_flavor eq 'teacup'
                 ? 'M106 S0'
-                : $self->config->gcode_flavor =~ /^(?:makerbot|sailfish)$/
+                : $self->config->gcode_flavor =~ /^(?:makerware|sailfish)$/
                     ? 'M127'
                     : 'M107';
             return sprintf "$code%s\n", ($self->config->gcode_comments ? ' ; disable fan' : '');
         } else {
-            if ($self->config->gcode_flavor =~ /^(?:makerbot|sailfish)$/) {
+            if ($self->config->gcode_flavor =~ /^(?:makerware|sailfish)$/) {
                 return sprintf "M126%s\n", ($self->config->gcode_comments ? ' ; enable fan' : '');
             } else {
                 return sprintf "M106 %s%d%s\n", ($self->config->gcode_flavor eq 'mach3' ? 'P' : 'S'),
@@ -633,14 +634,14 @@ sub set_temperature {
     my $self = shift;
     my ($temperature, $wait, $tool) = @_;
     
-    return "" if $wait && $self->config->gcode_flavor =~ /^(?:makerbot|sailfish)$/;
+    return "" if $wait && $self->config->gcode_flavor =~ /^(?:makerware|sailfish)$/;
     
     my ($code, $comment) = ($wait && $self->config->gcode_flavor ne 'teacup')
         ? ('M109', 'wait for temperature to be reached')
         : ('M104', 'set temperature');
     my $gcode = sprintf "$code %s%d %s; $comment\n",
         ($self->config->gcode_flavor eq 'mach3' ? 'P' : 'S'), $temperature,
-        (defined $tool && ($self->multiple_extruders || $self->config->gcode_flavor =~ /^(?:makerbot|sailfish)$/)) ? "T$tool " : "";
+        (defined $tool && ($self->multiple_extruders || $self->config->gcode_flavor =~ /^(?:makerware|sailfish)$/)) ? "T$tool " : "";
     
     $gcode .= "M116 ; wait for temperature to be reached\n"
         if $self->config->gcode_flavor eq 'teacup' && $wait;
@@ -653,7 +654,7 @@ sub set_bed_temperature {
     my ($temperature, $wait) = @_;
     
     my ($code, $comment) = ($wait && $self->config->gcode_flavor ne 'teacup')
-        ? (($self->config->gcode_flavor =~ /^(?:makerbot|sailfish)$/ ? 'M109' : 'M190'), 'wait for bed temperature to be reached')
+        ? (($self->config->gcode_flavor =~ /^(?:makerware|sailfish)$/ ? 'M109' : 'M190'), 'wait for bed temperature to be reached')
         : ('M140', 'set bed temperature');
     my $gcode = sprintf "$code %s%d ; $comment\n",
         ($self->config->gcode_flavor eq 'mach3' ? 'P' : 'S'), $temperature;

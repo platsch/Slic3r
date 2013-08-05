@@ -119,6 +119,7 @@ sub arrange_objects {
                 $object->add_instance(
                     offset      => $_,
                     rotation    => $instance->rotation,
+                    scaling_factor => $instance->scaling_factor,
                 ) for move_points($instance->offset, @positions);
             }
         }
@@ -174,9 +175,9 @@ sub size {
     return [ Slic3r::Geometry::size_3D($self->used_vertices) ];
 }
 
-sub extents {
+sub bounding_box {
     my $self = shift;
-    return Slic3r::Geometry::bounding_box_3D($self->used_vertices);
+    return Slic3r::Geometry::BoundingBox->new_from_points_3D($self->used_vertices);
 }
 
 sub align_to_origin {
@@ -185,8 +186,8 @@ sub align_to_origin {
     # calculate the displacements needed to 
     # have lowest value for each axis at coordinate 0
     {
-        my @extents = $self->extents;
-        $self->move(map -$extents[$_][MIN], X,Y,Z);
+        my $bb = $self->bounding_box;
+        $self->move(map -$bb->extents->[$_][MIN], X,Y,Z);
     }
     
     # align all instances to 0,0 as well
@@ -213,6 +214,7 @@ sub mesh {
             my $mesh = $object->mesh->clone;
             if ($instance) {
                 $mesh->rotate($instance->rotation);
+                $mesh->scale($instance->scaling_factor);
                 $mesh->align_to_origin;
                 $mesh->move(@{$instance->offset});
             }
@@ -252,13 +254,14 @@ sub split_meshes {
             
             # let's now align the new object to the origin and put its displacement
             # (extents) in the instances info
-            my @extents = $mesh->extents;
+            my $bb = $mesh->bounding_box;
             $new_object->align_to_origin;
             
             # add one instance per original instance applying the displacement
             $new_object->add_instance(
-                offset      => [ $_->offset->[X] + $extents[X][MIN], $_->offset->[Y] + $extents[Y][MIN] ],
+                offset      => [ $_->offset->[X] + $bb->x_min, $_->offset->[Y] + $bb->y_min ],
                 rotation    => $_->rotation,
+                scaling_factor => $_->scaling_factor,
             ) for @{ $object->instances // [] };
         }
     }
@@ -274,7 +277,7 @@ package Slic3r::Model::Object;
 use Moo;
 
 use List::Util qw(first);
-use Slic3r::Geometry qw(X Y Z MIN move_points move_points_3D);
+use Slic3r::Geometry qw(X Y Z MIN MAX move_points move_points_3D);
 use Storable qw(dclone);
 
 has 'input_file' => (is => 'rw');
@@ -333,9 +336,14 @@ sub size {
     return [ Slic3r::Geometry::size_3D($self->used_vertices) ];
 }
 
-sub extents {
+sub center {
     my $self = shift;
-    return Slic3r::Geometry::bounding_box_3D($self->used_vertices);
+    return $self->bounding_box->center;
+}
+
+sub bounding_box {
+    my $self = shift;
+    return Slic3r::Geometry::BoundingBox->new_from_points_3D($self->used_vertices);
 }
 
 sub align_to_origin {
@@ -343,8 +351,10 @@ sub align_to_origin {
     
     # calculate the displacements needed to 
     # have lowest value for each axis at coordinate 0
-    my @extents = $self->extents;
-    $self->move(map -$extents[$_][MIN], X,Y,Z);
+    my $bb = $self->bounding_box;
+    my @shift = map -$bb->extents->[$_][MIN], X,Y,Z;
+    $self->move(@shift);
+    return @shift;
 }
 
 sub move {
@@ -410,6 +420,7 @@ use Moo;
 
 has 'object'    => (is => 'ro', weak_ref => 1, required => 1);
 has 'rotation'  => (is => 'rw', default => sub { 0 });  # around mesh center point
+has 'scaling_factor' => (is => 'rw', default => sub { 1 });
 has 'offset'    => (is => 'rw');  # must be Slic3r::Point object
 
 1;
