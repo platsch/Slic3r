@@ -4,6 +4,7 @@ use warnings;
 use utf8;
 
 use File::Basename qw(basename dirname);
+use List::Util qw(min);
 use Slic3r::Geometry qw(X Y);
 use Wx qw(:dialog :filedialog :font :icon :id :misc :notebook :panel :sizer);
 use Wx::Event qw(EVT_BUTTON);
@@ -192,6 +193,41 @@ sub quick_slice {
     Slic3r::GUI::catch_error($self, sub { $process_dialog->Destroy if $process_dialog });
 }
 
+sub repair_stl {
+    my $self = shift;
+    
+    my $input_file;
+    {
+        my $dir = $Slic3r::GUI::Settings->{recent}{skein_directory} || $Slic3r::GUI::Settings->{recent}{config_directory} || '';
+        my $dialog = Wx::FileDialog->new($self, 'Select the STL file to repair:', $dir, "", FILE_WILDCARDS->{stl}, wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+        if ($dialog->ShowModal != wxID_OK) {
+            $dialog->Destroy;
+            return;
+        }
+        $input_file = $dialog->GetPaths;
+        $dialog->Destroy;
+    }
+    
+    my $output_file = $input_file;
+    {
+        $output_file =~ s/\.stl$/_fixed.obj/i;
+        my $dlg = Wx::FileDialog->new($self, "Save OBJ file (less prone to coordinate errors than STL) as:", dirname($output_file),
+            basename($output_file), &Slic3r::GUI::SkeinPanel::FILE_WILDCARDS->{obj}, wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
+        if ($dlg->ShowModal != wxID_OK) {
+            $dlg->Destroy;
+            return undef;
+        }
+        $output_file = $dlg->GetPath;
+        $dlg->Destroy;
+    }
+    
+    my $tmesh = Slic3r::TriangleMesh::XS->new();
+    $tmesh->ReadSTLFile($input_file);
+    $tmesh->Repair;
+    $tmesh->WriteOBJFile($output_file);
+    Slic3r::GUI::show_info($self, "Your file was repaired.", "Repair");
+}
+
 sub init_print {
     my $self = shift;
     
@@ -369,6 +405,10 @@ sub config {
         $config->set('first_layer_height', $config->nozzle_diameter->[0]);
         $config->set('avoid_crossing_perimeters', 1);
         $config->set('infill_every_layers', 10);
+    } else {
+        my $extruders_count = $self->{options_tabs}{printer}{extruders_count};
+        $config->set("${_}_extruder", min($config->get("${_}_extruder"), $extruders_count))
+            for qw(perimeter infill support_material support_material_interface);
     }
     
     return $config;

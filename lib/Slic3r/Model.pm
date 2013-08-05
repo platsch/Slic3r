@@ -6,6 +6,7 @@ use Slic3r::Geometry qw(X Y Z MIN move_points);
 
 has 'materials' => (is => 'ro', default => sub { {} });
 has 'objects'   => (is => 'ro', default => sub { [] });
+has '_bounding_box' => (is => 'rw');
 
 sub read_from_file {
     my $class = shift;
@@ -57,6 +58,7 @@ sub add_object {
     
     my $object = Slic3r::Model::Object->new(model => $self, @_);
     push @{$self->objects}, $object;
+    $self->_bounding_box(undef);
     return $object;
 }
 
@@ -68,11 +70,6 @@ sub set_material {
         model       => $self,
         attributes  => $attributes || {},
     );
-}
-
-sub scale {
-    my $self = shift;
-    $_->scale(@_) for @{$self->objects};
 }
 
 sub arrange_objects {
@@ -151,8 +148,9 @@ sub _arrange {
         return ($config->duplicate_grid->[X] * $config->duplicate_grid->[Y]), @positions;
     } else {
         my $total_parts = $config->duplicate * @items;
-        my $partx = max(map $_->size->[X], @items);
-        my $party = max(map $_->size->[Y], @items);
+        my @sizes = map $_->size, @items;
+        my $partx = max(map $_->[X], @sizes);
+        my $party = max(map $_->[Y], @sizes);
         return $config->duplicate,
             Slic3r::Geometry::arrange
                 ($total_parts, $partx, $party, (map $_, @{$config->bed_size}),
@@ -172,12 +170,16 @@ sub used_vertices {
 
 sub size {
     my $self = shift;
-    return [ Slic3r::Geometry::size_3D($self->used_vertices) ];
+    return $self->bounding_box->size;
 }
 
 sub bounding_box {
     my $self = shift;
-    return Slic3r::Geometry::BoundingBox->new_from_points_3D($self->used_vertices);
+    
+    if (!defined $self->_bounding_box) {
+        $self->_bounding_box(Slic3r::Geometry::BoundingBox->new_from_points_3D($self->used_vertices));
+    }
+    return $self->_bounding_box;
 }
 
 sub align_to_origin {
@@ -198,9 +200,18 @@ sub align_to_origin {
     }
 }
 
+sub scale {
+    my $self = shift;
+    $_->scale(@_) for @{$self->objects};
+    $self->_bounding_box->scale(@_) if defined $self->_bounding_box;
+}
+
 sub move {
     my $self = shift;
-    $_->move(@_) for @{$self->objects};
+    my @shift = @_;
+    
+    $_->move(@shift) for @{$self->objects};
+    $self->_bounding_box->translate(@shift) if defined $self->_bounding_box;
 }
 
 # flattens everything to a single mesh
@@ -267,6 +278,11 @@ sub split_meshes {
     }
 }
 
+sub print_info {
+    my $self = shift;
+    $_->print_info for @{$self->objects};
+}
+
 package Slic3r::Model::Region;
 use Moo;
 
@@ -276,6 +292,7 @@ has 'attributes'    => (is => 'rw', default => sub { {} });
 package Slic3r::Model::Object;
 use Moo;
 
+use File::Basename qw(basename);
 use List::Util qw(first);
 use Slic3r::Geometry qw(X Y Z MIN MAX move_points move_points_3D);
 use Storable qw(dclone);
@@ -286,6 +303,8 @@ has 'vertices'  => (is => 'ro', default => sub { [] });
 has 'volumes'   => (is => 'ro', default => sub { [] });
 has 'instances' => (is => 'rw');
 has 'layer_height_ranges' => (is => 'rw', default => sub { [] }); # [ z_min, z_max, layer_height ]
+has 'mesh_stats' => (is => 'rw');
+has '_bounding_box' => (is => 'rw');
 
 sub add_volume {
     my $self = shift;
@@ -304,6 +323,8 @@ sub add_volume {
     
     my $volume = Slic3r::Model::Volume->new(object => $self, %args);
     push @{$self->volumes}, $volume;
+    $self->_bounding_box(undef);
+    $self->model->_bounding_box(undef);
     return $volume;
 }
 
@@ -312,6 +333,7 @@ sub add_instance {
     
     $self->instances([]) if !defined $self->instances;
     push @{$self->instances}, Slic3r::Model::Instance->new(object => $self, @_);
+    $self->model->_bounding_box(undef);
     return $self->instances->[-1];
 }
 
@@ -333,7 +355,7 @@ sub used_vertices {
 
 sub size {
     my $self = shift;
-    return [ Slic3r::Geometry::size_3D($self->used_vertices) ];
+    return $self->bounding_box->size;
 }
 
 sub center {
@@ -343,7 +365,11 @@ sub center {
 
 sub bounding_box {
     my $self = shift;
-    return Slic3r::Geometry::BoundingBox->new_from_points_3D($self->used_vertices);
+    
+    if (!defined $self->_bounding_box) {
+        $self->_bounding_box(Slic3r::Geometry::BoundingBox->new_from_points_3D($self->used_vertices));
+    }
+    return $self->_bounding_box;
 }
 
 sub align_to_origin {
@@ -359,7 +385,10 @@ sub align_to_origin {
 
 sub move {
     my $self = shift;
-    @{$self->vertices} = move_points_3D([ @_ ], @{$self->vertices});
+    my @shift = @_;
+    
+    @{$self->vertices} = move_points_3D([ @shift ], @{$self->vertices});
+    $self->_bounding_box->translate(@shift) if defined $self->_bounding_box;
 }
 
 sub scale {
@@ -371,6 +400,9 @@ sub scale {
     foreach my $vertex (@{$self->vertices}) {
         $vertex->[$_] *= $factor for X,Y,Z;
     }
+    
+    $self->_bounding_box->scale($factor) if defined $self->_bounding_box;
+    $self->mesh_stats->{volume} *= ($factor**3) if defined $self->mesh_stats;
 }
 
 sub rotate {
@@ -384,6 +416,8 @@ sub rotate {
     foreach my $vertex (@{$self->vertices}) {
         @$vertex = (@{ +(Slic3r::Geometry::rotate_points($rad, undef, [ $vertex->[X], $vertex->[Y] ]))[0] }, $vertex->[Z]);
     }
+    
+    $self->_bounding_box(undef);
 }
 
 sub materials_count {
@@ -396,6 +430,39 @@ sub materials_count {
 sub check_manifoldness {
     my $self = shift;
     return (first { !$_->mesh->check_manifoldness } @{$self->volumes}) ? 0 : 1;
+}
+
+sub needed_repair {
+    my $self = shift;
+    
+    return $self->mesh_stats
+        && first { $self->mesh_stats->{$_} > 0 }
+            qw(degenerate_facets edges_fixed facets_removed facets_added facets_reversed backwards_edges);
+}
+
+sub print_info {
+    my $self = shift;
+    
+    printf "Info about %s:\n", basename($self->input_file);
+        printf "  size:              x=%.3f y=%.3f z=%.3f\n", @{$self->size};
+    if (my $stats = $self->mesh_stats) {
+        printf "  number of facets:  %d\n", $stats->{number_of_facets};
+        printf "  number of shells:  %d\n", $stats->{number_of_parts};
+        printf "  volume:            %.3f\n", $stats->{volume};
+        if ($self->needed_repair) {
+            printf "  needed repair:     yes\n";
+            printf "  degenerate facets: %d\n", $stats->{degenerate_facets};
+            printf "  edges fixed:       %d\n", $stats->{edges_fixed};
+            printf "  facets removed:    %d\n", $stats->{facets_removed};
+            printf "  facets added:      %d\n", $stats->{facets_added};
+            printf "  facets reversed:   %d\n", $stats->{facets_reversed};
+            printf "  backwards edges:   %d\n", $stats->{backwards_edges};
+        } else {
+            printf "  needed repair:     no\n";
+        }
+    } else {
+        printf "  number of facets:  %d\n", scalar(map @{$_->facets}, @{$self->volumes});
+    }
 }
 
 sub clone { dclone($_[0]) }

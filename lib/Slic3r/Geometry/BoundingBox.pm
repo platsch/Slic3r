@@ -38,12 +38,12 @@ sub polygon {
     my $self = shift;
     
     my $e = $self->extents;
-    return Slic3r::Polygon->new([
+    return Slic3r::Polygon->new(
         [ $e->[X][MIN], $e->[Y][MIN] ],
         [ $e->[X][MAX], $e->[Y][MIN] ],
         [ $e->[X][MAX], $e->[Y][MAX] ],
         [ $e->[X][MIN], $e->[Y][MAX] ],
-    ]);
+    );
 }
 
 # note to $self
@@ -57,6 +57,18 @@ sub scale {
     
     for (@{$self->extents}) {
         $_ *= $factor for @$_[MIN,MAX];
+    }
+    
+    $self;
+}
+
+sub translate {
+    my $self = shift;
+    my @shift = @_;
+    
+    for my $axis (X .. $#{$self->extents}) {
+        $self->extents->[$axis][MIN] += $shift[$axis];
+        $self->extents->[$axis][MAX] += $shift[$axis];
     }
     
     $self;

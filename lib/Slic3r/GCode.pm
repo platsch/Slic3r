@@ -3,13 +3,18 @@ use Moo;
 
 use List::Util qw(min max first);
 use Slic3r::ExtrusionPath ':roles';
-use Slic3r::Geometry qw(scale unscale scaled_epsilon points_coincide PI X Y B);
+use Slic3r::Geometry qw(epsilon scale unscale scaled_epsilon points_coincide PI X Y B);
 use Slic3r::Geometry::Clipper qw(union_ex);
+use Slic3r::Surface ':types';
 
 has 'config'             => (is => 'ro', required => 1);
-has 'multiple_extruders' => (is => 'ro', default => sub {0} );
+has 'extruders'          => (is => 'ro', default => sub {0}, required => 1);
+has 'multiple_extruders' => (is => 'lazy');
+has 'enable_loop_clipping' => (is => 'rw', default => sub {1});
+has 'enable_wipe'        => (is => 'lazy');   # at least one extruder has wipe enabled
 has 'layer_count'        => (is => 'ro', required => 1 );
 has 'layer'              => (is => 'rw');
+has '_layer_overhangs'   => (is => 'rw');
 has 'move_z_callback'    => (is => 'rw');
 has 'shift_x'            => (is => 'rw', default => sub {0} );
 has 'shift_y'            => (is => 'rw', default => sub {0} );
@@ -49,7 +54,7 @@ sub _build_speeds {
 my %role_speeds = (
     &EXTR_ROLE_PERIMETER                    => 'perimeter',
     &EXTR_ROLE_EXTERNAL_PERIMETER           => 'external_perimeter',
-    &EXTR_ROLE_OVERHANG_PERIMETER           => 'external_perimeter',
+    &EXTR_ROLE_OVERHANG_PERIMETER           => 'bridge',
     &EXTR_ROLE_CONTOUR_INTERNAL_PERIMETER   => 'perimeter',
     &EXTR_ROLE_FILL                         => 'infill',
     &EXTR_ROLE_SOLIDFILL                    => 'solid_infill',
@@ -60,6 +65,16 @@ my %role_speeds = (
     &EXTR_ROLE_SUPPORTMATERIAL              => 'support_material',
     &EXTR_ROLE_GAPFILL                      => 'gap_fill',
 );
+
+sub _build_multiple_extruders {
+    my $self = shift;
+    return @{$self->extruders} > 1;
+}
+
+sub _build_enable_wipe {
+    my $self = shift;
+    return (first { $_->wipe } @{$self->extruders}) ? 1 : 0;
+}
 
 sub set_shift {
     my $self = shift;
@@ -82,6 +97,13 @@ sub change_layer {
     my ($layer) = @_;
     
     $self->layer($layer);
+    
+    # avoid computing overhangs if they're not needed
+    $self->_layer_overhangs(
+        $layer->id > 0 && ($Slic3r::Config->overhangs || $Slic3r::Config->start_perimeters_at_non_overhang)
+            ? [ map $_->expolygon, grep $_->surface_type == S_TYPE_BOTTOM, map @{$_->slices}, @{$layer->regions} ]
+            : []
+        );
     if ($self->config->avoid_crossing_perimeters) {
         $self->layer_mp(Slic3r::GCode::MotionPlanner->new(
             islands => union_ex([ map @$_, @{$layer->slices} ], undef, 1),
@@ -97,22 +119,31 @@ sub change_layer {
     return $gcode;
 }
 
-# this method accepts Z in scaled coordinates
+# this method accepts Z in unscaled coordinates
 sub move_z {
     my $self = shift;
     my ($z, $comment) = @_;
     
-    $z *= &Slic3r::SCALING_FACTOR;
     $z += $self->config->z_offset;
     
     my $gcode = "";
     my $current_z = $self->z;
-    if (!defined $current_z || $current_z != ($z + $self->lifted)) {
+    if (!defined $self->z || $z > $self->z) {
+        # if we're going over the current Z we won't be lifted anymore
+        $self->lifted(0);
+        
+        # this retraction may alter $self->z
         $gcode .= $self->retract(move_z => $z) if $self->extruder->retract_layer_change;
         $self->speed('travel');
         $gcode .= $self->G0(undef, $z, 0, $comment || ('move to next layer (' . $self->layer->id . ')'))
-            unless ($current_z // -1) != ($self->z // -1);
+            if !defined $self->z || abs($z - ($self->z - $self->lifted)) > epsilon;
         $gcode .= $self->move_z_callback->() if defined $self->move_z_callback;
+    } elsif ($z < $self->z && $z > ($self->z - $self->lifted + epsilon)) {
+        # we're moving to a layer height which is greater than the nominal current one
+        # (nominal = actual - lifted) and less than the actual one.  we're basically
+        # advancing to next layer, whose nominal Z is still lower than the previous
+        # layer Z with lift.
+        $self->lifted($self->z - $z);
     }
     
     return $gcode;
@@ -134,6 +165,31 @@ sub extrude_loop {
     $loop = $loop->unpack if $loop->isa('Slic3r::ExtrusionLoop::Packed');
     my $was_clockwise = $loop->polygon->make_counter_clockwise;
     
+    # find candidate starting points
+    # start looking for concave vertices not being overhangs
+    my @concave = ();
+    if ($Slic3r::Config->start_perimeters_at_concave_points) {
+        @concave = $loop->polygon->concave_points;
+    }
+    my @candidates = ();
+    if ($Slic3r::Config->start_perimeters_at_non_overhang) {
+        @candidates = grep !Boost::Geometry::Utils::point_covered_by_multi_polygon($_, $self->_layer_overhangs), @concave;
+    }
+    if (!@candidates) {
+        # if none, look for any concave vertex
+        @candidates = @concave;
+        if (!@candidates) {
+            # if none, look for any non-overhang vertex
+            if ($Slic3r::Config->start_perimeters_at_non_overhang) {
+                @candidates = grep !Boost::Geometry::Utils::point_covered_by_multi_polygon($_, $self->_layer_overhangs), @{$loop->polygon};
+            }
+            if (!@candidates) {
+                # if none, all points are valid candidates
+                @candidates = @{$loop->polygon};
+            }
+        }
+    }
+    
     # find the point of the loop that is closest to the current extruder position
     # or randomize if requested
     my $last_pos = $self->last_pos;
@@ -141,20 +197,47 @@ sub extrude_loop {
         $last_pos = Slic3r::Point->new(scale $self->config->print_center->[X], scale $self->config->bed_size->[Y]);
         $last_pos->rotate(rand(2*PI), $self->config->print_center);
     }
-    my $start_index = $loop->nearest_point_index_to($last_pos);
     
     # split the loop at the starting point and make a path
-    my $extrusion_path = $loop->split_at_index($start_index);
+    my $start_at = Slic3r::Geometry::nearest_point($last_pos, \@candidates);
+    my $extrusion_path = $loop->split_at($start_at);
     
     # clip the path to avoid the extruder to get exactly on the first point of the loop;
     # if polyline was shorter than the clipping distance we'd get a null polyline, so
     # we discard it in that case
-    $extrusion_path->clip_end(scale $extrusion_path->flow_spacing * &Slic3r::LOOP_CLIPPING_LENGTH_OVER_SPACING);
+    $extrusion_path->clip_end(scale $extrusion_path->flow_spacing * &Slic3r::LOOP_CLIPPING_LENGTH_OVER_SPACING)
+        if $self->enable_loop_clipping;
     return '' if !@{$extrusion_path->polyline};
     
+    my @paths = ();
+    # detect overhanging/bridging perimeters
+    if ($Slic3r::Config->overhangs && $extrusion_path->is_perimeter && @{$self->_layer_overhangs}) {
+        # get non-overhang paths by subtracting overhangs from the loop
+        push @paths,
+            $extrusion_path->subtract_expolygons($self->_layer_overhangs);
+        
+        # get overhang paths by intersecting overhangs with the loop
+        push @paths,
+            map { $_->role(EXTR_ROLE_OVERHANG_PERIMETER); $_ }
+            $extrusion_path->intersect_expolygons($self->_layer_overhangs);
+        
+        # reapply the nearest point search for starting point
+        @paths = Slic3r::ExtrusionPath::Collection
+            ->new(paths => [@paths])
+            ->chained_path($start_at, 1);
+    } else {
+        push @paths, $extrusion_path;
+    }
+    
+    # apply the small perimeter speed
+    my %params = ();
+    if ($extrusion_path->is_perimeter && abs($extrusion_path->length) <= &Slic3r::SMALL_PERIMETER_LENGTH) {
+        $params{speed} = 'small_perimeter';
+    }
+    
     # extrude along the path
-    my $gcode = $self->extrude_path($extrusion_path, $description);
-    $self->wipe_path($extrusion_path->polyline);
+    my $gcode = join '', map $self->extrude_path($_, $description, %params), @paths;
+    $self->wipe_path($extrusion_path->polyline) if $self->enable_wipe;
     
     # make a little move inwards before leaving loop
     if ($loop->role == EXTR_ROLE_EXTERNAL_PERIMETER && $self->config->perimeters > 1) {
@@ -182,23 +265,24 @@ sub extrude_loop {
 
 sub extrude_path {
     my $self = shift;
-    my ($path, $description, $recursive) = @_;
+    my ($path, $description, %params) = @_;
     
     $path = $path->unpack if $path->isa('Slic3r::ExtrusionPath::Packed');
     $path->simplify(&Slic3r::SCALED_RESOLUTION);
     
     # detect arcs
-    if ($self->config->gcode_arcs && !$recursive) {
+    if ($self->config->gcode_arcs && !$params{dont_detect_arcs}) {
         my $gcode = "";
         foreach my $arc_path ($path->detect_arcs) {
-            $gcode .= $self->extrude_path($arc_path, $description, 1);
+            $gcode .= $self->extrude_path($arc_path, $description, %params, dont_detect_arcs => 1);
         }
         return $gcode;
     }
     
     # go to first point of extrusion path
     my $gcode = "";
-    $gcode .= $self->travel_to($path->points->[0], $path->role, "move to first $description point");
+    $gcode .= $self->travel_to($path->points->[0], $path->role, "move to first $description point")
+        if !$self->last_pos || !$self->last_pos->coincides_with($path->points->[0]);
     
     # compensate retraction
     $gcode .= $self->unretract;
@@ -228,12 +312,7 @@ sub extrude_path {
     my $e = $self->extruder->e_per_mm3 * $area;
     
     # set speed
-    $self->speed( $role_speeds{$path->role} || die "Unknown role: " . $path->role );
-    if ($path->role == EXTR_ROLE_PERIMETER || $path->role == EXTR_ROLE_EXTERNAL_PERIMETER || $path->role == EXTR_ROLE_CONTOUR_INTERNAL_PERIMETER) {
-        if (abs($path->length) <= &Slic3r::SMALL_PERIMETER_LENGTH) {
-            $self->speed('small_perimeter');
-        }
-    }
+    $self->speed( $params{speed} || $role_speeds{$path->role} || die "Unknown role: " . $path->role );
     
     # extrude arc or line
     my $path_length = 0;
@@ -248,8 +327,8 @@ sub extrude_path {
             $path_length += $line_length;
             $gcode .= $self->G1($line->[B], undef, $e * $line_length, $description);
         }
-        $self->wipe_path(Slic3r::Polyline->new([ reverse @{$path->points} ]))
-            if $self->extruder->wipe;
+        $self->wipe_path(Slic3r::Polyline->new(reverse @{$path->points}))
+            if $self->enable_wipe;
     }
     
     if ($self->config->cooling) {
@@ -282,8 +361,12 @@ sub travel_to {
     # build a more complete configuration space
     $travel->translate(-$self->shift_x, -$self->shift_y);
     
+    # skip retraction if the travel move is contained in an island in the current layer
+    # *and* in an island in the upper layer (so that the ooze will not be visible)
     if ($travel->length < scale $self->extruder->retract_before_travel
-        || ($self->config->only_retract_when_crossing_perimeters && first { $_->encloses_line($travel, scaled_epsilon) } @{$self->layer->upper_layer_slices})
+        || ($self->config->only_retract_when_crossing_perimeters
+            && (first { $_->encloses_line($travel, scaled_epsilon) } @{$self->layer->upper_layer_slices})
+            && (first { $_->encloses_line($travel, scaled_epsilon) } @{$self->layer->slices}))
         || ($role == EXTR_ROLE_SUPPORTMATERIAL && $self->layer->support_islands_enclose_line($travel))
         ) {
         $self->straight_once(0);
@@ -362,7 +445,7 @@ sub retract {
     # wipe
     my $wipe_path;
     if ($self->extruder->wipe && $self->wipe_path) {
-        $wipe_path = Slic3r::Polyline->new([ $self->last_pos, @{$self->wipe_path}[1..$#{$self->wipe_path}] ])
+        $wipe_path = Slic3r::Polyline->new($self->last_pos, @{$self->wipe_path}[1..$#{$self->wipe_path}])
             ->clip_start($self->extruder->scaled_wipe_distance);
     }
     
@@ -394,9 +477,16 @@ sub retract {
             $self->speed('travel');
             
             # subdivide the retraction
+            my $retracted = 0;
             for (1 .. $#$wipe_path) {
                 my $segment_length = $wipe_path->[$_-1]->distance_to($wipe_path->[$_]);
-                $gcode .= $self->G1($wipe_path->[$_], undef, $retract->[2] * ($segment_length / $total_wipe_length), $retract->[3] . ";_WIPE");
+                $retracted += my $e = $retract->[2] * ($segment_length / $total_wipe_length);
+                $gcode .= $self->G1($wipe_path->[$_], undef, $e, $retract->[3] . ";_WIPE");
+            }
+            if ($retracted > $retract->[2]) {
+                # if we retracted less than we had to, retract the remainder
+                # TODO: add regression test
+                $gcode .= $self->G1(undef, undef, $retract->[2] - $retracted, $comment);
             }
         } else {
             $self->speed('retract');
@@ -434,6 +524,7 @@ sub unretract {
     
     if ($self->lifted) {
         $self->speed('travel');
+        $gcode .= sprintf ";AAA selfz = %s, lifted = %s\n", $self->z // 'nd', $self->lifted // 'nd';
         $gcode .= $self->G0(undef, $self->z - $self->lifted, 0, 'restore layer Z');
         $self->lifted(0);
     }
@@ -452,7 +543,7 @@ sub unretract {
 
 sub reset_e {
     my $self = shift;
-    return "" if $self->config->gcode_flavor =~ /^(?:mach3|makerware)$/;
+    return "" if $self->config->gcode_flavor =~ /^(?:mach3|makerware|sailfish)$/;
     
     $self->extruder->e(0) if $self->extruder;
     return sprintf "G92 %s0%s\n", $self->config->extrusion_axis, ($self->config->gcode_comments ? ' ; reset extrusion distance' : '')
@@ -559,7 +650,7 @@ sub _Gx {
     
     $gcode .= sprintf " ; %s", $comment if $comment && $self->config->gcode_comments;
     if ($append_bridge_off) {
-        $gcode .= "\n;_BRIDGE_FAN_END";
+        $gcode = ";_BRIDGE_FAN_END\n$gcode";
     }
     return "$gcode\n";
 }

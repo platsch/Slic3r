@@ -33,6 +33,8 @@ my %cli_options = ();
         'datadir=s'             => \$opt{datadir},
         'export-svg'            => \$opt{export_svg},
         'merge|m'               => \$opt{merge},
+        'repair'                => \$opt{repair},
+        'info'                  => \$opt{info},
     );
     foreach my $opt_key (keys %{$Slic3r::Config::Options}) {
         my $cli = $Slic3r::Config::Options->{$opt_key}->{cli} or next;
@@ -92,6 +94,21 @@ die $@ if $@ && $opt{gui};
 if (@ARGV) {  # slicing from command line
     $config->validate;
     
+    if ($opt{repair}) {
+        foreach my $file (@ARGV) {
+            die "Repair is currently supported only on STL files\n"
+                if $file !~ /\.stl$/i;
+            
+            my $output_file = $file;
+            $output_file =~ s/\.(stl)$/_fixed.obj/i;
+            my $tmesh = Slic3r::TriangleMesh::XS->new();
+            $tmesh->ReadSTLFile($file);
+            $tmesh->Repair;
+            $tmesh->WriteOBJFile($output_file);
+        }
+        exit;
+    }
+    
     while (my $input_file = shift @ARGV) {
         my $model;
         if ($opt{merge}) {
@@ -103,6 +120,11 @@ if (@ARGV) {  # slicing from command line
         $_->scale($config->scale) for @{$model->objects};
         $_->rotate($config->rotate) for @{$model->objects};
         $model->arrange_objects($config);
+        
+        if ($opt{info}) {
+            $model->print_info;
+            next;
+        }
         
         my $print = Slic3r::Print->new(config => $config);
         $print->add_model($model);
@@ -140,7 +162,7 @@ EOF
 Slic3r $Slic3r::VERSION is a STL-to-GCODE translator for RepRap 3D printers
 written by Alessandro Ranellucci <aar\@cpan.org> - http://slic3r.org/
 
-Usage: slic3r.pl [ OPTIONS ] file.stl
+Usage: slic3r.pl [ OPTIONS ] [ file.stl ] [ file2.stl ] ...
 
     --help              Output this usage screen and exit
     --version           Output the version of Slic3r and exit
@@ -150,6 +172,11 @@ Usage: slic3r.pl [ OPTIONS ] file.stl
     -o, --output <file> File to output gcode to (by default, the file will be saved
                         into the same directory as the input file using the 
                         --output-filename-format to generate the filename)
+  
+  Non-slicing actions (no G-code will be generated):
+    --repair            Repair given STL files and save them as <name>_fixed.obj
+    --info              Output information about the supplied file(s) and exit
+    
 $j
   GUI options:
     --no-plater         Disable the plater tab
@@ -256,9 +283,7 @@ $j
                         home X axis [G28 X], disable motors [M84]).
     --layer-gcode       Load layer-change G-code from the supplied file (default: nothing).
     --toolchange-gcode  Load tool-change G-code from the supplied file (default: nothing).
-    --extra-perimeters  Add more perimeters when needed (default: yes)
     --randomize-start   Randomize starting point across layers (default: yes)
-    --avoid-crossing-perimeters Optimize travel moves so that no perimeters are crossed (default: no)
     --external-perimeters-first Reverse perimeter order. (default: no)
     --spiral-vase       Experimental option to raise Z gradually when printing single-walled vases
                         (default: no)
@@ -271,6 +296,17 @@ $j
     --infill-only-where-needed
                         Only infill under ceilings (default: no)
     --infill-first      Make infill before perimeters (default: no)
+  
+   Quality options (slower slicing):
+    --extra-perimeters  Add more perimeters when needed (default: yes)
+    --avoid-crossing-perimeters Optimize travel moves so that no perimeters are crossed (default: no)
+    --start-perimeters-at-concave-points
+                        Try to start perimeters at concave points if any (default: no)
+    --start-perimeters-at-non-overhang
+                        Try to start perimeters at non-overhang points if any (default: no)
+    --thin-walls        Detect single-width walls (default: yes)
+    --overhangs         Experimental option to use bridge flow, speed and fan for overhangs
+                        (default: yes)
   
    Support material options:
     --support-material  Generate support material for overhangs
@@ -381,7 +417,9 @@ $j
     --infill-extruder   Extruder to use for infill (1+, default: 1)
     --support-material-extruder
                         Extruder to use for support material (1+, default: 1)
-              
+    --support-material-interface-extruder
+                        Extruder to use for support material interface (1+, default: 1)
+
     Adaptive Slicing Options: [!EXPERIMENTAL!]
      --adaptive-slicing	Use adaptive slicing algorithm to determine layer heights automatically
     

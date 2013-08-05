@@ -6,7 +6,8 @@ use utf8;
 use List::Util qw(first);
 
 # cemetery of old config settings
-our @Ignore = qw(duplicate_x duplicate_y multiply_x multiply_y support_material_tool acceleration);
+our @Ignore = qw(duplicate_x duplicate_y multiply_x multiply_y support_material_tool acceleration
+    adjust_overhang_flow);
 
 my $serialize_comma     = sub { join ',', @{$_[0]} };
 my $serialize_comma_bool = sub { join ',', map $_ // 0, @{$_[0]} };
@@ -223,8 +224,15 @@ our $Options = {
     },
     'support_material_extruder' => {
         label   => 'Support material extruder',
-        tooltip => 'The extruder to use when printing support material. This affects brim too.',
+        tooltip => 'The extruder to use when printing support material. This affects brim and raft too.',
         cli     => 'support-material-extruder=i',
+        type    => 'i',
+        default => 1,
+    },
+    'support_material_interface_extruder' => {
+        label   => 'Support material interface extruder',
+        tooltip => 'The extruder to use when printing support material interface. This affects raft too.',
+        cli     => 'support-material-interface-extruder=i',
         type    => 'i',
         default => 1,
     },
@@ -580,7 +588,7 @@ our $Options = {
         default => 70,
     },
     'extra_perimeters' => {
-        label   => 'Generate extra perimeters when needed',
+        label   => 'Extra perimeters if needed',
         tooltip => 'Add more perimeters when needed for avoiding gaps in sloping walls.',
         cli     => 'extra-perimeters!',
         type    => 'bool',
@@ -592,6 +600,34 @@ our $Options = {
         cli     => 'randomize-start!',
         type    => 'bool',
         default => 0,
+    },
+    'start_perimeters_at_concave_points' => {
+        label   => 'Concave points',
+        tooltip => 'Prefer to start perimeters at a concave point.',
+        cli     => 'start-perimeters-at-concave-points!',
+        type    => 'bool',
+        default => 0,
+    },
+    'start_perimeters_at_non_overhang' => {
+        label   => 'Non-overhang points',
+        tooltip => 'Prefer to start perimeters at non-overhanging points.',
+        cli     => 'start-perimeters-at-non-overhang!',
+        type    => 'bool',
+        default => 0,
+    },
+    'thin_walls' => {
+        label   => 'Detect thin walls',
+        tooltip => 'Detect single-width walls (parts where two extrusions don\'t fit and we need to collapse them into a single trace).',
+        cli     => 'thin-walls!',
+        type    => 'bool',
+        default => 1,
+    },
+    'overhangs' => {
+        label   => 'Detect overhangs',
+        tooltip => 'Experimental option to adjust flow for overhangs (bridge flow will be used), to apply bridge speed to them and enable fan.',
+        cli     => 'overhangs!',
+        type    => 'bool',
+        default => 1,
     },
     'avoid_crossing_perimeters' => {
         label   => 'Avoid crossing perimeters',
@@ -643,7 +679,7 @@ our $Options = {
         type    => 'select',
         values  => [qw(rectilinear rectilinear-grid honeycomb)],
         labels  => ['rectilinear', 'rectilinear grid', 'honeycomb'],
-        default => 'rectilinear',
+        default => 'honeycomb',
     },
     'support_material_spacing' => {
         label   => 'Pattern spacing',
@@ -667,7 +703,7 @@ our $Options = {
         sidetext => 'layers',
         cli     => 'support-material-interface-layers=i',
         type    => 'i',
-        default => 0,
+        default => 3,
     },
     'support_material_interface_spacing' => {
         label   => 'Interface pattern spacing',
@@ -687,7 +723,7 @@ our $Options = {
     },
     'raft_layers' => {
         label   => 'Raft layers',
-        tooltip => 'Number of total raft layers to insert below the object(s).',
+        tooltip => 'The object will be raised by this number of layers, and support material will be generated under it.',
         sidetext => 'layers',
         cli     => 'raft-layers=i',
         type    => 'i',
@@ -805,7 +841,7 @@ END
     },
     'retract_lift' => {
         label   => 'Lift Z',
-        tooltip => 'If you set this to a positive value, Z is quickly raised every time a retraction is triggered.',
+        tooltip => 'If you set this to a positive value, Z is quickly raised every time a retraction is triggered. When using multiple extruders, only the setting for the first extruder will be considered.',
         sidetext => 'mm',
         cli     => 'retract-lift=f@',
         type    => 'f',
@@ -823,7 +859,7 @@ END
         default => [1],
     },
     'wipe' => {
-        label   => 'Wipe before retract',
+        label   => 'Wipe while retracting',
         tooltip => 'This flag will move the nozzle while retracting to minimize the possible blob on leaky extruders.',
         cli     => 'wipe!',
         type    => 'bool',
@@ -866,7 +902,7 @@ END
         sidetext => '%',
         cli     => 'min-fan-speed=i',
         type    => 'i',
-        max     => 1000,
+        max     => 100,
         default => 35,
     },
     'max_fan_speed' => {
@@ -875,16 +911,16 @@ END
         sidetext => '%',
         cli     => 'max-fan-speed=i',
         type    => 'i',
-        max     => 1000,
+        max     => 100,
         default => 100,
     },
     'bridge_fan_speed' => {
         label   => 'Bridges fan speed',
-        tooltip => 'This fan speed is enforced during all bridges.',
+        tooltip => 'This fan speed is enforced during all bridges and overhangs.',
         sidetext => '%',
         cli     => 'bridge-fan-speed=i',
         type    => 'i',
-        max     => 1000,
+        max     => 100,
         default => 100,
     },
     'fan_below_layer_time' => {
@@ -1108,13 +1144,13 @@ sub new_from_cli {
     for (qw(start end layer toolchange)) {
         my $opt_key = "${_}_gcode";
         if ($args{$opt_key}) {
-            die "Invalid value for --${_}-gcode: file does not exist\n"
-                if !-e $args{$opt_key};
-            Slic3r::open(\my $fh, "<", $args{$opt_key})
-                or die "Failed to open $args{$opt_key}\n";
-            binmode $fh, ':utf8';
-            $args{$opt_key} = do { local $/; <$fh> };
-            close $fh;
+            if (-e $args{$opt_key}) {
+                Slic3r::open(\my $fh, "<", $args{$opt_key})
+                    or die "Failed to open $args{$opt_key}\n";
+                binmode $fh, ':utf8';
+                $args{$opt_key} = do { local $/; <$fh> };
+                close $fh;
+            }
         }
     }
     
@@ -1377,6 +1413,33 @@ sub validate {
     # --extrusion-multiplier
     die "Invalid value for --extrusion-multiplier\n"
         if defined first { $_ <= 0 } @{$self->extrusion_multiplier};
+    
+    # general validation, quick and dirty
+    foreach my $opt_key (keys %$Options) {
+        my $opt = $Options->{$opt_key};
+        next unless defined $self->$opt_key;
+        next unless defined $opt->{cli} && $opt->{cli} =~ /=(.+)$/;
+        my $type = $1;
+        my @values = ();
+        if ($type =~ s/\@$//) {
+            die "Invalid value for $opt_key\n" if ref($self->$opt_key) ne 'ARRAY';
+            @values = @{ $self->$opt_key };
+        } else {
+            @values = ($self->$opt_key);
+        }
+        foreach my $value (@values) {
+            if ($type eq 'i' || $type eq 'f') {
+                die "Invalid value for $opt_key\n"
+                    if ($type eq 'i' && $value !~ /^-?\d+$/)
+                    || ($type eq 'f' && $value !~ /^-?(?:\d+|\d*\.\d+)$/)
+                    || (defined $opt->{min} && $value < $opt->{min})
+                    || (defined $opt->{max} && $value > $opt->{max});
+            } elsif ($type eq 's' && $opt->{type} eq 'select') {
+                die "Invalid value for $opt_key\n"
+                    unless first { $_ eq $value } @{ $opt->{values} };
+            }
+        }
+    }
 }
 
 sub replace_options {

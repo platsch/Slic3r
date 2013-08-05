@@ -9,6 +9,7 @@ use List::Util qw(first);
 use Math::Geometry::Voronoi;
 use Slic3r::Geometry qw(X Y A B point_in_polygon same_line epsilon);
 use Slic3r::Geometry::Clipper qw(union_ex JT_MITER);
+use Storable qw();
 
 # the constructor accepts an array of polygons 
 # or a Math::Clipper ExPolygon (hashref)
@@ -17,19 +18,23 @@ sub new {
     my $self;
     if (@_ == 1 && ref $_[0] eq 'HASH') {
         $self = [
-            Slic3r::Polygon->new($_[0]{outer}),
-            map Slic3r::Polygon->new($_), @{$_[0]{holes}},
+            Slic3r::Polygon->new(@{$_[0]{outer}}),
+            map Slic3r::Polygon->new(@$_), @{$_[0]{holes}},
         ];
     } else {
-        $self = [ map Slic3r::Polygon->new($_), @_ ];
+        $self = [ map Slic3r::Polygon->new(@$_), @_ ];
     }
     bless $self, $class;
     $self;
 }
 
 sub clone {
+    Storable::dclone($_[0])
+}
+
+sub threadsafe_clone {
     my $self = shift;
-    return (ref $self)->new(map $_->clone, @$self);
+    return (ref $self)->new(map $_->threadsafe_clone, @$self);
 }
 
 sub contour {
@@ -79,6 +84,12 @@ sub wkt {
         join ',', map "($_)", map { join ',', map "$_->[0] $_->[1]", @$_ } @$self;
 }
 
+sub dump_perl {
+    my $self = shift;
+    return sprintf "[%s]", 
+        join ',', map "[$_]", map { join ',', map "[$_->[0],$_->[1]]", @$_ } @$self;
+}
+
 sub offset {
     my $self = shift;
     return Slic3r::Geometry::Clipper::offset($self, @_);
@@ -104,18 +115,16 @@ sub noncollapsing_offset_ex {
 sub encloses_point {
     my $self = shift;
     my ($point) = @_;
-    return $self->contour->encloses_point($point)
-        && (!grep($_->encloses_point($point), $self->holes)
-            || grep($_->point_on_segment($point), $self->holes));
+    return Boost::Geometry::Utils::point_covered_by_polygon($point, $self);
 }
 
 # A version of encloses_point for use when hole borders do not matter.
-# Useful because point_on_segment is slow
+# Useful because point_on_segment is probably slower (this was true
+# before the switch to Boost.Geometry, not sure about now)
 sub encloses_point_quick {
     my $self = shift;
     my ($point) = @_;
-    return $self->contour->encloses_point($point)
-        && !grep($_->encloses_point($point), $self->holes);
+    return Boost::Geometry::Utils::point_within_polygon($point, $self);
 }
 
 sub encloses_line {
@@ -130,16 +139,6 @@ sub encloses_line {
     }
 }
 
-sub point_on_segment {
-    my $self = shift;
-    my ($point) = @_;
-    for (@$self) {
-        my $line = $_->point_on_segment($point);
-        return $line if $line;
-    }
-    return undef;
-}
-
 sub bounding_box {
     my $self = shift;
     return $self->contour->bounding_box;
@@ -152,15 +151,21 @@ sub clip_line {
     return Boost::Geometry::Utils::polygon_multi_linestring_intersection($self, [$line]);
 }
 
-sub simplify {
+sub simplify_as_polygons {
     my $self = shift;
     my ($tolerance) = @_;
     
     # it would be nice to have a multilinestring_simplify method in B::G::U
-    my @simplified = Slic3r::Geometry::Clipper::simplify_polygons(
+    return Slic3r::Geometry::Clipper::simplify_polygons(
         [ map Boost::Geometry::Utils::linestring_simplify($_, $tolerance), @$self ],
     );
-    return @{ Slic3r::Geometry::Clipper::union_ex([ @simplified ]) };
+}
+
+sub simplify {
+    my $self = shift;
+    my ($tolerance) = @_;
+    
+    return @{ Slic3r::Geometry::Clipper::union_ex([ $self->simplify_as_polygons($tolerance) ]) };
 }
 
 sub scale {
@@ -171,6 +176,14 @@ sub scale {
 sub translate {
     my $self = shift;
     $_->translate(@_) for @$self;
+    $self;
+}
+
+sub align_to_origin {
+    my $self = shift;
+    
+    my $bb = $self->bounding_box;
+    $self->translate(-$bb->x_min, -$bb->y_min);
     $self;
 }
 
@@ -299,7 +312,7 @@ sub medial_axis {
             next if @$polyline == 2;
             push @result, Slic3r::Polygon->new(@$polyline[0..$#$polyline-1]);
         } else {
-            push @result, Slic3r::Polyline->new($polyline);
+            push @result, Slic3r::Polyline->new(@$polyline);
         }
     }
     
@@ -315,7 +328,7 @@ has 'expolygons' => (is => 'ro', default => sub { [] });
 sub clone {
     my $self = shift;
     return (ref $self)->new(
-        expolygons => [ map $_->clone, @{$self->expolygons} ],
+        expolygons => [ map $_->threadsafe_clone, @{$self->expolygons} ],
     );
 }
 
