@@ -23,7 +23,12 @@ sub BUILD {
 		my $normal = triangle_normal(map $self->mesh->vertices->[$_], @$facet[-3..-1]);
 		# normalize length
 		my $normal_length = sqrt($normal->[0]**2 + $normal->[1]**2 + $normal->[2]**2);
-		$self->normal->[$facet_id] = [ map $normal->[$_]/$normal_length, (X,Y,Z) ];
+		
+		if($normal_length > 0) {
+			$self->normal->[$facet_id] = [ map $normal->[$_]/$normal_length, (X,Y,Z) ];
+		}else{  # facet with area = 0
+			$self->normal->[$facet_id] = [0 ,0 ,0];
+		}
 		$facet_id++;
 	}
 	
