@@ -201,7 +201,7 @@ sub slice_adaptive {
 	        object  => $self,
 	        id      => $id,
 	        height  => $height,
-	        print_z => scale $print_z,
+	        print_z => $print_z,
 	        slice_z => scale $slice_z,
 	    );
 	    
@@ -239,15 +239,22 @@ sub slice {
     my $self = shift;
     my %params = @_;
     
+    # make sure all layers contain layer region objects for all regions
+    my $regions_count = $self->print->regions_count;
+    foreach my $layer (@{ $self->layers }) {
+        $layer->region($_) for 0 .. ($regions_count-1);
+    }
+    
     # process facets
     for my $region_id (0 .. $#{$self->meshes}) {
         my $mesh = $self->meshes->[$region_id];  # ignore undef meshes
         
+        my %lines = ();  # layer_id => [ lines ]
         my $apply_lines = sub {
             my $lines = shift;
             foreach my $layer_id (keys %$lines) {
-                my $layerm = $self->layers->[$layer_id]->region($region_id);
-                push @{$layerm->lines}, @{$lines->{$layer_id}};
+                $lines{$layer_id} ||= [];
+                push @{$lines{$layer_id}}, @{$lines->{$layer_id}};
             }
         };
         Slic3r::parallelize(
