@@ -196,6 +196,8 @@ $j
   
   Printer options:
     --nozzle-diameter   Diameter of nozzle in mm (default: $config->{nozzle_diameter}->[0])
+    --max-layer-height  Maximum possible layer height for this extruder in mm (default: $config->{max_layer_height}->[0])
+    --min-layer-height  Minimum possible layer height for this extruder in mm (default: $config->{min_layer_height}->[0])
     --print-center      Coordinates in mm of the point to center the print around 
                         (default: $config->{print_center}->[0],$config->{print_center}->[1])
     --z-offset          Additional height in mm to add to vertical coordinates
@@ -422,6 +424,7 @@ $j
 
     Adaptive Slicing Options: [!EXPERIMENTAL!]
      --adaptive-slicing	Use adaptive slicing algorithm to determine layer heights automatically
+     --cusp-value        Maximum deviation from the objects original surface caused by stair-stepping (default: $config->{cusp_value})
     
 EOF
     exit ($exit_code || 0);

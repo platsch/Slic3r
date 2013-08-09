@@ -1096,11 +1096,11 @@ END
     },
     'cusp_value' => {
         label   => 'Cusp value',
-        tooltip => 'Erklärung!',
+        tooltip => 'This value determines the maximum deviaton from the objects original surface caused by the stair-stepping effect (approximation of the surface by discrete layers). Use a value between 0 (highest possible resolution) and [max_layer_height] (lowest possible resolution). Typical values are 0.1 - 0.2.',
         sidetext => 'mm',
         cli     => 'cusp-value=f',
         type    => 'f',
-        default => 0.2,
+        default => 0.15,
     },
 };
 

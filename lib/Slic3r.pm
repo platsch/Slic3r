@@ -36,6 +36,7 @@ use Encode::Locale;
 use Boost::Geometry::Utils 0.15;
 use Moo 0.091009;
 
+use Slic3r::AdaptiveSlicing;
 use Slic3r::Config;
 use Slic3r::ExPolygon;
 use Slic3r::Extruder;
