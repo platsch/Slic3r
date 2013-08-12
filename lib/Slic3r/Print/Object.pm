@@ -1029,10 +1029,18 @@ sub generate_support_material {
             ###$contact_z = $layer->print_z - $layer->height;
             
             # ignore this contact area if it's too low
-            next if $contact_z < $Slic3r::Config->first_layer_height;
+            next if $contact_z < $Slic3r::Config->get_value('first_layer_height');
             
             $contact{$contact_z}  = [ @contact ];
             $overhang{$contact_z} = [ @overhang ];
+            
+            if (0) {
+                require "Slic3r/SVG.pm";
+                Slic3r::SVG::output("contact_" . $layer->print_z . ".svg",
+                    expolygons      => union_ex(\@contact),
+                    red_expolygons  => \@overhang,
+                );
+            }
         }
     }
     my @contact_z = sort keys %contact;
@@ -1311,6 +1319,7 @@ sub generate_support_material {
         my $support_collection = Slic3r::ExtrusionPath::Collection->new(paths => $result->{support});
         $layer->support_fills($support_collection) if @{$support_collection->paths} > 0;
         
+        # TODO: use a Slic3r::ExPolygon::Collection
         $layer->support_islands($result->{islands});
     };
     Slic3r::parallelize(
