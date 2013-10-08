@@ -77,13 +77,14 @@ sub process_layer {
         # skip skirt if we have a large brim
         if ($layer->id < $Slic3r::Config->skirt_height) {
             # distribute skirt loops across all extruders
-            for my $i (0 .. $#{$self->print->skirt}) {
+            my @skirt_loops = @{$self->print->skirt};
+            for my $i (0 .. $#skirt_loops) {
                 # when printing layers > 0 ignore 'min_skirt_length' and 
                 # just use the 'skirts' setting; also just use the current extruder
                 last if ($layer->id > 0) && ($i >= $Slic3r::Config->skirts);
                 $gcode .= $self->gcodegen->set_extruder($self->extruders->[ ($i/@{$self->extruders}) % @{$self->extruders} ])
                     if $layer->id == 0;
-                $gcode .= $self->gcodegen->extrude_loop($self->print->skirt->[$i], 'skirt');
+                $gcode .= $self->gcodegen->extrude_loop($skirt_loops[$i], 'skirt');
             }
         }
         $self->skirt_done->{$layer->print_z} = 1;
@@ -108,12 +109,12 @@ sub process_layer {
         # extrude support material before other things because it might use a lower Z
         # and also because we avoid travelling on other things when printing it
         if ($self->print->has_support_material && $layer->isa('Slic3r::Layer::Support')) {
-            if ($layer->support_interface_fills) {
+            if ($layer->support_interface_fills->count > 0) {
                 $gcode .= $self->gcodegen->set_extruder($self->extruders->[$Slic3r::Config->support_material_interface_extruder-1]);
                 $gcode .= $self->gcodegen->extrude_path($_, 'support material interface') 
                     for @{$layer->support_interface_fills->chained_path_from($self->gcodegen->last_pos, 0)}; 
             }
-            if ($layer->support_fills) {
+            if ($layer->support_fills->count > 0) {
                 $gcode .= $self->gcodegen->set_extruder($self->extruders->[$Slic3r::Config->support_material_extruder-1]);
                 $gcode .= $self->gcodegen->extrude_path($_, 'support material') 
                     for @{$layer->support_fills->chained_path_from($self->gcodegen->last_pos, 0)};

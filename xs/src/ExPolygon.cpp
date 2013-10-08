@@ -50,13 +50,13 @@ ExPolygon::is_valid() const
     return true;
 }
 
+#ifdef SLIC3RXS
 SV*
 ExPolygon::to_AV() {
     const unsigned int num_holes = this->holes.size();
     AV* av = newAV();
     av_extend(av, num_holes);  // -1 +1
     
-    SV* sv = newSV(0);
     av_store(av, 0, this->contour.to_SV_ref());
     
     for (unsigned int i = 0; i < num_holes; i++) {
@@ -118,5 +118,6 @@ ExPolygon::from_SV_check(SV* expoly_sv)
         this->from_SV(expoly_sv);
     }
 }
+#endif
 
 }

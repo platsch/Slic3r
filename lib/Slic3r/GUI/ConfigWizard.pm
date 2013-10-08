@@ -65,7 +65,8 @@ sub run {
             $self->{config}->set('first_layer_temperature', [$self->{config}->temperature->[0] + 5]);
             
             # set first_layer_bed_temperature to temperature + 5
-            $self->{config}->set('first_layer_bed_temperature', $self->{config}->bed_temperature + 5);
+            $self->{config}->set('first_layer_bed_temperature',
+                ($self->{config}->bed_temperature > 0) ? ($self->{config}->bed_temperature + 5) : 0);
         }
         
         $self->Destroy;
@@ -211,6 +212,7 @@ sub append_option {
         title       => '',
         config      => $self->GetParent->{config},
         options     => [$full_key],
+        full_labels => 1,
     );
     $self->{vsizer}->Add($optgroup->sizer, 0, wxEXPAND | wxTOP | wxBOTTOM, 10);
 }
@@ -347,9 +349,9 @@ sub new {
     my $self = $class->SUPER::new($parent, 'Bed Temperature');
 
     $self->append_text('Enter the bed temperature needed for getting your filament to stick to your heated bed, then click Next.');
-    $self->append_text('A rule of thumb is 60 °C for PLA and 110 °C for ABS.');
+    $self->append_text('A rule of thumb is 60 °C for PLA and 110 °C for ABS. Leave zero if you have no heated bed.');
     $self->append_option('bed_temperature');
-
+    
     return $self;
 }
 

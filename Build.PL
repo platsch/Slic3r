@@ -27,7 +27,9 @@ my %recommends = qw(
     Growl::GNTP                     0.15
     XML::SAX::ExpatXS               0
 );
-if (defined $ARGV[0] && $ARGV[0] eq '--gui') {
+
+my $gui = defined $ARGV[0] && $ARGV[0] eq '--gui';
+if ($gui) {
     %prereqs = qw(
     Wx                              0.9918
     );
@@ -106,28 +108,37 @@ EOF
         }
     }
     
-    # temporarily require this dev version until this upstream bug
-    # is resolved: https://rt.cpan.org/Ticket/Display.html?id=86367
-    system $cpanm, 'SMUELLER/ExtUtils-ParseXS-3.18_04.tar.gz';
-    
-    # clean xs directory before reinstalling, to make sure Build is called
-    # with current perl binary
-    if (-e './xs/Build') {
-        if ($^O eq 'MSWin32') {
-            system 'cd', 'xs';
-            system 'Build', 'distclean';
-            system 'cd', '..';
-        } else {
-            system './xs/Build', 'distclean';
+    if (!$gui) {
+        # temporarily require this dev version until this upstream bug
+        # is resolved: https://rt.cpan.org/Ticket/Display.html?id=86367
+        system $cpanm, 'SMUELLER/ExtUtils-ParseXS-3.18_04.tar.gz';
+        
+        # clean xs directory before reinstalling, to make sure Build is called
+        # with current perl binary
+        if (-e './xs/Build') {
+            if ($^O eq 'MSWin32') {
+                system 'cd', 'xs';
+                system 'Build', 'distclean';
+                system 'cd', '..';
+            } else {
+                system './xs/Build', 'distclean';
+            }
         }
+        system $cpanm, '--reinstall', './xs';
     }
-    system $cpanm, '--reinstall', './xs';
 }
 
-if (eval "use App::Prove; 1" && !$missing_prereqs) {
-    App::Prove->new->run;
+if ($missing_prereqs) {
+    exit 1;
+} else {
+    my $res = 0;
+    if (eval "use App::Prove; 1") {
+        $res = App::Prove->new->run ? 0 : 1;
+    }
+    if (!$gui) {
+        print "If you also want to use the GUI you can now run `perl Build.PL --gui` to install the required modules.\n";
+    }
+    exit $res;
 }
-
-exit 1 if $missing_prereqs;
 
 __END__

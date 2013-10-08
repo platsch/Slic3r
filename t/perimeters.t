@@ -1,4 +1,4 @@
-use Test::More tests => 5;
+use Test::More tests => 6;
 use strict;
 use warnings;
 
@@ -103,10 +103,12 @@ use Slic3r::Test;
         $config->set('fan_below_layer_time', 0);
         $config->set('slowdown_below_layer_time', 0);
         $config->set('bridge_fan_speed', 100);
+        $config->set('bridge_flow_ratio', 33);  # arbitrary value
         $config->set('overhangs', 1);
         my $print = Slic3r::Test::init_print('overhang', config => $config);
         my %layer_speeds = ();  # print Z => [ speeds ]
         my $fan_speed = 0;
+        my $bridge_mm_per_mm = ($config->nozzle_diameter->[0]**2) / ($config->filament_diameter->[0]**2) * $config->bridge_flow_ratio;
         Slic3r::GCode::Reader->new->parse(Slic3r::Test::gcode($print), sub {
             my ($self, $cmd, $args, $info) = @_;
             
@@ -124,6 +126,8 @@ use Slic3r::Test;
                 if ($feedrate == $config->bridge_speed*60) {
                     fail 'printing overhang but fan is not enabled or running at wrong speed'
                         if $fan_speed != 255;
+                    my $mm_per_mm = $info->{dist_E} / $info->{dist_XY};
+                    fail 'wrong bridge flow' if abs($mm_per_mm - $bridge_mm_per_mm) > 0.01;
                 } else {
                     fail 'fan is running when not supposed to'
                         if $fan_speed > 0;
@@ -133,6 +137,35 @@ use Slic3r::Test;
         is scalar(grep { keys %$_ > 1 } values %layer_speeds), 1,
             'only overhang layer has more than one speed';
     }
+}
+
+{
+    my $config = Slic3r::Config->new_from_defaults;
+    $config->set('skirts', 0);
+    $config->set('perimeters', 3);
+    $config->set('layer_height', 0.4);
+    $config->set('first_layer_height', 0.35);
+    $config->set('extra_perimeters', 1);
+    $config->set('cooling', 0);                     # to prevent speeds from being altered
+    $config->set('first_layer_speed', '100%');      # to prevent speeds from being altered
+    $config->set('perimeter_speed', 99);
+    $config->set('external_perimeter_speed', 99);
+    $config->set('small_perimeter_speed', 99);
+    
+    my $print = Slic3r::Test::init_print('ipadstand', config => $config);
+    my %perimeters = ();  # z => number of loops
+    my $in_loop = 0;
+    Slic3r::GCode::Reader->new->parse(Slic3r::Test::gcode($print), sub {
+        my ($self, $cmd, $args, $info) = @_;
+        
+        if ($info->{extruding} && $info->{dist_XY} > 0 && ($args->{F} // $self->F) == $config->perimeter_speed*60) {
+            $perimeters{$self->Z}++ if !$in_loop;
+            $in_loop = 1;
+        } else {
+            $in_loop = 0;
+        }
+    });
+    ok !(grep { $_ % $config->perimeters } values %perimeters), 'no superfluous extra perimeters';
 }
 
 __END__

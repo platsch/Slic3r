@@ -70,6 +70,7 @@ use Slic3r::Polyline;
 use Slic3r::Print;
 use Slic3r::Print::Object;
 use Slic3r::Print::Region;
+use Slic3r::Print::SupportMaterial;
 use Slic3r::Surface;
 use Slic3r::TriangleMesh;
 our $build = eval "use Slic3r::Build; 1";
@@ -98,6 +99,7 @@ sub parallelize {
             Slic3r::thread_cleanup();
             return $result;
         };
+        $params{collect_cb} ||= sub {};
             
         @_ = ();
         foreach my $th (map threads->create($thread_cb), 1..$Config->threads) {
@@ -114,6 +116,11 @@ sub parallelize {
 # inherited at the thread creation (thus shared) and those 
 # that we are returning: destruction will be handled by the
 # main thread in both cases.
+# reminder: do not destroy inherited objects in other threads,
+# as the main thread will still try to destroy them when they
+# go out of scope; in other words, if you're undef()'ing an 
+# object in a thread, make sure the main thread still holds a
+# reference so that it won't be destroyed in thread.
 sub thread_cleanup {
     # prevent destruction of shared objects
     no warnings 'redefine';
@@ -123,7 +130,6 @@ sub thread_cleanup {
     *Slic3r::ExtrusionPath::DESTROY         = sub {};
     *Slic3r::ExtrusionPath::Collection::DESTROY = sub {};
     *Slic3r::Line::DESTROY                  = sub {};
-    *Slic3r::Object::XS::ZTable::DESTROY    = sub {};
     *Slic3r::Point::DESTROY                 = sub {};
     *Slic3r::Polygon::DESTROY               = sub {};
     *Slic3r::Polyline::DESTROY              = sub {};
@@ -131,6 +137,7 @@ sub thread_cleanup {
     *Slic3r::Surface::DESTROY               = sub {};
     *Slic3r::Surface::Collection::DESTROY   = sub {};
     *Slic3r::TriangleMesh::DESTROY          = sub {};
+    return undef;  # this prevents a "Scalars leaked" warning
 }
 
 sub encode_path {

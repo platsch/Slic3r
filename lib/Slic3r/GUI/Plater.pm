@@ -568,7 +568,8 @@ sub split_object {
     my $mesh = $model_object->mesh;
     $mesh->align_to_origin;
     
-    my @new_meshes = $mesh->split_mesh;
+    $mesh->repair;
+    my @new_meshes = @{$mesh->split};
     if (@new_meshes == 1) {
         Slic3r::GUI::warning_catcher($self)->("The selected object couldn't be split because it already contains a single part.");
         return;
@@ -583,9 +584,10 @@ sub split_object {
     my $new_model = Slic3r::Model->new;
     
     foreach my $mesh (@new_meshes) {
+        $mesh->repair;
         my $bb = $mesh->bounding_box;
-        my $model_object = $new_model->add_object(vertices => $mesh->vertices);
-        $model_object->add_volume(facets => $mesh->facets);
+        my $model_object = $new_model->add_object;
+        $model_object->add_volume(mesh => $mesh);
         my $object = Slic3r::GUI::Plater::Object->new(
             name                    => basename($current_object->input_file),
             input_file              => $current_object->input_file,
@@ -610,13 +612,14 @@ sub export_gcode {
         return;
     }
     
-    # get config before spawning the thread because ->config needs GetParent and it's not available there
-    my $print = $self->skeinpanel->init_print;
+    # get config before spawning the thread because it needs GetParent and it's not available there
+    my $config          = $self->skeinpanel->config;
+    my $extra_variables = $self->skeinpanel->extra_variables;
     
     # select output file
     $self->{output_file} = $main::opt{output};
     {
-        $self->{output_file} = $print->expanded_output_filepath($self->{output_file}, $self->{objects}[0]->input_file);
+        $self->{output_file} = $self->skeinpanel->init_print->expanded_output_filepath($self->{output_file}, $self->{objects}[0]->input_file);
         my $dlg = Wx::FileDialog->new($self, 'Save G-code file as:', Slic3r::GUI->output_path(dirname($self->{output_file})),
             basename($self->{output_file}), &Slic3r::GUI::SkeinPanel::FILE_WILDCARDS->{gcode}, wxFD_SAVE);
         if ($dlg->ShowModal != wxID_OK) {
@@ -641,7 +644,8 @@ sub export_gcode {
         @_ = ();
         $self->{export_thread} = threads->create(sub {
             $self->export_gcode2(
-                $print,
+                $config,
+                $extra_variables,
                 $self->{output_file},
                 progressbar     => sub { Wx::PostEvent($self, Wx::PlThreadEvent->new(-1, $PROGRESS_BAR_EVENT, shared_clone([@_]))) },
                 message_dialog  => sub { Wx::PostEvent($self, Wx::PlThreadEvent->new(-1, $MESSAGE_DIALOG_EVENT, shared_clone([@_]))) },
@@ -663,7 +667,8 @@ sub export_gcode {
         });
     } else {
         $self->export_gcode2(
-            $print,
+            $config,
+            $extra_variables,
             $self->{output_file},
             progressbar => sub {
                 my ($percent, $message) = @_;
@@ -679,11 +684,16 @@ sub export_gcode {
 
 sub export_gcode2 {
     my $self = shift;
-    my ($print, $output_file, %params) = @_;
+    my ($config, $extra_variables, $output_file, %params) = @_;
     local $SIG{'KILL'} = sub {
         Slic3r::debugf "Exporting cancelled; exiting thread...\n";
         threads->exit();
     } if $Slic3r::have_threads;
+    
+    my $print = Slic3r::Print->new(
+        config          => $config,
+        extra_variables => $extra_variables,
+    );
     
     eval {
         $print->config->validate;
@@ -789,7 +799,6 @@ sub make_model {
         my $model_object = $plater_object->get_model_object;
         
         my $new_model_object = $model->add_object(
-            vertices    => $model_object->vertices,
             input_file  => $plater_object->input_file,
             config      => $plater_object->config,
             layer_height_ranges => $plater_object->layer_height_ranges,
@@ -798,7 +807,7 @@ sub make_model {
         foreach my $volume (@{$model_object->volumes}) {
             $new_model_object->add_volume(
                 material_id => $volume->material_id,
-                facets      => $volume->facets,
+                mesh        => $volume->mesh,
             );
             $model->set_material($volume->material_id || 0, {});
         }
@@ -1078,6 +1087,11 @@ sub object_preview_dialog {
     
     if (!defined $obj_idx) {
         ($obj_idx, undef) = $self->selected_object;
+    }
+    
+    if (!$Slic3r::GUI::have_OpenGL) {
+        Slic3r::GUI::show_error($self, "Please install the OpenGL modules to use this feature (see build instructions).");
+        return;
     }
     
     my $dlg = Slic3r::GUI::Plater::ObjectPreviewDialog->new($self,

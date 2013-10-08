@@ -10,13 +10,14 @@ use Slic3r::Surface ':types';
 has 'config'             => (is => 'ro', required => 1);
 has 'extruders'          => (is => 'ro', required => 1);
 has 'multiple_extruders' => (is => 'lazy');
+has 'standby_points'     => (is => 'rw');
 has 'enable_loop_clipping' => (is => 'rw', default => sub {1});
 has 'enable_wipe'        => (is => 'lazy');   # at least one extruder has wipe enabled
 has 'layer_count'        => (is => 'ro', required => 1 );
 has 'layer'              => (is => 'rw');
 has '_layer_islands'     => (is => 'rw');
 has '_upper_layer_islands'  => (is => 'rw');
-has '_layer_overhangs'   => (is => 'rw');
+has '_layer_overhangs_pp' => (is => 'rw');
 has 'shift_x'            => (is => 'rw', default => sub {0} );
 has 'shift_y'            => (is => 'rw', default => sub {0} );
 has 'z'                  => (is => 'rw');
@@ -99,10 +100,10 @@ sub change_layer {
         $self->_layer_islands([]);
         $self->_upper_layer_islands([]);
     }
-    $self->_layer_overhangs(
+    $self->_layer_overhangs_pp(
         # clone ExPolygons because they come from Surface objects but will be used outside here
-        $layer->id > 0 && ($layer->config->overhangs || $Slic3r::Config->start_perimeters_at_non_overhang)
-            ? [ map $_->expolygon->clone, grep $_->surface_type == S_TYPE_BOTTOM, map @{$_->slices}, @{$layer->regions} ]
+        ($layer->id > 0 && ($layer->config->overhangs || $Slic3r::Config->start_perimeters_at_non_overhang))
+            ? [ map $_->expolygon->pp, grep $_->surface_type == S_TYPE_BOTTOM, map @{$_->slices}, @{$layer->regions} ]
             : []
         );
     if ($self->config->avoid_crossing_perimeters) {
@@ -180,7 +181,7 @@ sub extrude_loop {
     }
     my @candidates = ();
     if ($Slic3r::Config->start_perimeters_at_non_overhang) {
-        @candidates = grep !Boost::Geometry::Utils::point_covered_by_multi_polygon($_->pp, $self->_layer_overhangs), @concave;
+        @candidates = grep !Boost::Geometry::Utils::point_covered_by_multi_polygon($_->pp, $self->_layer_overhangs_pp), @concave;
     }
     if (!@candidates) {
         # if none, look for any concave vertex
@@ -188,7 +189,7 @@ sub extrude_loop {
         if (!@candidates) {
             # if none, look for any non-overhang vertex
             if ($Slic3r::Config->start_perimeters_at_non_overhang) {
-                @candidates = grep !Boost::Geometry::Utils::point_covered_by_multi_polygon($_->pp, $self->_layer_overhangs), @{$polygon};
+                @candidates = grep !Boost::Geometry::Utils::point_covered_by_multi_polygon($_->pp, $self->_layer_overhangs_pp), @$polygon;
             }
             if (!@candidates) {
                 # if none, all points are valid candidates
@@ -218,15 +219,19 @@ sub extrude_loop {
     
     my @paths = ();
     # detect overhanging/bridging perimeters
-    if ($self->layer->config->overhangs && $extrusion_path->is_perimeter && @{$self->_layer_overhangs}) {
+    if ($self->layer->config->overhangs && $extrusion_path->is_perimeter && @{$self->_layer_overhangs_pp}) {
         # get non-overhang paths by subtracting overhangs from the loop
         push @paths,
-            $extrusion_path->subtract_expolygons($self->_layer_overhangs);
+            $extrusion_path->subtract_expolygons($self->_layer_overhangs_pp);
         
         # get overhang paths by intersecting overhangs with the loop
         push @paths,
-            map { $_->role(EXTR_ROLE_OVERHANG_PERIMETER); $_ }
-            $extrusion_path->intersect_expolygons($self->_layer_overhangs);
+            map {
+                $_->role(EXTR_ROLE_OVERHANG_PERIMETER);
+                $_->flow_spacing($self->extruder->bridge_flow->width);
+                $_
+            }
+            $extrusion_path->intersect_expolygons($self->_layer_overhangs_pp);
         
         # reapply the nearest point search for starting point
         # (clone because the collection gets DESTROY'ed)
@@ -392,7 +397,7 @@ sub travel_to {
         || ($self->config->only_retract_when_crossing_perimeters
             && (first { $_->encloses_line($travel, scaled_epsilon) } @{$self->_upper_layer_islands})
             && (first { $_->encloses_line($travel, scaled_epsilon) } @{$self->_layer_islands}))
-        || ($role == EXTR_ROLE_SUPPORTMATERIAL && (first { $_->encloses_line($travel, scaled_epsilon) } @{$self->layer->support_islands}))
+        || (defined $role && $role == EXTR_ROLE_SUPPORTMATERIAL && (first { $_->encloses_line($travel, scaled_epsilon) } @{$self->layer->support_islands}))
         ) {
         $self->straight_once(0);
         $self->speed('travel');
@@ -659,6 +664,18 @@ sub set_extruder {
         });
     }
     
+    # set the current extruder to the standby temperature
+    if ($self->config->standby_temperature && defined $self->extruder) {
+        # move to the nearest standby point
+        $gcode .= $self->travel_to($self->last_pos->nearest_point($self->standby_points));
+        
+        my $temp = defined $self->layer && $self->layer->id == 0
+            ? $self->extruder->first_layer_temperature
+            : $self->extruder->temperature;
+        # we assume that heating is always slower than cooling, so no need to block
+        $gcode .= $self->set_temperature($temp + $self->config->standby_temperature_delta, 0);
+    }
+    
     # set the new extruder
     $self->extruder($extruder);
     $gcode .= sprintf "%s%d%s\n", 
@@ -671,6 +688,14 @@ sub set_extruder {
         ($self->config->gcode_comments ? ' ; change extruder' : '');
     
     $gcode .= $self->reset_e;
+    
+    # set the new extruder to the operating temperature
+    if ($self->config->standby_temperature) {
+        my $temp = defined $self->layer && $self->layer->id == 0
+            ? $self->extruder->first_layer_temperature
+            : $self->extruder->temperature;
+        $gcode .= $self->set_temperature($temp, 1);
+    }
     
     return $gcode;
 }

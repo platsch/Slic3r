@@ -22,18 +22,10 @@ has 'first_layer_support_material_flow' => (is => 'rw');
 has 'has_support_material'   => (is => 'lazy');
 
 # ordered collection of extrusion paths to build skirt loops
-has 'skirt' => (
-    is      => 'rw',
-    #isa     => 'ArrayRef[Slic3r::ExtrusionLoop]',
-    default => sub { [] },
-);
+has 'skirt' => (is => 'rw', default => sub { Slic3r::ExtrusionPath::Collection->new });
 
 # ordered collection of extrusion paths to build a brim
-has 'brim' => (
-    is      => 'rw',
-    #isa     => 'ArrayRef[Slic3r::ExtrusionLoop]',
-    default => sub { [] },
-);
+has 'brim' => (is => 'rw', default => sub { Slic3r::ExtrusionPath::Collection->new });
 
 sub BUILD {
     my $self = shift;
@@ -185,7 +177,7 @@ sub validate {
                 for my $copy (@{$self->objects->[$obj_idx]->copies}) {
                     my $copy_clearance = $clearance->clone;
                     $copy_clearance->translate(@$copy);
-                    if (@{ intersection_ex(\@a, [$copy_clearance]) }) {
+                    if (@{ intersection(\@a, [$copy_clearance]) }) {
                         die "Some objects are too close; your extruder will collide with them.\n";
                     }
                     @a = map @$_, @{union_ex([ @a, $copy_clearance ])};
@@ -277,6 +269,13 @@ sub init_extruders {
             width           => $self->config->first_layer_extrusion_width,
             role            => 'support_material',
         ));
+    }
+    
+    # enforce tall skirt if using standby_temperature
+    # NOTE: this is not idempotent (i.e. switching standby_temperature off will not revert skirt settings)
+    if ($self->config->standby_temperature) {
+        $self->config->set('skirt_height', 9999999999);
+        $self->config->set('skirts', 1) if $self->config->skirts == 0;
     }
 }
 
@@ -576,7 +575,8 @@ EOF
 
 sub make_skirt {
     my $self = shift;
-    return unless $Slic3r::Config->skirts > 0;
+    return unless $Slic3r::Config->skirts > 0
+        || ($Slic3r::Config->standby_temperature && @{$self->extruders} > 1);
     
     # collect points from all layers contained in skirt height
     my @points = ();
@@ -585,7 +585,6 @@ sub make_skirt {
         my @layers = map $object->layers->[$_], 0..min($Slic3r::Config->skirt_height-1, $#{$object->layers});
         my @layer_points = (
             (map @$_, map @$_, map @{$_->slices}, @layers),
-            (map @$_, map @{$_->thin_walls}, map @{$_->regions}, @layers),
         );
         if (@{ $object->support_layers }) {
             my @support_layers = map $object->support_layers->[$_], 0..min($Slic3r::Config->skirt_height-1, $#{$object->support_layers});
@@ -615,11 +614,11 @@ sub make_skirt {
     for (my $i = $Slic3r::Config->skirts; $i > 0; $i--) {
         $distance += scale $spacing;
         my $loop = Slic3r::Geometry::Clipper::offset([$convex_hull], $distance, 0.0001, JT_ROUND)->[0];
-        push @{$self->skirt}, Slic3r::ExtrusionLoop->new(
+        $self->skirt->append(Slic3r::ExtrusionLoop->new(
             polygon         => Slic3r::Polygon->new(@$loop),
             role            => EXTR_ROLE_SKIRT,
             flow_spacing    => $spacing,
-        );
+        ));
         
         if ($Slic3r::Config->min_skirt_length > 0) {
             $extruded_length[$extruder_idx]     ||= 0;
@@ -635,7 +634,7 @@ sub make_skirt {
         }
     }
     
-    @{$self->skirt} = reverse @{$self->skirt};
+    $self->skirt->reverse;
 }
 
 sub make_brim {
@@ -651,7 +650,6 @@ sub make_brim {
         my $layer0 = $object->layers->[0];
         my @object_islands = (
             (map $_->contour, @{$layer0->slices}),
-            (map { $_->isa('Slic3r::Polygon') ? $_ : $_->grow($grow_distance) } map @{$_->thin_walls}, @{$layer0->regions}),
         );
         if (@{ $object->support_layers }) {
             my $support_layer0 = $object->support_layers->[0];
@@ -663,7 +661,7 @@ sub make_brim {
                 if $support_layer0->support_interface_fills;
         }
         foreach my $copy (@{$object->copies}) {
-            push @islands, map $_->clone->translate(@$copy), @object_islands;
+            push @islands, map { $_->translate(@$copy); $_ } map $_->clone, @object_islands;
         }
     }
     
@@ -683,11 +681,11 @@ sub make_brim {
         push @loops, @{offset2(\@islands, ($i + 0.5) * $flow->scaled_spacing, -1.0 * $flow->scaled_spacing, 100000, JT_SQUARE)};
     }
     
-    @{$self->brim} = map Slic3r::ExtrusionLoop->new(
+    $self->brim->append(map Slic3r::ExtrusionLoop->new(
         polygon         => Slic3r::Polygon->new(@$_),
         role            => EXTR_ROLE_SKIRT,
         flow_spacing    => $flow->spacing,
-    ), reverse traverse_pt( union_pt(\@loops) );
+    ), reverse traverse_pt( union_pt(\@loops) ));
 }
 
 sub write_gcode {
@@ -748,6 +746,7 @@ sub write_gcode {
         return if $Slic3r::Config->start_gcode =~ /M(?:109|104)/i;
         for my $t (0 .. $#{$self->extruders}) {
             my $temp = $self->extruders->[$t]->first_layer_temperature;
+            $temp += $self->config->standby_temperature_delta if $self->config->standby_temperature;
             printf $fh $gcodegen->set_temperature($temp, $wait, $t) if $temp > 0;
         }
     };
@@ -801,6 +800,12 @@ sub write_gcode {
             islands     => union_ex([ map @$_, @islands ]),
             no_internal => 1,
         ));
+    }
+    
+    # calculate wiping points if needed
+    if ($self->config->standby_temperature) {
+        my $outer_skirt = Slic3r::Polygon->new(@{convex_hull([ map $_->pp, map @$_, @{$self->skirt} ])});
+        $gcodegen->standby_points([ map $_->clone, map @$_, map $_->subdivide(scale 10), @{offset([$outer_skirt], scale 3)} ]);
     }
     
     # prepare the layer processor
