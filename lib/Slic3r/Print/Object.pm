@@ -7,7 +7,6 @@ use Slic3r::Geometry qw(X Y Z PI scale unscale deg2rad rad2deg scaled_epsilon ch
 use Slic3r::Geometry::Clipper qw(diff diff_ex intersection intersection_ex union union_ex 
     offset offset_ex offset2 CLIPPER_OFFSET_SCALE JT_MITER);
 use Slic3r::Surface ':types';
-use Slic3r::AdaptiveSlicing;
 
 has 'print'             => (is => 'ro', weak_ref => 1, required => 1);
 has 'input_file'        => (is => 'rw', required => 0);
@@ -143,9 +142,11 @@ sub slice_adaptive {
 	my $height = my $slice_z = 0;
 	my $print_z = ($#{$self->layers} > 0) ? unscale $self->layers->[$#{$self->layers}]->print_z : 0; 
 	my @adaptive_slicing;
-	for my $region_id (0 .. $#{$self->meshes}) {		
+	for my $region_id (0 .. $#{$self->meshes}) {
+		my $mesh = $self->meshes->[$region_id];
+		$mesh->repair;		
 		$adaptive_slicing[$region_id] = Slic3r::AdaptiveSlicing->new(
-			mesh => $self->meshes->[$region_id],
+			mesh => $mesh,
 			size => $self->size->[Z],
 		);
 	}
@@ -219,10 +220,12 @@ sub slice_adaptive {
        	for my $region_id (0 .. $#{$self->meshes}) {
         	my $mesh = $self->meshes->[$region_id];  # ignore undef meshes
         	
-        	my @lines = $mesh->slice_layer($self, scale $slice_z);
-        	my ($slicing_errors, $loops) = Slic3r::TriangleMesh::make_loops(\@lines);
-        	$layer->slicing_errors(1) if $slicing_errors;
-        	$layer->region($region_id)->make_surfaces($loops);
+        	# call slize with a list of only one layer. Workaround for the change to XS which combines all the actual
+        	# slicing steps in one monolithic funktion
+        	my $loops = $mesh->slice([ scale $slice_z ]);
+            for my $layer_id (0..$#$loops) {
+            	$layer->region($region_id)->make_surfaces($loops->[$layer_id]);
+            }
 		}
 
 		$layer->make_slices;
@@ -239,9 +242,6 @@ sub slice_adaptive {
     
     # detect and repair slicing errors
     $self->repair_slicing_errors();
-		
-	#require "Slic3r/SVG.pm";
-	#Slic3r::SVG::output_polygons($self->print, "/home/florens/uni/ma/adaptive.svg", $loops);
 }
 
 sub slice {

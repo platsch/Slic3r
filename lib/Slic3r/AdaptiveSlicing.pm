@@ -17,10 +17,12 @@ sub BUILD {
     my $self = shift;
     
     my $facet_id = 0; 
+    my $facets = $self->mesh->facets;
+    my $vertices = $self->mesh->vertices;
     
     # generate facet normals
-	foreach my $facet (@{$self->mesh->facets}) {
-		my $normal = triangle_normal(map $self->mesh->vertices->[$_], @$facet[-3..-1]);
+	foreach my $facet (@{$facets}) {
+		my $normal = triangle_normal(map $vertices->[$_], @$facet[-3..-1]);
 		# normalize length
 		my $normal_length = sqrt($normal->[0]**2 + $normal->[1]**2 + $normal->[2]**2);
 		
@@ -34,10 +36,14 @@ sub BUILD {
 	
 	# generate a list of facet_ids, containing maximum and minimum Z-Value of the facet, ordered by minimum Z
 	my @sort_facets;
-	for ($facet_id = 0; $facet_id <= $#{$self->mesh->facets}; $facet_id++) {
-		my $max_a = $self->mesh->vertices->[$self->mesh->facets->[$facet_id]->[1]]->[Z];
-		my $max_b = $self->mesh->vertices->[$self->mesh->facets->[$facet_id]->[2]]->[Z];
-		push @sort_facets, [$facet_id, $self->mesh->vertices->[$self->mesh->facets->[$facet_id]->[0]]->[Z], ($max_a > $max_b) ? $max_a : $max_b];	
+
+	for ($facet_id = 0; $facet_id <= $#{$facets}; $facet_id++) {
+		my $a = $vertices->[$facets->[$facet_id]->[0]]->[Z];
+		my $b = $vertices->[$facets->[$facet_id]->[1]]->[Z];
+		my $c = $vertices->[$facets->[$facet_id]->[2]]->[Z];
+		my $min_z = min($a, $b, $c);
+		my $max_z = max($a, $b, $c);
+		push @sort_facets, [$facet_id, $min_z, $max_z];	
 	}		
 	@sort_facets = sort {$a->[1] <=> $b->[1]} @sort_facets;
 	for (my $i = 0; $i <= $#sort_facets; $i++) {
