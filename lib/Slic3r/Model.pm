@@ -25,7 +25,9 @@ sub merge {
     my $class = shift;
     my @models = @_;
     
-    my $new_model = $class->new;
+    my $new_model = ref($class)
+        ? $class
+        : $class->new;
     foreach my $model (@models) {
         # merge material attributes (should we rename them in case of duplicates?)
         $new_model->set_material($_, { %{$model->materials->{$_}}, %{$model->materials->{$_} || {}} })
@@ -34,13 +36,13 @@ sub merge {
         foreach my $object (@{$model->objects}) {
             my $new_object = $new_model->add_object(
                 input_file          => $object->input_file,
-                vertices            => $object->vertices,
+                config              => $object->config,
                 layer_height_ranges => $object->layer_height_ranges,
             );
             
             $new_object->add_volume(
                 material_id         => $_->material_id,
-                facets              => $_->facets,
+                mesh                => $_->mesh->clone,
             ) for @{$object->volumes};
             
             $new_object->add_instance(
@@ -158,16 +160,6 @@ sub _arrange {
     }
 }
 
-sub vertices {
-    my $self = shift;
-    return [ map @{$_->vertices}, @{$self->objects} ];
-}
-
-sub used_vertices {
-    my $self = shift;
-    return [ map @{$_->used_vertices}, @{$self->objects} ];
-}
-
 sub size {
     my $self = shift;
     return $self->bounding_box->size;
@@ -177,7 +169,7 @@ sub bounding_box {
     my $self = shift;
     
     if (!defined $self->_bounding_box) {
-        $self->_bounding_box(Slic3r::Geometry::BoundingBox->new_from_points_3D($self->used_vertices));
+        $self->_bounding_box(Slic3r::Geometry::BoundingBox->merge(map $_->bounding_box, @{$self->objects}));
     }
     return $self->_bounding_box;
 }
@@ -255,6 +247,7 @@ sub split_meshes {
         foreach my $mesh ($volume->mesh->split_mesh) {
             my $new_object = $self->add_object(
                 input_file          => $object->input_file,
+                config              => $object->config,
                 layer_height_ranges => $object->layer_height_ranges,
             );
             $new_object->add_volume(
@@ -283,6 +276,20 @@ sub print_info {
     $_->print_info for @{$self->objects};
 }
 
+sub get_material_name {
+    my $self = shift;
+    my ($material_id) = @_;
+    
+    my $name;
+    if (exists $self->materials->{$material_id}) {
+        $name //= $self->materials->{$material_id}->attributes->{$_} for qw(Name name);
+    } elsif ($material_id eq '_') {
+        $name = 'Default material';
+    }
+    $name //= $material_id;
+    return $name;
+}
+
 package Slic3r::Model::Region;
 use Moo;
 
@@ -293,36 +300,27 @@ package Slic3r::Model::Object;
 use Moo;
 
 use File::Basename qw(basename);
-use List::Util qw(first);
+use List::Util qw(first sum);
 use Slic3r::Geometry qw(X Y Z MIN MAX move_points move_points_3D);
 use Storable qw(dclone);
 
 has 'input_file' => (is => 'rw');
 has 'model'     => (is => 'ro', weak_ref => 1, required => 1);
-has 'vertices'  => (is => 'ro', default => sub { [] });
 has 'volumes'   => (is => 'ro', default => sub { [] });
 has 'instances' => (is => 'rw');
+has 'config'    => (is => 'rw', default => sub { Slic3r::Config->new });
 has 'layer_height_ranges' => (is => 'rw', default => sub { [] }); # [ z_min, z_max, layer_height ]
-has 'mesh_stats' => (is => 'rw');
+has 'material_mapping'      => (is => 'rw', default => sub { {} }); # { material_id => extruder_idx }
 has '_bounding_box' => (is => 'rw');
 
 sub add_volume {
     my $self = shift;
     my %args = @_;
     
-    if (my $vertices = delete $args{vertices}) {
-        my $v_offset = @{$self->vertices};
-        push @{$self->vertices}, @$vertices;
-        
-        @{$args{facets}} = map {
-            my $f = [@$_];
-            $f->[$_] += $v_offset for -3..-1;
-            $f;
-        } @{$args{facets}};
-    }
-    
-    my $volume = Slic3r::Model::Volume->new(object => $self, %args);
-    push @{$self->volumes}, $volume;
+    push @{$self->volumes}, my $volume = Slic3r::Model::Volume->new(
+        object => $self,
+        %args,
+    );
     $self->_bounding_box(undef);
     $self->model->_bounding_box(undef);
     return $volume;
@@ -340,17 +338,9 @@ sub add_instance {
 sub mesh {
     my $self = shift;
     
-    # this mesh won't be suitable for check_manifoldness as multiple
-    # facets from different volumes may use the same vertices
-    return Slic3r::TriangleMesh->new(
-        vertices => $self->vertices,
-        facets   => [ map @{$_->facets}, @{$self->volumes} ],
-    );
-}
-
-sub used_vertices {
-    my $self = shift;
-    return [ map $self->vertices->[$_], map @$_, map @{$_->facets}, @{$self->volumes} ];
+    my $mesh = Slic3r::TriangleMesh->new;
+    $mesh->merge($_->mesh) for @{$self->volumes};
+    return $mesh;
 }
 
 sub size {
@@ -363,11 +353,19 @@ sub center {
     return $self->bounding_box->center;
 }
 
+sub center_2D {
+    my $self = shift;
+    return $self->bounding_box->center_2D;
+}
+
 sub bounding_box {
     my $self = shift;
     
     if (!defined $self->_bounding_box) {
-        $self->_bounding_box(Slic3r::Geometry::BoundingBox->new_from_points_3D($self->used_vertices));
+        my @meshes = map $_->mesh, @{$self->volumes};
+        my $bounding_box = Slic3r::Geometry::BoundingBox->new_from_bb((shift @meshes)->bb3);
+        $bounding_box->merge(Slic3r::Geometry::BoundingBox->new_from_bb($_->bb3)) for @meshes;
+        $self->_bounding_box($bounding_box);
     }
     return $self->_bounding_box;
 }
@@ -387,7 +385,7 @@ sub move {
     my $self = shift;
     my @shift = @_;
     
-    @{$self->vertices} = move_points_3D([ @shift ], @{$self->vertices});
+    $_->mesh->translate(@shift) for @{$self->volumes};
     $self->_bounding_box->translate(@shift) if defined $self->_bounding_box;
 }
 
@@ -396,13 +394,8 @@ sub scale {
     my ($factor) = @_;
     return if $factor == 1;
     
-    # transform vertex coordinates
-    foreach my $vertex (@{$self->vertices}) {
-        $vertex->[$_] *= $factor for X,Y,Z;
-    }
-    
+    $_->mesh->scale($factor) for @{$self->volumes};
     $self->_bounding_box->scale($factor) if defined $self->_bounding_box;
-    $self->mesh_stats->{volume} *= ($factor**3) if defined $self->mesh_stats;
 }
 
 sub rotate {
@@ -410,13 +403,7 @@ sub rotate {
     my ($deg) = @_;
     return if $deg == 0;
     
-    my $rad = Slic3r::Geometry::deg2rad($deg);
-    
-    # transform vertex coordinates
-    foreach my $vertex (@{$self->vertices}) {
-        @$vertex = (@{ +(Slic3r::Geometry::rotate_points($rad, undef, [ $vertex->[X], $vertex->[Y] ]))[0] }, $vertex->[Z]);
-    }
-    
+    $_->mesh->rotate($deg, Slic3r::Point->(0,0)) for @{$self->volumes};
     $self->_bounding_box(undef);
 }
 
@@ -427,17 +414,29 @@ sub materials_count {
     return scalar keys %materials;
 }
 
-sub check_manifoldness {
+sub unique_materials {
     my $self = shift;
-    return (first { !$_->mesh->check_manifoldness } @{$self->volumes}) ? 0 : 1;
+    
+    my %materials = ();
+    $materials{ $_->material_id // '_' } = 1 for @{$self->volumes};
+    return sort keys %materials;
+}
+
+sub facets_count {
+    my $self = shift;
+    return sum(map $_->facets_count, @{$self->volumes});
 }
 
 sub needed_repair {
     my $self = shift;
+    return (first { !$_->mesh->needed_repair } @{$self->volumes}) ? 0 : 1;
+}
+
+sub mesh_stats {
+    my $self = shift;
     
-    return $self->mesh_stats
-        && first { $self->mesh_stats->{$_} > 0 }
-            qw(degenerate_facets edges_fixed facets_removed facets_added facets_reversed backwards_edges);
+    # TODO: sum values from all volumes
+    return $self->volumes->[0]->mesh->stats;
 }
 
 sub print_info {
@@ -472,15 +471,7 @@ use Moo;
 
 has 'object'        => (is => 'ro', weak_ref => 1, required => 1);
 has 'material_id'   => (is => 'rw');
-has 'facets'        => (is => 'rw', default => sub { [] });
-
-sub mesh {
-    my $self = shift;
-    return Slic3r::TriangleMesh->new(
-        vertices => $self->object->vertices,
-        facets   => $self->facets,
-    );
-}
+has 'mesh'          => (is => 'rw', required => 1);
 
 package Slic3r::Model::Instance;
 use Moo;

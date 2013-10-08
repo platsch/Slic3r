@@ -16,7 +16,7 @@ use Slic3r;
         [5,0], [10,0], [15,0], [20,0], [20,10], [20,30], [0,0],
     );
     
-    $polygon->merge_continuous_lines;
+    $polygon = $polygon->merge_continuous_lines;
     is scalar(@$polygon), 3, 'merge_continuous_lines';
 }
 
@@ -25,16 +25,15 @@ use Slic3r;
         [0,0],[1,0],[2,0],[2,1],[2,2],[1,2],[0,2],[0,1],[0,0],
     );
     $polyline = $polyline->simplify(1);
-    is_deeply $polyline, [ [0, 0], [2, 0], [2, 2], [0, 2], [0, 0] ], 'Douglas-Peucker';
+    is_deeply $polyline->pp, [ [0, 0], [2, 0], [2, 2], [0, 2], [0, 0] ], 'Douglas-Peucker';
 }
 
 {
     my $polyline = Slic3r::Polyline->new(
-        [0,0],[0.5,0.5],[1,0],[1.25,-0.25],[1.5,.5],
+        [0,0], [50,50], [100,0], [125,-25], [150,50],
     );
-    $polyline->scale(100);
     $polyline = $polyline->simplify(25);
-    is_deeply $polyline, [ [0, 0], [50, 50], [125, -25], [150, 50] ], 'Douglas-Peucker';
+    is_deeply $polyline->pp, [ [0, 0], [50, 50], [125, -25], [150, 50] ], 'Douglas-Peucker';
 }
 
 {
@@ -70,7 +69,7 @@ use Slic3r;
         [180.595,296.0487], [161.7854,297.4248], [156.8058,297.6214], [154.3395,317.8592],
     ];
     my $polygon = Slic3r::Polygon->new(@$gear);
-    $polygon->merge_continuous_lines;
+    $polygon = $polygon->merge_continuous_lines;
     note sprintf "original points: %d\nnew points: %d", scalar(@$gear), scalar(@$polygon);
     ok @$polygon < @$gear, 'gear was simplified using merge_continuous_lines';
 
@@ -81,7 +80,7 @@ use Slic3r;
     ok @{$simplified[0]} < $num_points, 'gear was further simplified using Douglas-Peucker';
     
     my @simplified_ex = Slic3r::ExPolygon->new($polygon)->simplify(10);
-    is_deeply \@simplified_ex, [ \@simplified ], 'simplified polygon equals simplified expolygon';
+    is_deeply [ map $_->pp, @simplified_ex ], [ [ map $_->pp, @simplified ] ], 'simplified polygon equals simplified expolygon';
 }
 
 {
@@ -137,7 +136,7 @@ use Slic3r;
     ];
     
     my $polygon = Slic3r::Polygon->new(@$circle);
-    $polygon->merge_continuous_lines;
+    $polygon = $polygon->merge_continuous_lines;
     note sprintf "original points: %d\nnew points: %d", scalar(@$circle), scalar(@$polygon);
     ok @$polygon >= @$circle/3, 'circle was simplified using merge_continuous_lines';
 }

@@ -8,75 +8,7 @@ use Boost::Geometry::Utils;
 use List::Util qw(first);
 use Math::Geometry::Voronoi;
 use Slic3r::Geometry qw(X Y A B point_in_polygon same_line epsilon);
-use Slic3r::Geometry::Clipper qw(union_ex JT_MITER);
-use Storable qw();
-
-# the constructor accepts an array of polygons 
-# or a Math::Clipper ExPolygon (hashref)
-sub new {
-    my $class = shift;
-    my $self;
-    if (@_ == 1 && ref $_[0] eq 'HASH') {
-        $self = [
-            Slic3r::Polygon->new(@{$_[0]{outer}}),
-            map Slic3r::Polygon->new(@$_), @{$_[0]{holes}},
-        ];
-    } else {
-        $self = [ map Slic3r::Polygon->new(@$_), @_ ];
-    }
-    bless $self, $class;
-    $self;
-}
-
-sub clone {
-    Storable::dclone($_[0])
-}
-
-sub threadsafe_clone {
-    my $self = shift;
-    return (ref $self)->new(map $_->threadsafe_clone, @$self);
-}
-
-sub contour {
-    my $self = shift;
-    return $self->[0];
-}
-
-sub holes {
-    my $self = shift;
-    return @$self[1..$#$self];
-}
-
-sub lines {
-    my $self = shift;
-    return map $_->lines, @$self;
-}
-
-sub clipper_expolygon {
-    my $self = shift;
-    return {
-        outer => $self->contour,
-        holes => [ $self->holes ],
-    };
-}
-
-sub is_valid {
-    my $self = shift;
-    return (!first { !$_->is_valid } @$self)
-        && $self->contour->is_counter_clockwise
-        && (!first { $_->is_counter_clockwise } $self->holes);
-}
-
-# returns false if the expolygon is too tight to be printed
-sub is_printable {
-    my $self = shift;
-    my ($width) = @_;
-    
-    # try to get an inwards offset
-    # for a distance equal to half of the extrusion width;
-    # if no offset is possible, then expolygon is not printable.
-    return Slic3r::Geometry::Clipper::offset($self, -$width / 2) ? 1 : 0;
-}
+use Slic3r::Geometry::Clipper qw(union_ex);
 
 sub wkt {
     my $self = shift;
@@ -92,17 +24,12 @@ sub dump_perl {
 
 sub offset {
     my $self = shift;
-    return Slic3r::Geometry::Clipper::offset($self, @_);
+    return Slic3r::Geometry::Clipper::offset(\@$self, @_);
 }
 
 sub offset_ex {
     my $self = shift;
-    return Slic3r::Geometry::Clipper::offset_ex($self, @_);
-}
-
-sub safety_offset {
-    my $self = shift;
-    return Slic3r::Geometry::Clipper::safety_offset_ex($self, @_);
+    return Slic3r::Geometry::Clipper::offset_ex(\@$self, @_);
 }
 
 sub noncollapsing_offset_ex {
@@ -115,7 +42,7 @@ sub noncollapsing_offset_ex {
 sub encloses_point {
     my $self = shift;
     my ($point) = @_;
-    return Boost::Geometry::Utils::point_covered_by_polygon($point, $self);
+    return Boost::Geometry::Utils::point_covered_by_polygon($point->pp, $self->pp);
 }
 
 # A version of encloses_point for use when hole borders do not matter.
@@ -124,7 +51,7 @@ sub encloses_point {
 sub encloses_point_quick {
     my $self = shift;
     my ($point) = @_;
-    return Boost::Geometry::Utils::point_within_polygon($point, $self);
+    return Boost::Geometry::Utils::point_within_polygon($point->pp, $self->pp);
 }
 
 sub encloses_line {
@@ -133,9 +60,9 @@ sub encloses_line {
     my $clip = $self->clip_line($line);
     if (!defined $tolerance) {
         # optimization
-        return @$clip == 1 && same_line($clip->[0], $line);
+        return @$clip == 1 && same_line($clip->[0]->pp, $line->pp);
     } else {
-        return @$clip == 1 && abs(Boost::Geometry::Utils::linestring_length($clip->[0]) - $line->length) < $tolerance;
+        return @$clip == 1 && abs(Boost::Geometry::Utils::linestring_length($clip->[0]->pp) - $line->length) < $tolerance;
     }
 }
 
@@ -148,7 +75,10 @@ sub clip_line {
     my $self = shift;
     my ($line) = @_;  # line must be a Slic3r::Line object
     
-    return Boost::Geometry::Utils::polygon_multi_linestring_intersection($self, [$line]);
+    return [
+        map Slic3r::Line->new(@$_),
+            @{Boost::Geometry::Utils::polygon_multi_linestring_intersection($self->pp, [$line->pp])}
+    ];
 }
 
 sub simplify_as_polygons {
@@ -156,9 +86,9 @@ sub simplify_as_polygons {
     my ($tolerance) = @_;
     
     # it would be nice to have a multilinestring_simplify method in B::G::U
-    return Slic3r::Geometry::Clipper::simplify_polygons(
-        [ map Boost::Geometry::Utils::linestring_simplify($_, $tolerance), @$self ],
-    );
+    return @{Slic3r::Geometry::Clipper::simplify_polygons(
+        [ map Boost::Geometry::Utils::linestring_simplify($_, $tolerance), @{$self->pp} ],
+    )};
 }
 
 sub simplify {
@@ -166,38 +96,6 @@ sub simplify {
     my ($tolerance) = @_;
     
     return @{ Slic3r::Geometry::Clipper::union_ex([ $self->simplify_as_polygons($tolerance) ]) };
-}
-
-sub scale {
-    my $self = shift;
-    $_->scale(@_) for @$self;
-}
-
-sub translate {
-    my $self = shift;
-    $_->translate(@_) for @$self;
-    $self;
-}
-
-sub align_to_origin {
-    my $self = shift;
-    
-    my $bb = $self->bounding_box;
-    $self->translate(-$bb->x_min, -$bb->y_min);
-    $self;
-}
-
-sub rotate {
-    my $self = shift;
-    $_->rotate(@_) for @$self;
-    $self;
-}
-
-sub area {
-    my $self = shift;
-    my $area = $self->contour->area;
-    $area -= $_->area for $self->holes;
-    return $area;
 }
 
 # this method only works for expolygons having only a contour or
@@ -211,7 +109,11 @@ sub medial_axis {
     my $expolygon = $self->clone;
     my @points = ();
     foreach my $polygon (@$expolygon) {
-        Slic3r::Geometry::polyline_remove_short_segments($polygon, $width / 2);
+        {
+            my $p = $polygon->pp;
+            Slic3r::Geometry::polyline_remove_short_segments($p, $width / 2);
+            $polygon = Slic3r::Polygon->new(@$p);
+        }
         
         # subdivide polygon segments so that we don't have anyone of them
         # being longer than $width / 2
@@ -220,7 +122,7 @@ sub medial_axis {
         push @points, @$polygon;
     }
     
-    my $voronoi = Math::Geometry::Voronoi->new(points => \@points);
+    my $voronoi = Math::Geometry::Voronoi->new(points => [ map $_->pp, @points ]);
     $voronoi->compute;
     
     my @skeleton_lines = ();
@@ -232,8 +134,8 @@ sub medial_axis {
         next if $edge->[1] == -1 || $edge->[2] == -1;
         
         my ($a, $b);
-        $a = $vertices->[$edge->[1]];
-        $b = $vertices->[$edge->[2]];
+        $a = Slic3r::Point->new(@{$vertices->[$edge->[1]]});
+        $b = Slic3r::Point->new(@{$vertices->[$edge->[2]]});
         
         next if !$self->encloses_point_quick($a) || !$self->encloses_point_quick($b);
         
@@ -307,8 +209,9 @@ sub medial_axis {
         
         # cleanup
         $polyline = Slic3r::Geometry::douglas_peucker($polyline, $width / 7);
+        $polyline = Slic3r::Polyline->new(@$polyline);
         
-        if (Slic3r::Geometry::same_point($polyline->[0], $polyline->[-1])) {
+        if (Slic3r::Geometry::same_point($polyline->first_point, $polyline->last_point)) {
             next if @$polyline == 2;
             push @result, Slic3r::Polygon->new(@$polyline[0..$#$polyline-1]);
         } else {
@@ -320,52 +223,19 @@ sub medial_axis {
 }
 
 package Slic3r::ExPolygon::Collection;
-use Moo;
 use Slic3r::Geometry qw(X1 Y1);
-
-has 'expolygons' => (is => 'ro', default => sub { [] });
-
-sub append {
-    my $self = shift;
-    push @{$self->expolygons}, @_;
-}
-
-sub clone {
-    my $self = shift;
-    return (ref $self)->new(
-        expolygons => [ map $_->threadsafe_clone, @{$self->expolygons} ],
-    );
-}
 
 sub align_to_origin {
     my $self = shift;
     
-    my @bb = Slic3r::Geometry::bounding_box([ map @$_, map @$_, @{$self->expolygons} ]);
-    $_->translate(-$bb[X1], -$bb[Y1]) for @{$self->expolygons};
-    $self;
-}
-
-sub scale {
-    my $self = shift;
-    $_->scale(@_) for @{$self->expolygons};
-    $self;
-}
-
-sub rotate {
-    my $self = shift;
-    $_->rotate(@_) for @{$self->expolygons};
-    $self;
-}
-
-sub translate {
-    my $self = shift;
-    $_->translate(@_) for @{$self->expolygons};
+    my @bb = Slic3r::Geometry::bounding_box([ map @$_, map @$_, @$self ]);
+    $self->translate(-$bb[X1], -$bb[Y1]);
     $self;
 }
 
 sub size {
     my $self = shift;
-    return [ Slic3r::Geometry::size_2D([ map @$_, map @$_, @{$self->expolygons} ]) ];
+    return [ Slic3r::Geometry::size_2D([ map @$_, map @$_, @$self ]) ];
 }
 
 1;

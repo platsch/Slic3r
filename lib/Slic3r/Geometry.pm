@@ -5,14 +5,14 @@ use warnings;
 require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(
-    PI X Y Z A B X1 Y1 X2 Y2 MIN MAX epsilon slope line_atan lines_parallel 
+    PI X Y Z A B X1 Y1 X2 Y2 Z1 Z2 MIN MAX epsilon slope line_atan lines_parallel 
     line_point_belongs_to_segment points_coincide distance_between_points 
     chained_path_items chained_path_points normalize tan move_points_3D
     line_length midpoint point_in_polygon point_in_segment segment_in_segment
-    point_is_on_left_of_segment polyline_lines polygon_lines nearest_point
+    point_is_on_left_of_segment polyline_lines polygon_lines
     point_along_segment polygon_segment_having_point polygon_has_subsegment
     polygon_has_vertex polyline_length can_connect_points deg2rad rad2deg
-    rotate_points move_points clip_segment_polygon nearest_point_index
+    rotate_points move_points clip_segment_polygon
     sum_vectors multiply_vector subtract_vectors dot perp polygon_points_visibility
     line_intersection bounding_box bounding_box_intersect same_point same_line
     longest_segment angle3points three_points_aligned line_direction
@@ -35,6 +35,8 @@ use constant X1 => 0;
 use constant Y1 => 1;
 use constant X2 => 2;
 use constant Y2 => 3;
+use constant Z1 => 4;
+use constant Z2 => 5;
 use constant MIN => 0;
 use constant MAX => 1;
 our $parallel_degrees_limit = abs(deg2rad(0.1));
@@ -195,21 +197,22 @@ sub point_in_segment {
     my ($point, $line) = @_;
     
     my ($x, $y) = @$point;
-    my @line_x = sort { $a <=> $b } $line->[A][X], $line->[B][X];
-    my @line_y = sort { $a <=> $b } $line->[A][Y], $line->[B][Y];
+    my $line_p = $line->pp;
+    my @line_x = sort { $a <=> $b } $line_p->[A][X], $line_p->[B][X];
+    my @line_y = sort { $a <=> $b } $line_p->[A][Y], $line_p->[B][Y];
     
     # check whether the point is in the segment bounding box
     return 0 unless $x >= ($line_x[0] - epsilon) && $x <= ($line_x[1] + epsilon)
         && $y >= ($line_y[0] - epsilon) && $y <= ($line_y[1] + epsilon);
     
     # if line is vertical, check whether point's X is the same as the line
-    if ($line->[A][X] == $line->[B][X]) {
-        return abs($x - $line->[A][X]) < epsilon ? 1 : 0;
+    if ($line_p->[A][X] == $line_p->[B][X]) {
+        return abs($x - $line_p->[A][X]) < epsilon ? 1 : 0;
     }
     
     # calculate the Y in line at X of the point
-    my $y3 = $line->[A][Y] + ($line->[B][Y] - $line->[A][Y])
-        * ($x - $line->[A][X]) / ($line->[B][X] - $line->[A][X]);
+    my $y3 = $line_p->[A][Y] + ($line_p->[B][Y] - $line_p->[A][Y])
+        * ($x - $line_p->[A][X]) / ($line_p->[B][X] - $line_p->[A][X]);
     return abs($y3 - $y) < epsilon ? 1 : 0;
 }
 
@@ -228,48 +231,14 @@ sub point_is_on_left_of_segment {
 }
 
 sub polyline_lines {
-    my ($polygon) = @_;
-    return map Slic3r::Line->new($polygon->[$_], $polygon->[$_+1]), 0 .. $#$polygon-1;
+    my ($polyline) = @_;
+    my @points = @$polyline;
+    return map Slic3r::Line->new(@points[$_, $_+1]), 0 .. $#points-1;
 }
 
 sub polygon_lines {
     my ($polygon) = @_;
     return polyline_lines([ @$polygon, $polygon->[0] ]);
-}
-
-sub nearest_point {
-    my ($point, $points) = @_;
-    my $index = nearest_point_index(@_);
-    return undef if !defined $index;
-    return $points->[$index];
-}
-
-sub nearest_point_index {
-    my ($point, $points) = @_;
-    
-    my ($nearest_point_index, $distance) = ();
-
-    my $point_x = $point->[X];
-    my $point_y = $point->[Y];
-
-    for my $i (0..$#$points) {
-        my $d = ($point_x - $points->[$i]->[X])**2;
-        # If the X distance of the candidate is > than the total distance of the
-        # best previous candidate, we know we don't want it
-        next if (defined $distance && $d > $distance);
-   
-        # If the total distance of the candidate is > than the total distance of the
-        # best previous candidate, we know we don't want it
-        $d += ($point_y - $points->[$i]->[Y])**2;
-        next if (defined $distance && $d > $distance);
-
-        $nearest_point_index = $i;
-        $distance = $d;
-        
-        last if $distance < epsilon;
-    }
-
-    return $nearest_point_index;
 }
 
 # given a segment $p1-$p2, get the point at $distance from $p1 along segment
@@ -285,14 +254,14 @@ sub point_along_segment {
         }
     }
     
-    return $point;
+    return Slic3r::Point->new(@$point);
 }
 
 # given a $polygon, return the (first) segment having $point
 sub polygon_segment_having_point {
     my ($polygon, $point) = @_;
     
-    foreach my $line (polygon_lines($polygon)) {
+    foreach my $line (@{ $polygon->lines }) {
         return $line if point_in_segment($point, $line);
     }
     return undef;
@@ -374,7 +343,7 @@ sub rad2deg_dir {
 
 sub rotate_points {
     my ($radians, $center, @points) = @_;
-    $center ||= [0,0];
+    $center //= [0,0];
     return map {
         [
             $center->[X] + cos($radians) * ($_->[X] - $center->[X]) - sin($radians) * ($_->[Y] - $center->[Y]),
@@ -385,7 +354,10 @@ sub rotate_points {
 
 sub move_points {
     my ($shift, @points) = @_;
-    return map Slic3r::Point->new($shift->[X] + $_->[X], $shift->[Y] + $_->[Y]), @points;
+    return map {
+        my @p = @$_;
+        Slic3r::Point->new($shift->[X] + $p[X], $shift->[Y] + $p[Y]);
+    } @points;
 }
 
 sub move_points_3D {
@@ -500,7 +472,7 @@ sub polygon_points_visibility {
     
     my $our_line = [ $p1, $p2 ];
     foreach my $line (polygon_lines($polygon)) {
-        my $intersection = line_intersection($our_line, $line, 1) or next;
+        my $intersection = line_intersection($our_line, $line, 1) // next;
         next if grep points_coincide($intersection, $_), $p1, $p2;
         return 0;
     }
@@ -688,16 +660,17 @@ sub _line_intersection2 {
 sub bounding_box {
     my ($points) = @_;
     
-    my @x = (undef, undef);
-    my @y = (undef, undef);
-    for (@$points) {
-        $x[MIN] = $_->[X] if !defined $x[MIN] || $_->[X] < $x[MIN];
-        $x[MAX] = $_->[X] if !defined $x[MAX] || $_->[X] > $x[MAX];
-        $y[MIN] = $_->[Y] if !defined $y[MIN] || $_->[Y] < $y[MIN];
-        $y[MAX] = $_->[Y] if !defined $y[MAX] || $_->[Y] > $y[MAX];
+    my @x = map $_->x, @$points;
+    my @y = map $_->y, @$points;    #,,
+    my @bb = (undef, undef, undef, undef);
+    for (0..$#x) {
+        $bb[X1] = $x[$_] if !defined $bb[X1] || $x[$_] < $bb[X1];
+        $bb[X2] = $x[$_] if !defined $bb[X2] || $x[$_] > $bb[X2];
+        $bb[Y1] = $y[$_] if !defined $bb[Y1] || $y[$_] < $bb[Y1];
+        $bb[Y2] = $y[$_] if !defined $bb[Y2] || $y[$_] > $bb[Y2];
     }
     
-    return ($x[0], $y[0], $x[-1], $y[-1]);
+    return @bb[X1,Y1,X2,Y2];
 }
 
 sub bounding_box_center {
@@ -821,14 +794,13 @@ sub chained_path {
     my %indices = map { $points[$_] => $_ } 0 .. $#points;
     
     my @result = ();
-    my $last_point;
-    if (!$start_near) {
+    if (!$start_near && @points) {
         $start_near = shift @points;
-        push @result, $indices{$start_near} if $start_near;
+        push @result, $indices{$start_near};
     }
     while (@points) {
-        $start_near = nearest_point($start_near, [@points]);
-        @points = grep $_ ne $start_near, @points;
+        my $idx = $start_near->nearest_point_index(\@points);
+        my ($start_near) = splice @points, $idx, 1;
         push @result, $indices{$start_near};
     }
     

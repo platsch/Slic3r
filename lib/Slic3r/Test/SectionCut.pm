@@ -85,15 +85,14 @@ sub _plot {
                 my @paths = 
                     map { $_->polyline->translate(@$copy); $_ }
                     map { $_->isa('Slic3r::ExtrusionLoop') ? $_->split_at_first_point : $_ }
-                    map { ref($_) =~ /::Packed$/ ? $_->unpack : $_ }
-                    map { $_->isa('Slic3r::ExtrusionPath::Collection') ? @{$_->paths} : $_ }
+                    map { $_->isa('Slic3r::ExtrusionPath::Collection') ? @$_ : $_ }
                     grep defined $_,
                     $filter->($layer);
                 
                 foreach my $path (@paths) {
-                    foreach my $line ($path->lines) {
+                    foreach my $line (@{$path->lines}) {
                         my @intersections = @{ Boost::Geometry::Utils::polygon_multi_linestring_intersection(
-                            Slic3r::ExPolygon->new($line->grow(Slic3r::Geometry::scale $path->flow_spacing/2)),
+                            Slic3r::ExPolygon->new($line->grow(Slic3r::Geometry::scale $path->flow_spacing/2))->pp,
                             [ $self->line ],
                         ) };
                         die "Intersection has more than two points!\n" if first { @$_ > 2 } @intersections;

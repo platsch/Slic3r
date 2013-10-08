@@ -32,9 +32,8 @@ sub fill_surface {
         $flow_spacing = unscale $line_spacing;
     } else {
         # extend bounding box so that our pattern will be aligned with other layers
-        # $bounding_box->[X1] and [Y1] represent the displacement between new bounding box offset and old one
-        $bounding_box->extents->[X][MIN] -= $bounding_box->x_min;
-        $bounding_box->extents->[Y][MIN] -= $bounding_box->y_min;
+        $bounding_box->extents->[X][MIN] -= $bounding_box->x_min % $line_spacing;
+        $bounding_box->extents->[Y][MIN] -= $bounding_box->y_min % $line_spacing;
     }
     
     # generate the basic pattern
@@ -43,7 +42,7 @@ sub fill_surface {
     my $x_max           = $bounding_box->x_max + scaled_epsilon;
     my @vertical_lines  = ();
     while ($x <= $x_max) {
-        my $vertical_line = Slic3r::Line->new([$x, $bounding_box->y_max], [$x, $bounding_box->y_min]);
+        my $vertical_line = [ [$x, $bounding_box->y_max], [$x, $bounding_box->y_min] ];
         if ($is_line_pattern && $i % 2) {
             $vertical_line->[A][X] += $line_oscillation;
             $vertical_line->[B][X] -= $line_oscillation;
@@ -58,18 +57,17 @@ sub fill_surface {
     # the minimum offset for preventing edge lines from being clipped is scaled_epsilon;
     # however we use a larger offset to support expolygons with slightly skewed sides and 
     # not perfectly straight
-    my @paths = @{ Boost::Geometry::Utils::multi_polygon_multi_linestring_intersection(
-        [ $expolygon->offset_ex($line_spacing*0.05) ],
-        [ @vertical_lines ],
-    ) };
+    my @polylines = map Slic3r::Polyline->new(@$_),
+        @{ Boost::Geometry::Utils::multi_polygon_multi_linestring_intersection(
+            [ map $_->pp, @{$expolygon->offset_ex($line_spacing*0.05)} ],
+            [ @vertical_lines ],
+        ) };
     
     # connect lines
     unless ($params{dont_connect}) {
-        my ($expolygon_off) = $expolygon->offset_ex(scale $params{flow_spacing}/2);
-        my $collection = Slic3r::Polyline::Collection->new(
-            polylines => [ map Slic3r::Polyline->new(@$_), @paths ],
-        );
-        @paths = ();
+        my ($expolygon_off) = @{$expolygon->offset_ex(scale $params{flow_spacing}/2)};
+        my $collection = Slic3r::Polyline::Collection->new(@polylines);
+        @polylines = ();
         
         my $tolerance = 10 * scaled_epsilon;
         my $diagonal_distance = $line_spacing * 2;
@@ -80,26 +78,29 @@ sub fill_surface {
             }
             : sub { $_[X] <= $diagonal_distance && $_[Y] <= $diagonal_distance };
         
-        foreach my $path ($collection->chained_path) {
-            if (@paths) {
-                my @distance = map abs($path->[0][$_] - $paths[-1][-1][$_]), (X,Y);
+        foreach my $polyline (@{$collection->chained_path(0)}) {
+            if (@polylines) {
+                my $first_point = $polyline->first_point;
+                my $last_point = $polylines[-1]->last_point;
+                my @distance = map abs($first_point->$_ - $last_point->$_), qw(x y);
                 
                 # TODO: we should also check that both points are on a fill_boundary to avoid 
                 # connecting paths on the boundaries of internal regions
-                if ($can_connect->(@distance, $paths[-1][-1], $path->[0])
-                    && $expolygon_off->encloses_line(Slic3r::Line->new($paths[-1][-1], $path->[0]), $tolerance)) {
-                    push @{$paths[-1]}, @$path;
+                if ($can_connect->(@distance) && $expolygon_off->encloses_line(Slic3r::Line->new($last_point, $first_point), $tolerance)) {
+                    $polylines[-1]->append_polyline($polyline);
                     next;
                 }
             }
-            push @paths, $path;
+            
+            # make a clone before $collection goes out of scope
+            push @polylines, $polyline->clone;
         }
     }
     
     # paths must be rotated back
-    $self->rotate_points_back(\@paths, $rotate_vector);
+    $self->rotate_points_back(\@polylines, $rotate_vector);
     
-    return { flow_spacing => $flow_spacing }, @paths;
+    return { flow_spacing => $flow_spacing }, @polylines;
 }
 
 1;

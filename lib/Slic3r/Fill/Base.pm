@@ -27,7 +27,7 @@ sub infill_direction {
     }
         
     # use bridge angle
-    if (defined $surface->bridge_angle) {
+    if ($surface->bridge_angle != -1) {
         Slic3r::debugf "Filling bridge with angle %d\n", $surface->bridge_angle;
         $rotate[0] = Slic3r::Geometry::deg2rad($surface->bridge_angle);
     }
@@ -52,8 +52,8 @@ sub rotate_points_back {
     my @rotate = (-$rotate_vector->[0][0], $rotate_vector->[0][1]);
     my $shift  = [ map -$_, @{$rotate_vector->[1]} ];
     
-    @$paths = map [ Slic3r::Geometry::rotate_points(@rotate, @$_) ], 
-        map [ Slic3r::Geometry::move_points($shift, @$_) ], @$paths;
+    $_->translate(@$shift) for @$paths;
+    $_->rotate(@rotate) for @$paths;
 }
 
 sub adjust_solid_spacing {

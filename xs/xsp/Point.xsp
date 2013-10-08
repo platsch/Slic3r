@@ -5,30 +5,47 @@
 #include "Point.hpp"
 %}
 
-%name{Slic3r::Point::XS} class Point {
-    Point(unsigned long _x = 0, unsigned long _y = 0);
+%name{Slic3r::Point} class Point {
+    Point(long _x = 0, long _y = 0);
     ~Point();
+    Point* clone()
+        %code{% const char* CLASS = "Slic3r::Point"; RETVAL = new Point(*THIS); %};
+    void scale(double factor);
+    void translate(double x, double y);
+    SV* arrayref()
+        %code{% RETVAL = THIS->to_SV_pureperl(); %};
+    SV* pp()
+        %code{% RETVAL = THIS->to_SV_pureperl(); %};
+    long x()
+        %code{% RETVAL = THIS->x; %};
+    long y()
+        %code{% RETVAL = THIS->y; %};
+    int nearest_point_index(Points points);
+    Point* nearest_point(Points points)
+        %code{% const char* CLASS = "Slic3r::Point"; RETVAL = new Point(*(THIS->nearest_point(points))); %};
+    double distance_to(Point* point);
+
 %{
 
-SV*
-Point::arrayref()
+void
+Point::rotate(angle, center_sv)
+    double  angle;
+    SV*     center_sv;
     CODE:
-        RETVAL = point2perl(*THIS);
+        Point center;
+        center.from_SV_check(center_sv);
+        THIS->rotate(angle, &center);
+
+bool
+Point::coincides_with(point_sv)
+    SV*     point_sv;
+    CODE:
+        Point point;
+        point.from_SV_check(point_sv);
+        RETVAL = THIS->coincides_with(&point);
     OUTPUT:
         RETVAL
 
 %}
+
 };
-
-%package{Slic3r::Point::XS};
-
-%{
-PROTOTYPES: DISABLE
-
-std::string
-hello_world()
-  CODE:
-    RETVAL = "Hello world!";
-  OUTPUT:
-    RETVAL
-%}

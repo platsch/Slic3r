@@ -28,7 +28,7 @@ my $test = sub {
     my %dir_time        = (X => 0, Y => 0);
     my %dir_sleep_time  = (X => 0, Y => 0);
     my $last_cmd_pause  = 0;
-    Slic3r::GCode::Reader->new(gcode => Slic3r::Test::gcode($print))->parse(sub {
+    Slic3r::GCode::Reader->new->parse(Slic3r::Test::gcode($print), sub {
         my ($self, $cmd, $args, $info) = @_;
         
         if ($cmd !~ /^G[01]$/) {
@@ -58,7 +58,7 @@ my $test = sub {
         my $one_axis_would_trigger_limit_without_pause = 0;
         foreach my $axis (qw(X Y)) {
             # are we changing direction on this axis?
-            my $dir = $info->{"dist_$axis"} <=> 0;
+            my $dir = $info->{"dist_$axis"} <=> ($args->{$axis} // $self->$axis);
             if ($dir != 0 && $dir{$axis} != $dir) {
                 # this move changes direction on this axis
                 if ($dir{$axis} != 0) {

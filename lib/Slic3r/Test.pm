@@ -76,16 +76,15 @@ sub model {
         return undef;
     }
     
-    my $mesh = Slic3r::TriangleMesh->new(
-        vertices    => $vertices,
-        facets      => $facets,
-    );
+    my $mesh = Slic3r::TriangleMesh->new;
+    $mesh->ReadFromPerl($vertices, $facets);
+    $mesh->repair;
     $mesh->scale_xyz($params{scale_xyz}) if $params{scale_xyz};
     $mesh->scale($params{scale}) if $params{scale};
     
     my $model = Slic3r::Model->new;
-    my $object = $model->add_object(vertices => $mesh->vertices);
-    $object->add_volume(facets => $mesh->facets);
+    my $object = $model->add_object;
+    $object->add_volume(mesh => $mesh);
     $object->add_instance(
         offset      => [0,0],
         rotation    => $params{rotation} // 0,

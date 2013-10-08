@@ -1,4 +1,33 @@
+%typemap{bool}{simple};
 %typemap{std::string};
 %typemap{std::vector<unsigned int>*};
+%typemap{std::vector<double>};
+%typemap{std::vector<double>*};
 %typemap{SV*};
 %typemap{AV*};
+%typemap{Point*};
+%typemap{ExPolygon*};
+%typemap{Polyline*};
+%typemap{Polygon*};
+%typemap{ExtrusionEntityCollection*};
+%typemap{ExtrusionPath*};
+%typemap{ExtrusionLoop*};
+%typemap{Points};
+%typemap{Lines};
+%typemap{Polygons};
+%typemap{ExPolygons};
+%typemap{Polygons*};
+%typemap{TriangleMeshPtrs};
+
+%typemap{SurfaceType}{parsed}{
+  %cpp_type{SurfaceType};
+  %precall_code{%
+    $CVar = (SurfaceType)SvUV($PerlVar);
+  %};
+};
+%typemap{ExtrusionRole}{parsed}{
+  %cpp_type{ExtrusionRole};
+  %precall_code{%
+    $CVar = (ExtrusionRole)SvUV($PerlVar);
+  %};
+};

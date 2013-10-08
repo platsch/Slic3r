@@ -5,8 +5,22 @@
 #include "ExPolygon.hpp"
 %}
 
-%name{Slic3r::ExPolygon::XS} class ExPolygon {
+%name{Slic3r::ExPolygon} class ExPolygon {
     ~ExPolygon();
+    ExPolygon* clone()
+        %code{% const char* CLASS = "Slic3r::ExPolygon"; RETVAL = new ExPolygon(*THIS); %};
+    SV* arrayref()
+        %code{% RETVAL = THIS->to_AV(); %};
+    SV* pp()
+        %code{% RETVAL = THIS->to_SV_pureperl(); %};
+    Polygon* contour()
+        %code{% const char* CLASS = "Slic3r::Polygon::Ref"; RETVAL = &(THIS->contour); %};
+    Polygons* holes()
+        %code{% RETVAL = &(THIS->holes); %};
+    void scale(double factor);
+    void translate(double x, double y);
+    double area();
+    bool is_valid();
 %{
 
 ExPolygon*
@@ -14,40 +28,22 @@ ExPolygon::new(...)
     CODE:
         RETVAL = new ExPolygon ();
         // ST(0) is class name, ST(1) is contour and others are holes
-        perl2polygon(ST(1), RETVAL->contour);
+        RETVAL->contour.from_SV_check(ST(1));
         RETVAL->holes.resize(items-2);
         for (unsigned int i = 2; i < items; i++) {
-            perl2polygon(ST(i), RETVAL->holes[i-2]);
+            RETVAL->holes[i-2].from_SV_check(ST(i));
         }
     OUTPUT:
         RETVAL
 
-SV*
-ExPolygon::arrayref()
+void
+ExPolygon::rotate(angle, center_sv)
+    double  angle;
+    SV*     center_sv;
     CODE:
-        const unsigned int num_holes = THIS->holes.size();
-        AV* av = newAV();
-        av_fill(av, num_holes);  // -1 +1
-        av_store(av, 0, polygon2perl(THIS->contour));
-        for (unsigned int i = 0; i < num_holes; i++) {
-            av_store(av, i+1, polygon2perl(THIS->holes[i]));
-        }
-        RETVAL = (SV*)newRV_noinc((SV*)av);
-    OUTPUT:
-        RETVAL
+        Point center;
+        center.from_SV_check(center_sv);
+        THIS->rotate(angle, &center);
 
 %}
 };
-
-%package{Slic3r::ExPolygon::XS};
-
-%{
-PROTOTYPES: DISABLE
-
-std::string
-hello_world()
-  CODE:
-    RETVAL = "Hello world!";
-  OUTPUT:
-    RETVAL
-%}

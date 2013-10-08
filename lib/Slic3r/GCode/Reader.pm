@@ -1,7 +1,6 @@
 package Slic3r::GCode::Reader;
 use Moo;
 
-has 'gcode' => (is => 'ro', required => 1);
 has 'X' => (is => 'rw', default => sub {0});
 has 'Y' => (is => 'rw', default => sub {0});
 has 'Z' => (is => 'rw', default => sub {0});
@@ -13,9 +12,9 @@ my @AXES = qw(X Y Z E);
 
 sub parse {
     my $self = shift;
-    my ($cb) = @_;
+    my ($gcode, $cb) = @_;
     
-    foreach my $raw_line (split /\R+/, $self->gcode) {
+    foreach my $raw_line (split /\R+/, $gcode) {
         print "$raw_line\n" if $Verbose || $ENV{SLIC3R_TESTS_GCODE};
         my $line = $raw_line;
         $line =~ s/\s*;(.*)//; # strip comment
@@ -37,7 +36,7 @@ sub parse {
                     $info{"new_$axis"}  = $self->$axis;
                 }
             }
-            $info{dist_XY} = Slic3r::Line->new([0,0], [@info{qw(dist_X dist_Y)}])->length;
+            $info{dist_XY} = Slic3r::Geometry::unscale(Slic3r::Line->new_scale([0,0], [@info{qw(dist_X dist_Y)}])->length);
             if (exists $args{E}) {
                 if ($info{dist_E} > 0) {
                     $info{extruding} = 1;
@@ -54,8 +53,8 @@ sub parse {
         
         # update coordinates
         if ($command =~ /^(?:G[01]|G92)$/) {
-            for (@AXES, 'F') {
-                $self->$_($args{$_}) if exists $args{$_};
+            for my $axis (@AXES, 'F') {
+                $self->$axis($args{$axis}) if exists $args{$axis};
             }
         }
         

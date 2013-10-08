@@ -9,6 +9,8 @@ has 'gcodegen'                      => (is => 'ro', required => 1);
 has 'shift'                         => (is => 'ro', required => 1);
 
 has 'spiralvase'                    => (is => 'lazy');
+has 'vibration_limit'               => (is => 'lazy');
+has 'arc_fitting'                   => (is => 'lazy');
 has 'skirt_done'                    => (is => 'rw', default => sub { {} });  # print_z => 1
 has 'brim_done'                     => (is => 'rw');
 has 'second_layer_things_done'      => (is => 'rw');
@@ -19,6 +21,22 @@ sub _build_spiralvase {
     
     return $Slic3r::Config->spiral_vase
         ? Slic3r::GCode::SpiralVase->new(config => $self->gcodegen->config)
+        : undef;
+}
+
+sub _build_vibration_limit {
+    my $self = shift;
+    
+    return $Slic3r::Config->vibration_limit
+        ? Slic3r::GCode::VibrationLimit->new(config => $self->gcodegen->config)
+        : undef;
+}
+
+sub _build_arc_fitting {
+    my $self = shift;
+    
+    return $Slic3r::Config->gcode_arcs
+        ? Slic3r::GCode::ArcFitting->new(config => $self->gcodegen->config)
         : undef;
 }
 
@@ -93,12 +111,12 @@ sub process_layer {
             if ($layer->support_interface_fills) {
                 $gcode .= $self->gcodegen->set_extruder($self->extruders->[$Slic3r::Config->support_material_interface_extruder-1]);
                 $gcode .= $self->gcodegen->extrude_path($_, 'support material interface') 
-                    for $layer->support_interface_fills->chained_path($self->gcodegen->last_pos); 
+                    for @{$layer->support_interface_fills->chained_path_from($self->gcodegen->last_pos, 0)}; 
             }
             if ($layer->support_fills) {
                 $gcode .= $self->gcodegen->set_extruder($self->extruders->[$Slic3r::Config->support_material_extruder-1]);
                 $gcode .= $self->gcodegen->extrude_path($_, 'support material') 
-                    for $layer->support_fills->chained_path($self->gcodegen->last_pos);
+                    for @{$layer->support_fills->chained_path_from($self->gcodegen->last_pos, 0)};
             }
         }
         
@@ -119,24 +137,22 @@ sub process_layer {
                 push @islands, { perimeters => [], fills => [] }
                     for 1 .. (@{$layer->slices} || 1);  # make sure we have at least one island hash to avoid failure of the -1 subscript below
                 PERIMETER: foreach my $perimeter (@{$layerm->perimeters}) {
-                    my $p = $perimeter->unpack;
                     for my $i (0 .. $#{$layer->slices}-1) {
-                        if ($layer->slices->[$i]->contour->encloses_point($p->first_point)) {
-                            push @{ $islands[$i]{perimeters} }, $p;
+                        if ($layer->slices->[$i]->contour->encloses_point($perimeter->first_point)) {
+                            push @{ $islands[$i]{perimeters} }, $perimeter;
                             next PERIMETER;
                         }
                     }
-                    push @{ $islands[-1]{perimeters} }, $p; # optimization
+                    push @{ $islands[-1]{perimeters} }, $perimeter; # optimization
                 }
                 FILL: foreach my $fill (@{$layerm->fills}) {
-                    my $f = $fill->unpack;
                     for my $i (0 .. $#{$layer->slices}-1) {
-                        if ($layer->slices->[$i]->contour->encloses_point($f->first_point)) {
-                            push @{ $islands[$i]{fills} }, $f;
+                        if ($layer->slices->[$i]->contour->encloses_point($fill->first_point)) {
+                            push @{ $islands[$i]{fills} }, $fill;
                             next FILL;
                         }
                     }
-                    push @{ $islands[-1]{fills} }, $f; # optimization
+                    push @{ $islands[-1]{fills} }, $fill; # optimization
                 }
             } else {
                 push @islands, {
@@ -164,6 +180,14 @@ sub process_layer {
     $gcode = $self->spiralvase->process_layer($gcode, $layer)
         if $spiralvase;
     
+    # apply vibration limit if enabled
+    $gcode = $self->vibration_limit->process($gcode)
+        if $Slic3r::Config->vibration_limit != 0;
+    
+    # apply arc fitting if enabled
+    $gcode = $self->arc_fitting->process($gcode)
+        if $Slic3r::Config->gcode_arcs;
+    
     return $gcode;
 }
 
@@ -190,7 +214,7 @@ sub _extrude_infill {
     for my $fill (@{ $island->{fills} }) {
         if ($fill->isa('Slic3r::ExtrusionPath::Collection')) {
             $gcode .= $self->gcodegen->extrude($_, 'fill') 
-                for $fill->chained_path($self->gcodegen->last_pos);
+                for @{$fill->chained_path_from($self->gcodegen->last_pos, 0)};
         } else {
             $gcode .= $self->gcodegen->extrude($fill, 'fill') ;
         }

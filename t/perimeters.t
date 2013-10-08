@@ -25,7 +25,7 @@ use Slic3r::Test;
         my $print = Slic3r::Test::init_print('overhang', config => $config);
         my $has_cw_loops = 0;
         my $cur_loop;
-        Slic3r::GCode::Reader->new(gcode => Slic3r::Test::gcode($print))->parse(sub {
+        Slic3r::GCode::Reader->new->parse(Slic3r::Test::gcode($print), sub {
             my ($self, $cmd, $args, $info) = @_;
             
             if ($info->{extruding} && $info->{dist_XY} > 0) {
@@ -33,7 +33,7 @@ use Slic3r::Test;
                 push @$cur_loop, [ @$info{qw(new_X new_Y)} ];
             } else {
                 if ($cur_loop) {
-                    $has_cw_loops = 1 if !Slic3r::Geometry::Clipper::is_counter_clockwise($cur_loop);
+                    $has_cw_loops = 1 if Slic3r::Polygon->new(@$cur_loop)->is_clockwise;
                     $cur_loop = undef;
                 }
             }
@@ -47,7 +47,7 @@ use Slic3r::Test;
         my $has_cw_loops = my $has_outwards_move = 0;
         my $cur_loop;
         my %external_loops = ();  # print_z => count of external loops
-        Slic3r::GCode::Reader->new(gcode => Slic3r::Test::gcode($print))->parse(sub {
+        Slic3r::GCode::Reader->new->parse(Slic3r::Test::gcode($print), sub {
             my ($self, $cmd, $args, $info) = @_;
             
             if ($info->{extruding} && $info->{dist_XY} > 0) {
@@ -55,12 +55,12 @@ use Slic3r::Test;
                 push @$cur_loop, [ @$info{qw(new_X new_Y)} ];
             } else {
                 if ($cur_loop) {
-                    $has_cw_loops = 1 if !Slic3r::Geometry::Clipper::is_counter_clockwise($cur_loop);
+                    $has_cw_loops = 1 if Slic3r::Polygon->new_scale(@$cur_loop)->is_clockwise;
                     if ($self->F == $config->external_perimeter_speed*60) {
-                        my $move_dest = [ @$info{qw(new_X new_Y)} ];
+                        my $move_dest = Slic3r::Point->new_scale(@$info{qw(new_X new_Y)});
                         $external_loops{$self->Z}++;
                         $has_outwards_move = 1
-                            if !Slic3r::Polygon->new(@$cur_loop)->encloses_point($move_dest)
+                            if !Slic3r::Polygon->new_scale(@$cur_loop)->encloses_point($move_dest)
                                 ? ($external_loops{$self->Z} == 2)  # contour should include destination
                                 : ($external_loops{$self->Z} == 1); # hole should not
                     }
@@ -77,7 +77,7 @@ use Slic3r::Test;
         my $print = Slic3r::Test::init_print('L', config => $config);
         my $loop_starts_from_convex_point = 0;
         my $cur_loop;
-        Slic3r::GCode::Reader->new(gcode => Slic3r::Test::gcode($print))->parse(sub {
+        Slic3r::GCode::Reader->new->parse(Slic3r::Test::gcode($print), sub {
             my ($self, $cmd, $args, $info) = @_;
             
             if ($info->{extruding} && $info->{dist_XY} > 0) {
@@ -107,7 +107,7 @@ use Slic3r::Test;
         my $print = Slic3r::Test::init_print('overhang', config => $config);
         my %layer_speeds = ();  # print Z => [ speeds ]
         my $fan_speed = 0;
-        Slic3r::GCode::Reader->new(gcode => Slic3r::Test::gcode($print))->parse(sub {
+        Slic3r::GCode::Reader->new->parse(Slic3r::Test::gcode($print), sub {
             my ($self, $cmd, $args, $info) = @_;
             
             $fan_speed = 0 if $cmd eq 'M107';

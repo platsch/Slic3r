@@ -13,8 +13,8 @@ has '_crossing_edges' => (is => 'rw', default => sub { {} });  # edge_idx => boo
 has '_tolerance'    => (is => 'lazy');
 
 use List::Util qw(first);
-use Slic3r::Geometry qw(A B scale epsilon nearest_point);
-use Slic3r::Geometry::Clipper qw(diff_ex offset JT_MITER);
+use Slic3r::Geometry qw(A B scale epsilon);
+use Slic3r::Geometry::Clipper qw(diff_ex offset);
 
 # clearance (in mm) from the perimeters
 has '_inner_margin' => (is => 'ro', default => sub { scale 0.5 });
@@ -49,11 +49,10 @@ sub BUILD {
         # so that no motion along external perimeters happens
         $self->_inner->[$i] = $self->no_internal
             ? []
-            : [ $self->islands->[$i]->offset_ex(-$self->_inner_margin) ];
+            : $self->islands->[$i]->offset_ex(-$self->_inner_margin);
         
         # offset the island outwards to make the boundaries for external movements
-        $self->_outer->[$i] = [ offset([ $self->islands->[$i]->contour], $self->_outer_margin) ];
-        bless $_, 'Slic3r::Polygon' for @{ $self->_outer->[$i] };
+        $self->_outer->[$i] = offset([ $self->islands->[$i]->contour ], $self->_outer_margin);
         
         # if internal motion is enabled, build a set of utility expolygons representing
         # the outer boundaries (as contours) and the inner boundaries (as holes). whenever
@@ -75,14 +74,14 @@ sub BUILD {
     
     {
         my @outer = (map @$_, @{$self->_outer});
-        my @outer_ex = map [$_], @outer;  # as ExPolygons
+        my @outer_ex = map Slic3r::ExPolygon->new($_), @outer;  # build ExPolygons for Boost
         
         # lines of outer polygons connect visible points
         for my $i (0 .. $#outer) {
-            foreach my $line ($outer[$i]->lines) {
+            foreach my $line (@{$outer[$i]->lines}) {
                 my $dist = $line->length;
-                $edges->{$line->[A]}{$line->[B]} = $dist;
-                $edges->{$line->[B]}{$line->[A]} = $dist;
+                $edges->{$line->a}{$line->b} = $dist;
+                $edges->{$line->b}{$line->a} = $dist;
             }
         }
         
@@ -92,7 +91,7 @@ sub BUILD {
                 for my $m (0 .. $#{$outer[$i]}) {
                     for my $n (0 .. $#{$outer[$j]}) {
                         my $line = Slic3r::Line->new($outer[$i][$m], $outer[$j][$n]);
-                        if (!@{Boost::Geometry::Utils::multi_polygon_multi_linestring_intersection(\@outer_ex, [$line])}) {
+                        if (!@{Boost::Geometry::Utils::multi_polygon_multi_linestring_intersection([ map $_->pp, @outer_ex ], [$line->pp])}) {
                             # this line does not cross any polygon
                             my $dist = $line->length;
                             $edges->{$outer[$i][$m]}{$outer[$j][$n]} = $dist;
@@ -107,13 +106,13 @@ sub BUILD {
     # lines connecting inner polygons contours are visible but discouraged
     if (!$self->no_internal) {
         my @inner = (map $_->contour, map @$_, @{$self->_inner});
-        my @inner_ex = map [$_], @inner;  # as ExPolygons
+        my @inner_ex = map Slic3r::ExPolygon->new($_), @inner;  # build ExPolygons for Boost
         for my $i (0 .. $#inner) {
             for my $j (($i+1) .. $#inner) {
                 for my $m (0 .. $#{$inner[$i]}) {
                     for my $n (0 .. $#{$inner[$j]}) {
                         my $line = Slic3r::Line->new($inner[$i][$m], $inner[$j][$n]);
-                        if (!@{Boost::Geometry::Utils::multi_polygon_multi_linestring_intersection(\@inner_ex, [$line])}) {
+                        if (!@{Boost::Geometry::Utils::multi_polygon_multi_linestring_intersection([ map $_->pp, @inner_ex ], [$line->pp])}) {
                             # this line does not cross any polygon
                             my $dist = $line->length * CROSSING_FACTOR;
                             $edges->{$inner[$i][$m]}{$inner[$j][$n]} = $dist;
@@ -151,7 +150,7 @@ sub BUILD {
             points          => [ values %{$self->_pointmap} ],
             no_arrows       => 1,
             expolygons      => $self->islands,
-            #red_polygons    => [ map $_->holes, map @$_, @{$self->_inner} ],
+            #red_polygons    => [ map @{$_->holes}, map @$_, @{$self->_inner} ],
             #white_polygons    => [ map @$_, @{$self->_outer} ],
         );
         printf "%d islands\n", scalar @{$self->islands};
@@ -196,14 +195,14 @@ sub find_node {
     
     # if we're inside a hole, move to a point on hole;
     {
-        my $polygon = first { $_->encloses_point($point) } (map $_->holes, map @$_, @{$self->_inner});
-        return nearest_point($point, $polygon) if $polygon;
+        my $polygon = first { $_->encloses_point($point) } (map @{$_->holes}, map @$_, @{$self->_inner});
+        return $point->nearest_point([ @$polygon ]) if $polygon;
     }
     
     # if we're inside an expolygon move to a point on contour or holes
     {
         my $expolygon = first { $_->encloses_point_quick($point) } (map @$_, @{$self->_inner});
-        return nearest_point($point, [ map @$_, @$expolygon ]) if $expolygon;
+        return $point->nearest_point([ map @$_, @$expolygon ]) if $expolygon;
     }
     
     {
@@ -222,7 +221,7 @@ sub find_node {
             : [ map @$_, map @$_, @{$self->_outer} ];
         $candidates = [ map @$_, @{$self->_outer->[$outer_polygon_idx]} ]
             if @$candidates == 0;
-        return nearest_point($point, $candidates);
+        return $point->nearest_point($candidates);
     }
 }
 

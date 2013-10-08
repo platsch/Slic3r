@@ -82,7 +82,7 @@ sub fill_surface {
         # we were requested to complete each loop;
         # in this case we don't try to make more continuous paths
         @paths = map $_->split_at_first_point,
-            @{intersection($surface->expolygon, \@polygons)};
+            @{intersection([ $surface->p ], \@polygons)};
         
     } else {
         # consider polygons as polylines without re-appending the initial point:
@@ -90,33 +90,35 @@ sub fill_surface {
         # path is more straight
         @paths = map Slic3r::Polyline->new(@$_),
             @{ Boost::Geometry::Utils::polygon_multi_linestring_intersection(
-                $surface->expolygon,
-                \@polygons,
+                $surface->expolygon->pp,
+                [ map $_->pp, @polygons ],
             ) };
         
         # connect paths
         {
-            my $collection = Slic3r::Polyline::Collection->new(polylines => [@paths]);
+            my $collection = Slic3r::Polyline::Collection->new(@paths);
             @paths = ();
-            foreach my $path ($collection->chained_path) {
+            foreach my $path (@{$collection->chained_path(0)}) {
                 if (@paths) {
                     # distance between first point of this path and last point of last path
-                    my $distance = $paths[-1][-1]->distance_to($path->[0]);
+                    my $distance = $paths[-1]->last_point->distance_to($path->first_point);
                     
                     if ($distance <= $m->{hex_width}) {
-                        push @{$paths[-1]}, @$path;
+                        $paths[-1]->append_polyline($path);
                         next;
                     }
                 }
-                push @paths, $path;
+                
+                # make a clone before $collection goes out of scope
+                push @paths, $path->clone;
             }
         }
         
         # clip paths again to prevent connection segments from crossing the expolygon boundaries
         @paths = map Slic3r::Polyline->new(@$_),
             @{ Boost::Geometry::Utils::multi_polygon_multi_linestring_intersection(
-                [ $surface->expolygon->offset_ex(scaled_epsilon) ],
-                [ @paths ],
+                [ map $_->pp, @{$surface->expolygon->offset_ex(scaled_epsilon)} ],
+                [ map $_->pp, @paths ],
             ) } if @paths;  # this temporary check is a workaround for the multilinestring bug in B::G::U
     }
     

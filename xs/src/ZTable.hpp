@@ -1,12 +1,7 @@
 #ifndef slic3r_ZTable_hpp_
 #define slic3r_ZTable_hpp_
 
-extern "C" {
-#include "EXTERN.h"
-#include "perl.h"
-#include "XSUB.h"
-#include "ppport.h"
-}
+#include <vector>
 
 namespace Slic3r {
 

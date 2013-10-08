@@ -2,47 +2,14 @@ package Slic3r::Polyline;
 use strict;
 use warnings;
 
-use Scalar::Util qw(reftype);
-use Slic3r::Geometry qw(A B X Y X1 X2 Y1 Y2 polyline_remove_parallel_continuous_edges polyline_remove_acute_vertices
-    polyline_lines move_points same_point);
+use Slic3r::Geometry qw(A B X Y X1 X2 Y1 Y2 polyline_remove_parallel_continuous_edges polyline_remove_acute_vertices);
 use Slic3r::Geometry::Clipper qw(JT_SQUARE);
 use Storable qw();
 
-# the constructor accepts an array(ref) of points
-sub new {
+sub new_scale {
     my $class = shift;
-    
-    my $self = [ @_ ];
-    bless $self, $class;
-    bless $_, 'Slic3r::Point' for @$self;
-    $self;
-}
-
-sub clone {
-    Storable::dclone($_[0])
-}
-
-sub threadsafe_clone {
-    my $self = shift;
-    return (ref $self)->new(map $_->threadsafe_clone, @$self);
-}
-
-sub serialize {
-    my $self = shift;
-    return pack 'l*', map @$_, @$self;
-}
-
-sub deserialize {
-    my $class = shift;
-    my ($s) = @_;
-    
-    my @v = unpack '(l2)*', $s;
-    return $class->new(map [ $v[2*$_], $v[2*$_+1] ], 0 .. int($#v/2));
-}
-
-sub lines {
-    my $self = shift;
-    return polyline_lines($self);
+    my @points = map { ref($_) eq 'Slic3r::Point' ? $_->pp : $_ } @_;
+    return $class->new(map [ Slic3r::Geometry::scale($_->[X]), Slic3r::Geometry::scale($_->[Y]) ], @points);
 }
 
 sub wkt {
@@ -64,44 +31,27 @@ sub simplify {
     my $self = shift;
     my $tolerance = shift || 10;
     
-    my $simplified = Boost::Geometry::Utils::linestring_simplify($self, $tolerance);
-    return (ref $self)->new(@$simplified);
-}
-
-sub reverse {
-    my $self = shift;
-    @$self = CORE::reverse @$self;
+    my $simplified = Boost::Geometry::Utils::linestring_simplify($self->pp, $tolerance);
+    return __PACKAGE__->new(@$simplified);
 }
 
 sub length {
     my $self = shift;
-    return Boost::Geometry::Utils::linestring_length($self);
+    return Boost::Geometry::Utils::linestring_length($self->pp);
 }
 
 sub grow {
     my $self = shift;
     my ($distance, $scale, $joinType, $miterLimit) = @_;
-    $joinType //= JT_SQUARE;
+    $joinType   //= JT_SQUARE;  # we override this one
+    $scale      //= 100000;     # we init these because we can't pass undef
+    $miterLimit //= 3;
     
-    return map Slic3r::Polygon->new(@$_),
-        Slic3r::Geometry::Clipper::offset(
-            [ [ @$self, CORE::reverse @$self[1..($#$self-1)] ] ],
-            $distance, $scale, $joinType, $miterLimit,
-        );
-}
-
-sub nearest_point_to {
-    my $self = shift;
-    my ($point) = @_;
-    
-    $point = Slic3r::Geometry::nearest_point($point, $self);
-    return Slic3r::Point->new($point);
-}
-
-sub nearest_point_index_to {
-    my $self = shift;
-    my ($point) = @_;
-    return Slic3r::Geometry::nearest_point_index($point, $self);
+    my @points = @$self;
+    return @{Slic3r::Geometry::Clipper::offset(
+        [ Slic3r::Polygon->new(@points, CORE::reverse @points[1..($#points-1)]) ],
+        $distance, $scale, $joinType, $miterLimit,
+    )};
 }
 
 sub clip_with_polygon {
@@ -115,10 +65,8 @@ sub clip_with_expolygon {
     my $self = shift;
     my ($expolygon) = @_;
     
-    my $result = Boost::Geometry::Utils::polygon_multi_linestring_intersection($expolygon, [$self]);
-    bless $_, 'Slic3r::Polyline' for @$result;
-    bless $_, 'Slic3r::Point' for map @$_, @$result;
-    return @$result;
+    my $result = Boost::Geometry::Utils::polygon_multi_linestring_intersection($expolygon->pp, [$self->pp]);
+    return map { __PACKAGE__->new(@$_) } @$result;
 }
 
 sub bounding_box {
@@ -137,43 +85,15 @@ sub align_to_origin {
     return $self->translate(-$bb->x_min, -$bb->y_min);
 }
 
-sub rotate {
-    my $self = shift;
-    my ($angle, $center) = @_;
-    @$self = Slic3r::Geometry::rotate_points($angle, $center, @$self);
-    bless $_, 'Slic3r::Point' for @$self;
-    return $self;
-}
-
-sub translate {
-    my $self = shift;
-    my ($x, $y) = @_;
-    @$self = Slic3r::Geometry::move_points([$x, $y], @$self);
-    bless $_, 'Slic3r::Point' for @$self;
-    return $self;
-}
-
-sub scale {
-    my $self = shift;
-    my ($factor) = @_;
-    
-    # transform point coordinates
-    if ($factor != 1) {
-        foreach my $point (@$self) {
-            $point->[$_] *= $factor for X,Y;
-        }
-    }
-    return $self;
-}
-
 # removes the given distance from the end of the polyline
 sub clip_end {
     my $self = shift;
     my ($distance) = @_;
     
     while ($distance > 0) {
-        my $last_point = pop @$self;
-        last if !@$self;
+        my $last_point = $self->[-1];
+        $self->pop_back;
+        last if @$self == 0;
         
         my $last_segment_length = $last_point->distance_to($self->[-1]);
         if ($last_segment_length <= $distance) {
@@ -182,7 +102,7 @@ sub clip_end {
         }
         
         my $new_point = Slic3r::Geometry::point_along_segment($last_point, $self->[-1], $distance);
-        push @$self, Slic3r::Point->new($new_point);
+        $self->append($new_point);
         $distance = 0;
     }
 }
@@ -192,23 +112,24 @@ sub clip_start {
     my $self = shift;
     my ($distance) = @_;
     
+    my @points = @$self;
     my $points = [ $self->[0] ];
     
-    for (my $i = 1; $distance > 0 && $i <= $#$self; $i++) {
-        my $point = $self->[$i];
-        my $segment_length = $point->distance_to($self->[$i-1]);
+    for (my $i = 1; $distance > 0 && $i <= $#points; $i++) {
+        my $point = $points[$i];
+        my $segment_length = $point->distance_to($points[$i-1]);
         if ($segment_length <= $distance) {
             $distance -= $segment_length;
             push @$points, $point;
             next;
         }
         
-        my $new_point = Slic3r::Geometry::point_along_segment($self->[$i-1], $point, $distance);
-        push @$points, Slic3r::Point->new($new_point);
+        my $new_point = Slic3r::Geometry::point_along_segment($points[$i-1], $point, $distance);
+        push @$points, Slic3r::Point->new(@$new_point);
         $distance = 0;
     }
     
-    return (ref $self)->new($points);
+    return __PACKAGE__->new(@$points);
 }
 
 # this method returns a collection of points picked on the polygon contour
@@ -241,44 +162,6 @@ sub regular_points {
     }
     
     return @points;
-}
-
-package Slic3r::Polyline::Collection;
-use Moo;
-
-has 'polylines' => (is => 'ro', default => sub { [] });
-
-# If the second argument is provided, this method will return its items sorted
-# instead of returning the actual sorted polylines. 
-# Note that our polylines will be reversed in place when necessary.
-sub chained_path {
-    my $self = shift;
-    my ($start_near, $items, $no_reverse) = @_;
-    
-    $items ||= $self->polylines;
-    my %items_map = map { $self->polylines->[$_] => $items->[$_] } 0 .. $#{$self->polylines};
-    my @my_paths = @{$self->polylines};
-    
-    my @paths = ();
-    my $start_at;
-    my $endpoints = $no_reverse
-        ? [ map { $_->[0], $_->[0]  } @my_paths ]
-        : [ map { $_->[0], $_->[-1] } @my_paths ];
-    while (@my_paths) {
-        # find nearest point
-        my $start_index = $start_near
-            ? Slic3r::Geometry::nearest_point_index($start_near, $endpoints)
-            : 0;
-
-        my $path_index = int($start_index/2);
-        if ($start_index % 2 && !$no_reverse) { # index is end so reverse to make it the start
-            $my_paths[$path_index]->reverse;
-        }
-        push @paths, splice @my_paths, $path_index, 1;
-        splice @$endpoints, $path_index*2, 2;
-        $start_near = $paths[-1][-1];
-    }
-    return map $items_map{"$_"}, @paths;
 }
 
 1;

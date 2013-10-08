@@ -12,11 +12,10 @@ my %prereqs = qw(
     File::Basename                  0
     File::Spec                      0
     Getopt::Long                    0
-    Math::Clipper                   1.22
     Math::ConvexHull::MonotoneChain 0.01
     Math::Geometry::Voronoi         1.3
     Math::PlanePath                 53
-    Moo                             0.091009
+    Moo                             1.003001
     Scalar::Util                    0
     Storable                        0
     Test::More                      0
@@ -30,7 +29,7 @@ my %recommends = qw(
 );
 if (defined $ARGV[0] && $ARGV[0] eq '--gui') {
     %prereqs = qw(
-    Wx                              0.9901
+    Wx                              0.9918
     );
     %recommends = qw(
     Wx::GLCanvas                    0
@@ -89,17 +88,39 @@ EOF
     # make sure our cpanm is updated (old ones don't support the ~ syntax)
     system $cpanm, 'App::cpanminus';
     
+    # install the Windows-compatible Math::Libm
+    if ($^O eq 'MSWin32' && !eval "use Math::Libm; 1") {
+        system $cpanm, 'https://github.com/alexrj/Math-Libm/tarball/master';
+    }
+    
     my %modules = (%prereqs, %recommends);
     foreach my $module (sort keys %modules) {
         my $version = $modules{$module};
         my $res = system $cpanm, "$module~$version";
-        $missing_prereqs = 1 if $res != 0 && exists $prereqs{$module};
+        if ($res != 0) {
+            if (exists $prereqs{$module}) {
+                $missing_prereqs = 1;
+            } else {
+                printf "Don't worry, this module is optional.\n";
+            }
+        }
     }
     
     # temporarily require this dev version until this upstream bug
     # is resolved: https://rt.cpan.org/Ticket/Display.html?id=86367
     system $cpanm, 'SMUELLER/ExtUtils-ParseXS-3.18_04.tar.gz';
-    system './xs/Build', 'distclean' if -e './xs/Build';
+    
+    # clean xs directory before reinstalling, to make sure Build is called
+    # with current perl binary
+    if (-e './xs/Build') {
+        if ($^O eq 'MSWin32') {
+            system 'cd', 'xs';
+            system 'Build', 'distclean';
+            system 'cd', '..';
+        } else {
+            system './xs/Build', 'distclean';
+        }
+    }
     system $cpanm, '--reinstall', './xs';
 }
 

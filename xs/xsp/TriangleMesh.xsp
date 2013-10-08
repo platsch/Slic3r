@@ -5,14 +5,25 @@
 #include "TriangleMesh.hpp"
 %}
 
-%name{Slic3r::TriangleMesh::XS} class TriangleMesh {
+%name{Slic3r::TriangleMesh} class TriangleMesh {
     TriangleMesh();
     ~TriangleMesh();
+    TriangleMesh* clone()
+        %code{% const char* CLASS = "Slic3r::TriangleMesh"; RETVAL = new TriangleMesh(*THIS); %};
     void ReadSTLFile(char* input_file);
+    void write_ascii(char* output_file);
+    void write_binary(char* output_file);
     void ReadFromPerl(SV* vertices, SV* facets);
-    void Repair();
+    void repair();
     void WriteOBJFile(char* output_file);
-    AV* ToPerl();
+    void scale(float factor);
+    void scale_xyz(std::vector<double> versor)
+        %code{% THIS->scale(versor); %};
+    void translate(float x, float y, float z);
+    void align_to_origin();
+    void rotate(double angle, Point* center);
+    TriangleMeshPtrs split();
+    void merge(TriangleMesh* mesh);
 %{
 
 SV*
@@ -33,10 +44,125 @@ TriangleMesh::stats()
     OUTPUT:
         RETVAL
 
+SV*
+TriangleMesh::vertices()
+    CODE:
+        if (!THIS->repaired) CONFESS("vertices() requires repair()");
+        
+        if (THIS->stl.v_shared == NULL)
+            stl_generate_shared_vertices(&(THIS->stl));
+        
+        // vertices
+        AV* vertices = newAV();
+        av_extend(vertices, THIS->stl.stats.shared_vertices);
+        for (int i = 0; i < THIS->stl.stats.shared_vertices; i++) {
+            AV* vertex = newAV();
+            av_store(vertices, i, newRV_noinc((SV*)vertex));
+            av_extend(vertex, 2);
+            av_store(vertex, 0, newSVnv(THIS->stl.v_shared[i].x));
+            av_store(vertex, 1, newSVnv(THIS->stl.v_shared[i].y));
+            av_store(vertex, 2, newSVnv(THIS->stl.v_shared[i].z));
+        }
+        
+        RETVAL = newRV_noinc((SV*)vertices);
+    OUTPUT:
+        RETVAL
+
+SV*
+TriangleMesh::facets()
+    CODE:
+        if (!THIS->repaired) CONFESS("facets() requires repair()");
+        
+        if (THIS->stl.v_shared == NULL)
+            stl_generate_shared_vertices(&(THIS->stl));
+        
+        // facets
+        AV* facets = newAV();
+        av_extend(facets, THIS->stl.stats.number_of_facets);
+        for (int i = 0; i < THIS->stl.stats.number_of_facets; i++) {
+            AV* facet = newAV();
+            av_store(facets, i, newRV_noinc((SV*)facet));
+            av_extend(facet, 2);
+            av_store(facet, 0, newSVnv(THIS->stl.v_indices[i].vertex[0]));
+            av_store(facet, 1, newSVnv(THIS->stl.v_indices[i].vertex[1]));
+            av_store(facet, 2, newSVnv(THIS->stl.v_indices[i].vertex[2]));
+        }
+        
+        RETVAL = newRV_noinc((SV*)facets);
+    OUTPUT:
+        RETVAL
+
+SV*
+TriangleMesh::normals()
+    CODE:
+        if (!THIS->repaired) CONFESS("normals() requires repair()");
+        
+        // normals
+        AV* normals = newAV();
+        av_extend(normals, THIS->stl.stats.number_of_facets);
+        for (int i = 0; i < THIS->stl.stats.number_of_facets; i++) {
+            AV* facet = newAV();
+            av_store(normals, i, newRV_noinc((SV*)facet));
+            av_extend(facet, 2);
+            av_store(facet, 0, newSVnv(THIS->stl.facet_start[i].normal.x));
+            av_store(facet, 1, newSVnv(THIS->stl.facet_start[i].normal.y));
+            av_store(facet, 2, newSVnv(THIS->stl.facet_start[i].normal.z));
+        }
+        
+        RETVAL = newRV_noinc((SV*)normals);
+    OUTPUT:
+        RETVAL
+
+SV*
+TriangleMesh::size()
+    CODE:
+        AV* size = newAV();
+        av_extend(size, 2);
+        av_store(size, 0, newSVnv(THIS->stl.stats.size.x));
+        av_store(size, 1, newSVnv(THIS->stl.stats.size.y));
+        av_store(size, 2, newSVnv(THIS->stl.stats.size.z));
+        RETVAL = newRV_noinc((SV*)size);
+    OUTPUT:
+        RETVAL
+
+SV*
+TriangleMesh::slice(z)
+    std::vector<double>* z
+    CODE:
+        std::vector<Polygons>* layers = THIS->slice(*z);
+        
+        AV* layers_av = newAV();
+        av_extend(layers_av, layers->size()-1);
+        for (unsigned int i = 0; i < layers->size(); i++) {
+            AV* polygons_av = newAV();
+            av_extend(polygons_av, (*layers)[i].size()-1);
+            unsigned int j = 0;
+            for (Polygons::iterator it = (*layers)[i].begin(); it != (*layers)[i].end(); ++it) {
+                av_store(polygons_av, j++, (*it).to_SV_clone_ref());
+            }
+            av_store(layers_av, i, newRV_noinc((SV*)polygons_av));
+        }
+        delete layers;
+        RETVAL = (SV*)newRV_noinc((SV*)layers_av);
+    OUTPUT:
+        RETVAL
+
+std::vector<double>
+TriangleMesh::bb3()
+    CODE:
+        RETVAL.push_back(THIS->stl.stats.min.x);
+        RETVAL.push_back(THIS->stl.stats.min.y);
+        RETVAL.push_back(THIS->stl.stats.max.x);
+        RETVAL.push_back(THIS->stl.stats.max.y);
+        RETVAL.push_back(THIS->stl.stats.min.z);
+        RETVAL.push_back(THIS->stl.stats.max.z);
+    OUTPUT:
+        RETVAL
+
 %}
 };
 
-%package{Slic3r::TriangleMesh::XS};
+%package{Slic3r::TriangleMesh};
 
 %{
 PROTOTYPES: DISABLE

@@ -22,7 +22,7 @@ sub scale_points (@) { map [scale $_->[X], scale $_->[Y]], @_ }
         scale_points [0,0], [10,0], [10,10], [0,10],
     ]);
     
-    my @offsets = $square->noncollapsing_offset_ex(- scale 5);
+    my @offsets = @{$square->noncollapsing_offset_ex(- scale 5)};
     is scalar @offsets, 1, 'non-collapsing offset';
 }
 
@@ -81,7 +81,7 @@ sub scale_points (@) { map [scale $_->[X], scale $_->[Y]], @_ }
         is scalar @{$layerm->thin_fills} ? 1 : 0, $widths{$width}{gaps},
             ($widths{$width}{gaps} ? 'gaps were filled' : 'no gaps detected');  # TODO: we should check the exact number of gaps, but we need a better medial axis algorithm
         
-        my @gaps = map $_->unpack, @{$layerm->thin_fills};
+        my @gaps = map $_, @{$layerm->thin_fills};
         if (@gaps) {
             ok +(!first { abs($_->flow_spacing - $widths{$width}{gap_flow_spacing}) > epsilon } @gaps),
                 'flow spacing was dynamically adjusted';

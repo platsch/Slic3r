@@ -1,4 +1,86 @@
 ZTable*         O_OBJECT
 TriangleMesh*         O_OBJECT
 Point*         O_OBJECT
+Line*           O_OBJECT
+Polyline*       O_OBJECT
+PolylineCollection*    O_OBJECT
+Polygon*        O_OBJECT
 ExPolygon*      O_OBJECT
+ExPolygonCollection*    O_OBJECT
+ExtrusionEntityCollection*    O_OBJECT
+ExtrusionPath*  O_OBJECT
+ExtrusionLoop*  O_OBJECT
+Surface*        O_OBJECT
+SurfaceCollection*      O_OBJECT
+
+ExtrusionRole     T_UV
+SurfaceType     T_UV
+ClipperLib::JoinType		T_UV
+ClipperLib::PolyFillType		T_UV
+
+# we return these types whenever we want the items to be cloned
+Points          T_ARRAYREF
+Lines           T_ARRAYREF
+Polygons        T_ARRAYREF
+ExPolygons      T_ARRAYREF
+
+# we return these types whenever we want the items to be returned
+# by reference and marked ::Ref because they're contained in another
+# Perl object
+Polygons*       T_ARRAYREF_PTR
+
+# we return these types whenever we want the items to be returned
+# by reference and not marked ::Ref because they're newly allocated
+# and not referenced by any Perl object
+TriangleMeshPtrs T_PTR_ARRAYREF
+
+INPUT
+
+T_ARRAYREF
+    if (SvROK($arg) && SvTYPE(SvRV($arg)) == SVt_PVAV) {
+        AV* av = (AV*)SvRV($arg);
+        const unsigned int len = av_len(av)+1;
+        $type* tmp = new $type(len);
+        for (unsigned int i = 0; i < len; i++) {
+            SV** elem = av_fetch(av, i, 0);
+            (*tmp)[i].from_SV_check(*elem);
+        }
+        $var = *tmp;
+	    delete tmp;
+    } else
+        Perl_croak(aTHX_ \"%s: %s is not an array reference\",
+	             ${$ALIAS?\q[GvNAME(CvGV(cv))]:\qq[\"$pname\"]},
+	             \"$var\");
+
+OUTPUT
+
+T_ARRAYREF
+	AV* av = newAV();
+	$arg = newRV_noinc((SV*)av);
+	sv_2mortal($arg);
+	av_extend(av, $var.size()-1);
+	int i = 0;
+    for (${type}::const_iterator it = $var.begin(); it != $var.end(); ++it) {
+        av_store(av, i++, it->to_SV_clone_ref());
+	}
+	$var.clear();
+
+T_ARRAYREF_PTR
+    AV* av = newAV();
+	$arg = newRV_noinc((SV*)av);
+	sv_2mortal($arg);
+	av_extend(av, $var->size()-1);
+	int i = 0;
+    for (${ my $t = $type; $t =~ s/\*$//; \$t }::iterator it = $var->begin(); it != $var->end(); ++it) {
+        av_store(av, i++, it->to_SV_ref());
+	}
+
+T_PTR_ARRAYREF
+    AV* av = newAV();
+	$arg = newRV_noinc((SV*)av);
+	sv_2mortal($arg);
+	av_extend(av, $var.size()-1);
+	int i = 0;
+    for (${type}::iterator it = $var.begin(); it != $var.end(); ++it) {
+        av_store(av, i++, (*it)->to_SV());
+	}

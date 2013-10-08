@@ -3,8 +3,8 @@ use Moo;
 
 extends 'Slic3r::Fill::Base';
 
-use Slic3r::Geometry qw(scale unscale X nearest_point_index);
-use Slic3r::Geometry::Clipper qw(offset offset2 union_pt traverse_pt PFT_EVENODD);
+use Slic3r::Geometry qw(scale unscale X);
+use Slic3r::Geometry::Clipper qw(offset offset2 union_pt traverse_pt);
 
 sub fill_surface {
     my $self = shift;
@@ -29,21 +29,21 @@ sub fill_surface {
     
     # compensate the overlap which is good for rectilinear but harmful for concentric
     # where the perimeter/infill spacing should be equal to any other loop spacing
-    my @loops = my @last = offset($expolygon, -&Slic3r::INFILL_OVERLAP_OVER_SPACING * $min_spacing / 2);
+    my @loops = my @last = @{offset(\@$expolygon, -&Slic3r::INFILL_OVERLAP_OVER_SPACING * $min_spacing / 2)};
     while (@last) {
-        push @loops, @last = offset2(\@last, -1.5*$distance,  +0.5*$distance);
+        push @loops, @last = @{offset2(\@last, -1.5*$distance,  +0.5*$distance)};
     }
     
     # generate paths from the outermost to the innermost, to avoid 
     # adhesion problems of the first central tiny loops
     @loops = map Slic3r::Polygon->new(@$_),
-        reverse traverse_pt( union_pt(\@loops, PFT_EVENODD) );
+        reverse traverse_pt( union_pt(\@loops) );
     
     # order paths using a nearest neighbor search
     my @paths = ();
-    my $last_pos = [0,0];
+    my $last_pos = Slic3r::Point->new(0,0);
     foreach my $loop (@loops) {
-        push @paths, $loop->split_at_index(nearest_point_index($last_pos, $loop));
+        push @paths, $loop->split_at_index($last_pos->nearest_point_index(\@$loop));
         $last_pos = $paths[-1][-1];
     }
     

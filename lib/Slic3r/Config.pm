@@ -417,9 +417,12 @@ our $Options = {
         default => 0.35,
     },
     'infill_every_layers' => {
-        label   => 'Infill every',
+        label   => 'Combine infill every',
+        full_label   => 'Combine infill every n layers',
         tooltip => 'This feature allows to combine infill and speed up your print by extruding thicker infill layers while preserving thin perimeters, thus accuracy.',
         sidetext => 'layers',
+        scope   => 'object',
+        category => 'Infill',
         cli     => 'infill-every-layers=i',
         type    => 'i',
         min     => 1,
@@ -429,6 +432,8 @@ our $Options = {
         label   => 'Solid infill every',
         tooltip => 'This feature allows to force a solid layer every given number of layers. Zero to disable.',
         sidetext => 'layers',
+        scope   => 'object',
+        category => 'Infill',
         cli     => 'solid-infill-every-layers=i',
         type    => 'i',
         min     => 0,
@@ -437,6 +442,8 @@ our $Options = {
     'infill_only_where_needed' => {
         label   => 'Only infill where needed',
         tooltip => 'This option will limit infill to the areas actually needed for supporting ceilings (it will act as internal support material).',
+        scope   => 'object',
+        category => 'Infill',
         cli     => 'infill-only-where-needed!',
         type    => 'bool',
         default => 0,
@@ -526,7 +533,9 @@ our $Options = {
     # print options
     'perimeters' => {
         label   => 'Perimeters (minimum)',
-        tooltip => 'This option sets the number of perimeters to generate for each layer. Note that Slic3r will increase this number automatically when it detects sloping surfaces which benefit from a higher number of perimeters.',
+        tooltip => 'This option sets the number of perimeters to generate for each layer. Note that Slic3r may increase this number automatically when it detects sloping surfaces which benefit from a higher number of perimeters if the Extra Perimeters option is enabled.',
+        scope   => 'object',
+        category => 'Layers and Perimeters',
         cli     => 'perimeters=i',
         type    => 'i',
         aliases => [qw(perimeter_offsets)],
@@ -541,14 +550,20 @@ our $Options = {
     },
     'top_solid_layers' => {
         label   => 'Top',
+        full_label => 'Top solid layers',
         tooltip => 'Number of solid layers to generate on top surfaces.',
+        scope   => 'object',
+        category => 'Layers and Perimeters',
         cli     => 'top-solid-layers=i',
         type    => 'i',
         default => 3,
     },
     'bottom_solid_layers' => {
         label   => 'Bottom',
+        full_label => 'Bottom solid layers',
         tooltip => 'Number of solid layers to generate on bottom surfaces.',
+        scope   => 'object',
+        category => 'Layers and Perimeters',
         cli     => 'bottom-solid-layers=i',
         type    => 'i',
         default => 3,
@@ -556,6 +571,8 @@ our $Options = {
     'fill_pattern' => {
         label   => 'Fill pattern',
         tooltip => 'Fill pattern for general low-density infill.',
+        scope   => 'object',
+        category => 'Infill',
         cli     => 'fill-pattern=s',
         type    => 'select',
         values  => [qw(rectilinear line concentric honeycomb hilbertcurve archimedeanchords octagramspiral)],
@@ -565,6 +582,8 @@ our $Options = {
     'solid_fill_pattern' => {
         label   => 'Top/bottom fill pattern',
         tooltip => 'Fill pattern for top/bottom infill.',
+        scope   => 'object',
+        category => 'Infill',
         cli     => 'solid-fill-pattern=s',
         type    => 'select',
         values  => [qw(rectilinear concentric hilbertcurve archimedeanchords octagramspiral)],
@@ -574,6 +593,8 @@ our $Options = {
     'fill_density' => {
         label   => 'Fill density',
         tooltip => 'Density of internal infill, expressed in the range 0 - 1.',
+        scope   => 'object',
+        category => 'Infill',
         cli     => 'fill-density=f',
         type    => 'f',
         default => 0.4,
@@ -591,6 +612,8 @@ our $Options = {
         label   => 'Solid infill threshold area',
         tooltip => 'Force solid infill for regions having a smaller area than the specified threshold.',
         sidetext => 'mm²',
+        scope   => 'object',
+        category => 'Infill',
         cli     => 'solid-infill-below-area=f',
         type    => 'f',
         default => 70,
@@ -598,6 +621,8 @@ our $Options = {
     'extra_perimeters' => {
         label   => 'Extra perimeters if needed',
         tooltip => 'Add more perimeters when needed for avoiding gaps in sloping walls.',
+        scope   => 'object',
+        category => 'Layers and Perimeters',
         cli     => 'extra-perimeters!',
         type    => 'bool',
         default => 1,
@@ -626,6 +651,8 @@ our $Options = {
     'thin_walls' => {
         label   => 'Detect thin walls',
         tooltip => 'Detect single-width walls (parts where two extrusions don\'t fit and we need to collapse them into a single trace).',
+        scope   => 'object',
+        category => 'Layers and Perimeters',
         cli     => 'thin-walls!',
         type    => 'bool',
         default => 1,
@@ -633,6 +660,8 @@ our $Options = {
     'overhangs' => {
         label   => 'Detect overhangs',
         tooltip => 'Experimental option to adjust flow for overhangs (bridge flow will be used), to apply bridge speed to them and enable fan.',
+        scope   => 'object',
+        category => 'Layers and Perimeters',
         cli     => 'overhangs!',
         type    => 'bool',
         default => 1,
@@ -667,6 +696,8 @@ our $Options = {
     },
     'support_material' => {
         label   => 'Generate support material',
+        scope   => 'object',
+        category => 'Support material',
         tooltip => 'Enable support material generation.',
         cli     => 'support-material!',
         type    => 'bool',
@@ -676,6 +707,8 @@ our $Options = {
         label   => 'Overhang threshold',
         tooltip => 'Support material will not generated for overhangs whose slope angle is above the given threshold. Set to zero for automatic detection.',
         sidetext => '°',
+        scope   => 'object',
+        category => 'Support material',
         cli     => 'support-material-threshold=i',
         type    => 'i',
         default => 0,
@@ -683,6 +716,8 @@ our $Options = {
     'support_material_pattern' => {
         label   => 'Pattern',
         tooltip => 'Pattern used to generate support material.',
+        scope   => 'object',
+        category => 'Support material',
         cli     => 'support-material-pattern=s',
         type    => 'select',
         values  => [qw(rectilinear rectilinear-grid honeycomb)],
@@ -693,6 +728,8 @@ our $Options = {
         label   => 'Pattern spacing',
         tooltip => 'Spacing between support material lines.',
         sidetext => 'mm',
+        scope   => 'object',
+        category => 'Support material',
         cli     => 'support-material-spacing=f',
         type    => 'f',
         default => 2.5,
@@ -700,6 +737,8 @@ our $Options = {
     'support_material_angle' => {
         label   => 'Pattern angle',
         tooltip => 'Use this setting to rotate the support material pattern on the horizontal plane.',
+        scope   => 'object',
+        category => 'Support material',
         sidetext => '°',
         cli     => 'support-material-angle=i',
         type    => 'i',
@@ -709,6 +748,8 @@ our $Options = {
         label   => 'Interface layers',
         tooltip => 'Number of interface layers to insert between the object(s) and support material.',
         sidetext => 'layers',
+        scope   => 'object',
+        category => 'Support material',
         cli     => 'support-material-interface-layers=i',
         type    => 'i',
         default => 3,
@@ -716,6 +757,8 @@ our $Options = {
     'support_material_interface_spacing' => {
         label   => 'Interface pattern spacing',
         tooltip => 'Spacing between interface lines. Set zero to get a solid interface.',
+        scope   => 'object',
+        category => 'Support material',
         sidetext => 'mm',
         cli     => 'support-material-interface-spacing=f',
         type    => 'f',
@@ -723,8 +766,11 @@ our $Options = {
     },
     'support_material_enforce_layers' => {
         label   => 'Enforce support for the first',
+        full_label   => 'Enforce support for the first n layers',
         tooltip => 'Generate support material for the specified number of layers counting from bottom, regardless of whether normal support material is enabled or not and regardless of any angle threshold. This is useful for getting more adhesion of objects having a very thin or poor footprint on the build plate.',
         sidetext => 'layers',
+        scope   => 'object',
+        category => 'Support material',
         cli     => 'support-material-enforce-layers=f',
         type    => 'i',
         default => 0,
@@ -733,6 +779,8 @@ our $Options = {
         label   => 'Raft layers',
         tooltip => 'The object will be raised by this number of layers, and support material will be generated under it.',
         sidetext => 'layers',
+        scope   => 'object',
+        category => 'Support material',
         cli     => 'raft-layers=i',
         type    => 'i',
         default => 0,
@@ -1135,7 +1183,7 @@ sub new {
 
 sub new_from_defaults {
     my $class = shift;
-    my @opt_keys = 
+    
     return $class->new(
         map { $_ => $Options->{$_}{default} }
             grep !$Options->{$_}{shortcut},
