@@ -28,8 +28,6 @@ my $test = sub {
     Slic3r::GCode::Reader->new->parse(Slic3r::Test::gcode($print), sub {
         my ($self, $cmd, $args, $info) = @_;
         
-        print $info->{raw}, "\n";
-        
         if($info->{new_Z}) {
 	        if (($info->{new_Z} == $z) && ($info->{dist_X} == 0) && ($info->{dist_Y} > 5) && ($info->{extruding})) {
 	        	if($args->{X}) {
@@ -61,19 +59,19 @@ $config->set('max_layer_height', [0.4]);
 
 # standard case without width-reduction
 my $p = 3;
-#$config->set('perimeters', $p);
-#subtest 'gcode line distance - no reduction' => sub {
-#	plan tests => $p;
-#	$test->($config, 0.800, $p, 0.5);
-#};
-#	
-## standard case with width-reduction
-#$p = 6;
-#$config->set('perimeters', $p);
-#subtest 'gcode line distance - reduction preserving nr of perimeters' => sub {
-#	plan tests => $p;
-#	$test->($config, 0.800, $p, 0.4160);
-#};
+$config->set('perimeters', $p);
+subtest 'gcode line distance - no reduction' => sub {
+	plan tests => $p;
+	$test->($config, 0.800, $p, 0.5);
+};
+	
+# standard case with width-reduction
+$p = 6;
+$config->set('perimeters', $p);
+subtest 'gcode line distance - reduction preserving nr of perimeters' => sub {
+	plan tests => $p;
+	$test->($config, 0.800, $p, 0.4160);
+};
 
 #$Slic3r::debug = 1;
 # width-reduction and decreasing number of perimeters
