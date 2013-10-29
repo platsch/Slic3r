@@ -212,7 +212,14 @@ sub slice_adaptive {
 
 		$layer->make_slices;
 		
-		
+	
+	
+#		if($#{$self->layers} == 3) {
+#			my $flow = $layer->region(0)->{perimeter_flow};
+#			$layer->region(0)->perimeter_flow($flow->clone(width => 0.4, role => $flow->role()));
+#			$flow = $layer->region(0)->{perimeter_flow};
+#			$flow->width_from_spacing($flow->spacing());
+#		}
 		
 		# determine good perimeter width.
 		# binary search through offsets to find first skeleton collision
@@ -243,8 +250,8 @@ sub slice_adaptive {
 			my $iterations = 0;
 			my $widen;
 			while(1) {
-				my @blue_expolygons;
-				my @red_expolygons;
+#				my @blue_expolygons;
+#				my @red_expolygons;
 				$distance = $distance/2;
 				$iterations++;
 				$widen = 1;
@@ -253,8 +260,8 @@ sub slice_adaptive {
 					my $nr = $#$tmp; 
 					
 					
-					push(@blue_expolygons, $expolygon);
-					map push(@red_expolygons, $_), @{$tmp};
+#					push(@blue_expolygons, $expolygon);
+#					map push(@red_expolygons, $_), @{$tmp};
 			        
 			        
 					if($#$tmp != 0 || ($#{$expolygon->holes} != $#{$tmp->[0]->holes})) {
@@ -272,28 +279,28 @@ sub slice_adaptive {
 						$offset += $distance;
 						Slic3r::debugf "increase offset to %f, distance: %f\n", unscale $offset, unscale $distance;
 					}
-					require "Slic3r/SVG.pm";
-			        Slic3r::SVG::output("surfaces_iteration_$iterations.svg",
-			            #polylines         => $loops,
-			            #red_polylines       => [ grep $_->is_counter_clockwise, @$loops ],
-			            #green_polylines     => [ grep !$_->is_counter_clockwise, @$loops ],
-			            #red_polylines       => [ $tmp->contour(), @{$self->layers->[$#{$self->layers}]->region(0)->slices} ],	            
-			            #green_polylines       => [ @holes_array ],
-			            blue_expolygons          => [ @blue_expolygons ],
-			            red_expolygons          => [ @red_expolygons ],
-			        );
+#					require "Slic3r/SVG.pm";
+#			        Slic3r::SVG::output("surfaces_iteration_$iterations.svg",
+#			            #polylines         => $loops,
+#			            #red_polylines       => [ grep $_->is_counter_clockwise, @$loops ],
+#			            #green_polylines     => [ grep !$_->is_counter_clockwise, @$loops ],
+#			            #red_polylines       => [ $tmp->contour(), @{$self->layers->[$#{$self->layers}]->region(0)->slices} ],	            
+#			            #green_polylines       => [ @holes_array ],
+#			            blue_expolygons          => [ @blue_expolygons ],
+#			            red_expolygons          => [ @red_expolygons ],
+#			        );
 					redo;	
 				}
-				require "Slic3r/SVG.pm";
-		        Slic3r::SVG::output("surfaces_final.svg",
-		            #polylines         => $loops,
-		            #red_polylines       => [ grep $_->is_counter_clockwise, @$loops ],
-		            #green_polylines     => [ grep !$_->is_counter_clockwise, @$loops ],
-		            #red_polylines       => [ $tmp->contour(), @{$self->layers->[$#{$self->layers}]->region(0)->slices} ],	            
-		            #green_polylines       => [ @holes_array ],
-		            blue_expolygons          => [ @blue_expolygons ],
-		            red_expolygons          => [ @red_expolygons ],
-		        );
+#				require "Slic3r/SVG.pm";
+#		        Slic3r::SVG::output("surfaces_final.svg",
+#		            #polylines         => $loops,
+#		            #red_polylines       => [ grep $_->is_counter_clockwise, @$loops ],
+#		            #green_polylines     => [ grep !$_->is_counter_clockwise, @$loops ],
+#		            #red_polylines       => [ $tmp->contour(), @{$self->layers->[$#{$self->layers}]->region(0)->slices} ],	            
+#		            #green_polylines       => [ @holes_array ],
+#		            blue_expolygons          => [ @blue_expolygons ],
+#		            red_expolygons          => [ @red_expolygons ],
+#		        );
 		        Slic3r::debugf "new perimeter width: %f found in %d iterations\n", unscale $offset, $iterations;
 		        last;
 			}
@@ -315,7 +322,10 @@ sub slice_adaptive {
 			#$layer->region($region_id)->perimeter_flow->set_width($extrusion_width);
 			my $flow = $layer->region($region_id)->{perimeter_flow};
 			my $foo = "bar";
-			$layer->region($region_id)->perimeter_flow($flow->clone(width => $extrusion_width, role => $flow->role()));
+			$layer->region($region_id)->perimeter_flow($flow->clone(width => 1, role => $flow->role()));
+			$flow = $layer->region($region_id)->{perimeter_flow};
+			$flow->width_from_spacing($extrusion_width);
+			my $tmp =  $flow->scaled_spacing();
 		}
 		
 		$slice_z += $height/2;       	       
