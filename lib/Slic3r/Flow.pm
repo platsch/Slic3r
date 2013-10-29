@@ -47,6 +47,7 @@ sub _build_width {
     $width = $max if defined($max) && $width > $max;
     $width = $min if $width < $min;
     
+    #print "width: ", $width, "\n";
     return $width;
 }
 
@@ -61,7 +62,24 @@ sub _build_spacing {
         # rectangle with shrunk semicircles at the ends
         $min_flow_spacing = $self->nozzle_diameter * (1 - PI/4) + $self->width * PI/4;
     }
+    #print "spacing: ", $self->width - &Slic3r::OVERLAP_FACTOR * ($self->width - $min_flow_spacing), "\n";
     return $self->width - &Slic3r::OVERLAP_FACTOR * ($self->width - $min_flow_spacing);
+}
+
+sub width_from_spacing {
+	my $self = shift;
+	my ($spacing) = @_;
+	
+	# compute width for the semicircle case
+	my $width = $spacing + &Slic3r::OVERLAP_FACTOR * $self->layer_height * (1 - PI/4);
+	
+	# check wether this case is correct
+	if ($width < ($self->nozzle_diameter + $self->layer_height)) {
+		# not correct, compute 2. case
+		$width = ($spacing - $self->nozzle_diameter * (1 - PI/4) * &Slic3r::OVERLAP_FACTOR) / ((1- &Slic3r::OVERLAP_FACTOR) + PI/4 * &Slic3r::OVERLAP_FACTOR);
+	}
+	
+	$self->_set_width($width);
 }
 
 sub clone {
