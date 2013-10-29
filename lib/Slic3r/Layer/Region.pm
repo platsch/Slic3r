@@ -61,10 +61,16 @@ sub _update_flows {
                 ($self->region->first_layer_flows->{$_} || $self->region->flows->{$_});
         } 
     } else {
-        $self->perimeter_flow($self->region->flows->{perimeter});
-        $self->infill_flow($self->region->flows->{infill});
-        $self->solid_infill_flow($self->region->flows->{solid_infill});
-        $self->top_infill_flow($self->region->flows->{top_infill});
+    	for (qw(perimeter infill solid_infill top_infill)) {
+            my $method = "${_}_flow";
+            my $flow = $self->region->flows->{$_};
+            $self->$method
+                ($self->region->flows->{$_}->clone(
+                	role => $flow->role(),
+    				layer_height => $flow->layer_height(),
+    				width => $flow->width()
+                ));
+        }
     }
 }
 
