@@ -3,7 +3,7 @@ use Moo;
 
 use List::Util qw(sum first);
 use Slic3r::ExtrusionPath ':roles';
-use Slic3r::Geometry qw(PI A B scale chained_path_items points_coincide);
+use Slic3r::Geometry qw(PI A B scale chained_path_items points_coincide scale unscale);
 use Slic3r::Geometry::Clipper qw(union_ex diff_ex intersection_ex 
     offset offset2 offset2_ex union_pt traverse_pt diff intersection
     union diff);
@@ -67,7 +67,7 @@ sub _update_flows {
             $self->$method
                 ($self->region->flows->{$_}->clone(
                 	role => $flow->role(),
-    				layer_height => $flow->layer_height(),
+    				layer_height => $self->height,
     				width => $flow->width()
                 ));
         }
@@ -144,6 +144,79 @@ sub _merge_loops {
         scalar(@$slices), scalar(map @{$_->holes}, @$slices), scalar(@$loops) if $Slic3r::debug;
     
     return map Slic3r::Surface->new(expolygon => $_, surface_type => S_TYPE_INTERNAL), @$slices;
+}
+
+
+# computes width and spacing for perimeter flow based on the polygons topology.
+# if desired number of perimeters and extrusion width doesn't fit into this polygon, 
+# width will be reduced to find a width that allows the number of perimeters or at least a fraction of perimeters.
+sub perimeter_extrusion_width {
+	my $self = shift;
+	my ($width_limit_factor, $threshold) = @_;	
+	
+	# binary search through offsets to find first skeleton collision
+	# use perimeter extruders nozzle diameter as max_width
+	my $perimeters = $Slic3r::Config->get('perimeters'); # desired number of perimeters
+	my $perimeter_nozzle_diameter = $self->perimeter_flow->nozzle_diameter;
+	my $spacing = 0;			
+	my $initial_offset =scale $perimeter_nozzle_diameter * $perimeters;  # nozzle_diameter as max_value too small?
+	my $offset = $initial_offset;
+	my $distance = $offset;
+	my $iterations = 0;
+	my $widen;
+	while(1) {
+#		my @blue_expolygons;
+#		my @red_expolygons;
+		$distance = $distance/2;
+		$iterations++;
+		$widen = 1;
+		foreach my $expolygon (map $_->expolygon, @{$self->slices}) {
+			my $offset_ex = $expolygon->offset_ex(-$offset); # this should be done in cpp an only return the number of polygons (or entire binary search in cpp)
+			
+#			push(@blue_expolygons, $expolygon);
+#			map push(@red_expolygons, $_), @{$offset_ex};
+			
+			if($#$offset_ex != 0 || ($#{$expolygon->holes} != $#{$offset_ex->[0]->holes})) {
+				# reduce offset
+				$offset -= $distance;
+				$widen = 0;
+				Slic3r::debugf "reduce offset to %f, distance: %f\n", unscale $offset, unscale $distance;
+				last;
+			}
+		}
+		
+#			require "Slic3r/SVG.pm";
+#	        Slic3r::SVG::output("surfaces_iteration_$iterations.svg",
+#	            blue_expolygons          => [ @blue_expolygons ],
+#	            red_expolygons          => [ @red_expolygons ],
+#	        );
+				
+		if(($offset < $initial_offset) && ($distance > scale $threshold)) {
+			if($widen) {
+				$offset += $distance;
+				Slic3r::debugf "increase offset to %f, distance: %f\n", unscale $offset, unscale $distance;
+			}
+			redo;	
+		}
+	    Slic3r::debugf "new perimeter width: %f found in %d iterations\n", unscale $offset, $iterations;
+	    last;
+	}
+		
+	# compute new local extrusion_spacing
+	
+	# case 1: offset is high enough for number of perimeters from slic3r::config:
+	if((unscale $offset / $perimeters) > ($perimeter_nozzle_diameter/$width_limit_factor)) {
+		$spacing = unscale $offset / $perimeters;
+	}
+	# case 2: offset is too low, find maximum perimeters to fit into offset and compute extrusion_width from that.
+	# how about changing extruder if possible??
+	else{  
+		my $min_width = $perimeter_nozzle_diameter/$width_limit_factor;
+		$spacing = unscale $offset / int(unscale $offset / $min_width);
+	}
+	Slic3r::debugf "found new extrusion_spacing: %f\n", $spacing;
+	$self->{perimeter_flow}->width_from_spacing($spacing);
+	return $spacing;
 }
 
 sub make_perimeters {
