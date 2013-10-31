@@ -1,4 +1,4 @@
-use Test::More tests => 3;
+use Test::More tests => 4;
 use strict;
 use warnings;
 
@@ -47,6 +47,7 @@ my $test = sub {
 	
 	1;
 };
+        
 
 $config->set('start_gcode', '');  # to avoid dealing with the nozzle lift in start G-code
 $config->set('z_offset', 0);
@@ -56,6 +57,25 @@ $config->set('first_layer_height', 0.4);
 $config->set('nozzle_diameter', [0.5]);
 $config->set('min_layer_height', [0.1]);
 $config->set('max_layer_height', [0.4]);
+
+
+subtest 'spacing->width computation' => sub {
+	plan tests => 48;
+	for (my $nozzle = 0.1; $nozzle < 0.8; $nozzle+=0.2) { # 4 iterations
+		for (my $layer = 0.1; $layer < 0.6; $layer+=0.2) { # 3 iterations
+			for (my $spacing = 0.2; $spacing < 0.9; $spacing+=0.2) { # 4 iterations
+				
+				my $flow = Slic3r::Flow->new(
+	            	nozzle_diameter => $nozzle,
+	            	layer_height => $layer
+	        	);
+	
+				$flow->width_from_spacing($spacing);
+				is ($flow->spacing, $spacing, 'correct spacing->width->spacing');
+			}
+		}
+	}
+};
 
 # standard case without width-reduction
 my $p = 3;
