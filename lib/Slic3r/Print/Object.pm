@@ -213,8 +213,10 @@ sub slice_adaptive {
 		$layer->make_slices;
 		
 		# determine local variable perimeter width
-		for my $region_id (0 .. $#{$self->meshes}) {
-			$layer->region($region_id)->perimeter_extrusion_width(1.5, 0.01);
+		if ($Slic3r::Config->dynamic_perimeter_width) {
+			for my $region_id (0 .. $#{$self->meshes}) {
+				$layer->region($region_id)->perimeter_extrusion_width(1.5, 0.01);
+			}
 		}
 		
 		$slice_z += $height/2;       	       
@@ -269,6 +271,12 @@ sub slice {
     foreach my $layer (@{ $self->layers }) {
         # merge all regions' slices to get islands
         $layer->make_slices;
+        # determine local variable perimeter width
+		if ($Slic3r::Config->dynamic_perimeter_width) {
+			for my $region_id (0 .. $regions_count-1) {
+				$layer->region($region_id)->perimeter_extrusion_width(1.5, 0.01);
+			}
+		}
     }
     
     # detect and repair slicing errors

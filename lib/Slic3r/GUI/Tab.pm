@@ -449,8 +449,12 @@ sub build {
     $self->add_options_page('Adaptive slicing', 'shape_align_bottom.png', optgroups => [
         {
             title => 'Adaptive slicing',
-            options => [qw(adaptive_slicing cusp_value)],
+            options => [qw(adaptive_slicing cusp_value dynamic_perimeter_width)],
         },
+#        {
+#            title => 'Dynamic perimeter width',
+#            options => [qw(dynamic_perimeter_width)],
+#        },
     ]);
     
     $self->add_options_page('Speed', 'time.png', optgroups => [

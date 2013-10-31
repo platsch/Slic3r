@@ -8,9 +8,8 @@ has 'layer_height'      => (is => 'ro', default => sub { $Slic3r::Config->layer_
 has 'role'              => (is => 'ro', default => sub { '' });
 
 has 'width'             => (is => 'rwp', builder => 1);
-has 'spacing'           => (is => 'lazy');
+has 'spacing'           => (is => 'rwp');
 has 'scaled_width'      => (is => 'lazy');
-has 'scaled_spacing'    => (is => 'lazy');
 
 sub BUILD {
     my $self = shift;
@@ -19,6 +18,10 @@ sub BUILD {
         $self->_set_width($self->layer_height * $1 / 100);
     }
     $self->_set_width($self->_build_width) if $self->width == 0; # auto
+    
+    if(!defined $self->spacing) {
+    	$self->_set_spacing($self->_build_spacing);
+    }
 }
 
 sub _build_width {
@@ -51,6 +54,7 @@ sub _build_width {
     return $width;
 }
 
+
 sub _build_spacing {
     my $self = shift;
     
@@ -80,6 +84,7 @@ sub width_from_spacing {
 	}
 	
 	$self->_set_width($width);
+	$self->_set_spacing($spacing);
 }
 
 sub clone {
@@ -97,7 +102,7 @@ sub _build_scaled_width {
     return scale $self->width;
 }
 
-sub _build_scaled_spacing {
+sub scaled_spacing {
     my $self = shift;
     return scale $self->spacing;
 }

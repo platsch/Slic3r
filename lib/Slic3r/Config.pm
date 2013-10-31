@@ -1179,6 +1179,13 @@ END
         type    => 'f',
         default => 0.15,
     },
+    'dynamic_perimeter_width' => {
+        label   => 'Dynamic perimeter width',
+        tooltip => 'Reduces the extrusion width for perimeters based on each layers geometry to ensure as many perimeters as possible (not more than defined in perimeters).',
+        cli     => 'dynamic-perimeter-width!',
+        type    => 'bool',
+        default => 0,
+    },
 };
 
 # generate accessors
