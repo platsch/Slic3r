@@ -1,7 +1,7 @@
 package Slic3r::Layer::Region;
 use Moo;
 
-use List::Util qw(sum first);
+use List::Util qw(sum first max);
 use Slic3r::ExtrusionPath ':roles';
 use Slic3r::Geometry qw(PI A B scale chained_path_items points_coincide scale unscale);
 use Slic3r::Geometry::Clipper qw(union_ex diff_ex intersection_ex 
@@ -153,7 +153,7 @@ sub _merge_loops {
 sub perimeter_extrusion_width {
 	my $self = shift;
 	my ($width_limit_factor, $threshold) = @_;	
-	$threshold = &Slic3r::DYNAMIC_EXTRUSION_WITH_THRESHOLD;
+	$threshold ||= &Slic3r::DYNAMIC_EXTRUSION_WIDTH_THRESHOLD;
 	
 	# binary search through offsets to find first skeleton collision
 	# use perimeter extruders nozzle diameter as max_width
@@ -204,7 +204,6 @@ sub perimeter_extrusion_width {
 	}
 		
 	# compute new local extrusion_spacing
-	
 	# case 1: offset is high enough for number of perimeters from slic3r::config:
 	if((unscale $offset / $perimeters) > ($perimeter_nozzle_diameter/$width_limit_factor)) {
 		$spacing = unscale $offset / $perimeters;
@@ -213,11 +212,14 @@ sub perimeter_extrusion_width {
 	# how about changing extruder if possible??
 	else{  
 		my $min_width = $perimeter_nozzle_diameter/$width_limit_factor;
-		$spacing = unscale $offset / int(unscale $offset / $min_width);
+		$perimeters = int(unscale $offset / $min_width);
+		$spacing = unscale $offset / max(1, $perimeters);
+		$spacing = max($min_width, $spacing);
+
 	}
 	Slic3r::debugf "found new extrusion_spacing: %f\n", $spacing;
 	$self->{perimeter_flow}->width_from_spacing($spacing);
-	return $spacing;
+	return ($spacing, $perimeters);
 }
 
 sub make_perimeters {

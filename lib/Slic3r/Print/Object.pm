@@ -215,7 +215,7 @@ sub slice_adaptive {
 		# determine local variable perimeter width
 		if ($Slic3r::Config->dynamic_perimeter_width) {
 			for my $region_id (0 .. $#{$self->meshes}) {
-				$layer->region($region_id)->perimeter_extrusion_width(1.5, 0.01);
+				$layer->region($region_id)->perimeter_extrusion_width(1.5);
 			}
 		}
 		
@@ -274,7 +274,7 @@ sub slice {
         # determine local variable perimeter width
 		if ($Slic3r::Config->dynamic_perimeter_width) {
 			for my $region_id (0 .. $regions_count-1) {
-				$layer->region($region_id)->perimeter_extrusion_width(1.5, 0.01);
+				$layer->region($region_id)->perimeter_extrusion_width(1.5);
 			}
 		}
     }
