@@ -148,19 +148,23 @@ sub _merge_loops {
 
 
 # computes width and spacing for perimeter flow based on the polygons topology.
-# if desired number of perimeters and extrusion width doesn't fit into this polygon, 
+# If desired number of perimeters and extrusion width doesn't fit into this polygon, 
 # width will be reduced to find a width that allows the number of perimeters or at least a fraction of perimeters.
+# Returns the resulting spacing and the number of perimeters fitting into the polygon with the new spacing.
 sub perimeter_extrusion_width {
 	my $self = shift;
 	my ($width_limit_factor, $threshold) = @_;	
 	$threshold ||= &Slic3r::DYNAMIC_EXTRUSION_WIDTH_THRESHOLD;
+	
+	# make sure local flows are up to date
+	$self->_update_flows;
 	
 	# binary search through offsets to find first skeleton collision
 	# use perimeter extruders nozzle diameter as max_width
 	my $perimeters = $Slic3r::Config->get('perimeters'); # desired number of perimeters
 	my $perimeter_nozzle_diameter = $self->perimeter_flow->nozzle_diameter;
 	my $spacing = 0;			
-	my $initial_offset =scale $self->perimeter_flow->spacing * $perimeters;  # nozzle_diameter as max_value too small?
+	my $initial_offset = scale $self->perimeter_flow->spacing * $perimeters;  # nozzle_diameter as max_value too small?
 	my $offset = $initial_offset;
 	my $distance = $offset;
 	my $iterations = 0;

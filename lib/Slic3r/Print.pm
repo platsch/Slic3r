@@ -221,7 +221,7 @@ sub init_extruders {
     # initialize all extruder(s) we need
     my @used_extruders = (
         0,
-        (map $self->config->get("${_}_extruder")-1, qw(perimeter infill support_material support_material_interface)),
+        (map $self->config->get("${_}_extruder")-1, qw(perimeter perimeter_2 infill support_material support_material_interface)),
         (values %extruder_mapping),
     );
     for my $extruder_id (keys %{{ map {$_ => 1} @used_extruders }}) {
@@ -238,7 +238,7 @@ sub init_extruders {
         my $region = $self->regions->[$region_id];
         
         # per-role extruders and flows
-        for (qw(perimeter infill solid_infill top_infill)) {
+        for (qw(perimeter perimeter_2 infill solid_infill top_infill)) {
             my $extruder_name = $_;
             $extruder_name =~ s/^(?:solid|top)_//;
             $region->extruders->{$_} = ($self->regions_count > 1)

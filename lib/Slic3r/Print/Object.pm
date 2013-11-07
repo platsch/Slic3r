@@ -136,7 +136,9 @@ sub slice_adaptive {
 	# determine min and max layer height from perimeter extruder capabilities. Prepared for more sophisticated 
 	# algorithm for multi-extruder environments.
 	my $min_height;
+	my $min_height2;
 	my $max_height;
+	my $max_height2;
 	# multimaterial object
 	if($#{$self->meshes} > 0) {
 		$min_height = max(map {$Slic3r::Config->get('min_layer_height')->[$_]} (0..$#{$self->meshes}));
@@ -145,6 +147,12 @@ sub slice_adaptive {
 		my $perimeter_extruder = $Slic3r::Config->get_value('perimeter_extruder')-1;
 		$min_height = $Slic3r::Config->get('min_layer_height')->[$perimeter_extruder];
 		$max_height = $Slic3r::Config->get('max_layer_height')->[$perimeter_extruder];
+		
+		if ($Slic3r::Config->dynamic_perimeter_width) {
+			my $perimeter_2_extruder = $Slic3r::Config->get_value('perimeter_2_extruder')-1;
+			$min_height2 = $Slic3r::Config->get('min_layer_height')->[$perimeter_2_extruder];
+			$max_height2 = $Slic3r::Config->get('max_layer_height')->[$perimeter_2_extruder];
+		}
 	}
 	
 	# prepare raft layers
@@ -214,8 +222,46 @@ sub slice_adaptive {
 		
 		# determine local variable perimeter width
 		if ($Slic3r::Config->dynamic_perimeter_width) {
+			my $perimeters_config = $Slic3r::Config->get('perimeters');
 			for my $region_id (0 .. $#{$self->meshes}) {
-				$layer->region($region_id)->perimeter_extrusion_width(1.5);
+				my ($spacing, $perimeters) = $layer->region($region_id)->perimeter_extrusion_width(1.5);
+				if(($perimeters_config > $perimeters) && ($Slic3r::Config->get_value('perimeter_extruder')-1 != $Slic3r::Config->get_value('perimeter_2_extruder')-1)) {
+					# redo height estimation?
+					if(($height > $max_height2) || ($height < $min_height2)) {
+						print "reduce height due to extruder change\n";
+						if($region_id == 0) {
+							pop @{$self->layers};
+							$height = $max_height2;
+							$print_z += $height;
+		    				$slice_z += $height/2;
+		    				
+		    				push @{$self->layers}, Slic3r::Layer->new(
+						        object  => $self,
+						        id      => $id,
+						        height  => $height,
+						        print_z => $print_z,
+						        slice_z => scale $slice_z,
+						    );						    
+						    $layer = $self->layers->[$#{$self->layers}];
+						}
+						
+						my $mesh = $self->meshes->[$region_id];  # ignore undef meshes
+        	
+			        	# call slize with a list of only one layer. Workaround for the change to XS which combines all the actual
+			        	# slicing steps in one monolithic funktion
+			        	my $loops = $mesh->slice([ scale $slice_z ]);
+			            for my $layer_id (0..$#$loops) {
+			            	$layer->region($region_id)->make_surfaces($loops->[$layer_id]);
+			            }
+			            
+						$layer->make_slices;
+					}
+					$layer->region($region_id)->region->extruders->{perimeter} = $layer->region($region_id)->region->extruders->{perimeter_2};
+					$layer->region($region_id)->region->flows->{perimeter} = $layer->region($region_id)->region->flows->{perimeter_2};
+					$layer->region($region_id)->region->first_layer_flows->{perimeter} = $layer->region($region_id)->region->first_layer_flows->{perimeter_2};
+					($spacing, $perimeters) = $layer->region($region_id)->perimeter_extrusion_width(1.5);
+					print "use perimeter_2_extruder. Layer: ", $id, "\n\n";
+				}
 			}
 		}
 		

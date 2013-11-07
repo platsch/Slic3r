@@ -216,6 +216,14 @@ our $Options = {
         aliases => [qw(perimeters_extruder)],
         default => 1,
     },
+    'perimeter_2_extruder' => {
+        label   => 'Second perimeter extruder',
+        tooltip => 'Gives Slic3r the option to use this extruder for small perimeters.',
+        cli     => 'perimeter-extruder=i',
+        type    => 'i',
+        aliases => [qw(perimeters_2_extruder)],
+        default => 1,
+    },
     'infill_extruder' => {
         label   => 'Infill extruder',
         tooltip => 'The extruder to use when printing infill.',

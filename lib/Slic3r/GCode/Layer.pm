@@ -131,7 +131,7 @@ sub process_layer {
         
         foreach my $region_id (@region_ids) {
             my $layerm = $layer->regions->[$region_id] or next;
-            my $region = $self->print->regions->[$region_id];
+            my $region = $layerm->region;
             
             my @islands = ();
             if ($Slic3r::Config->avoid_crossing_perimeters) {

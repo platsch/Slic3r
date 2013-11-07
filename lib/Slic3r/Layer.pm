@@ -42,7 +42,7 @@ sub region {
     for (my $i = @{$self->regions}; $i <= $region_id; $i++) {
         $self->regions->[$i] //= Slic3r::Layer::Region->new(
             layer   => $self,
-            region  => $self->object->print->regions->[$i],
+            region  => $self->object->print->regions->[$i]->clone,
         );
     }
     
