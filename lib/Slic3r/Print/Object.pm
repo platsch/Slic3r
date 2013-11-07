@@ -231,6 +231,8 @@ sub slice_adaptive {
 						print "reduce height due to extruder change\n";
 						if($region_id == 0) {
 							pop @{$self->layers};
+							$print_z -= $height;
+		    				$slice_z -= $height/2;
 							$height = $max_height2;
 							$print_z += $height;
 		    				$slice_z += $height/2;

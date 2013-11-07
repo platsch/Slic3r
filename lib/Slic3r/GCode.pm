@@ -661,6 +661,7 @@ sub set_extruder {
         $gcode .= sprintf "%s\n", $self->config->replace_options($self->config->toolchange_gcode, {
             previous_extruder   => $self->extruder->id,
             next_extruder       => $extruder->id,
+            z					=> $self->z,
         });
     }
     
