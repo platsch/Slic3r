@@ -12,6 +12,8 @@ has 'size' => (is => 'ro', required => 1);
 has 'normal'  			=> (is => 'ro', default => sub { [] }); # facet_id => [normal];
 has 'ordered_facets' 	=> (is => 'ro', default => sub { [] }); # id => [facet_id, min_z, max_z];
 has 'current_facet' 	=> (is => 'rw');
+has 'horizontal_facets' => (is => 'ro', default => sub { [0] }); #];
+has 'current_hfacet'    => (is => 'rw');
 
 sub BUILD {
     my $self = shift;
@@ -51,6 +53,20 @@ sub BUILD {
 	} 
 	# initialize pointer for cusp_height run
 	$self->current_facet(0);
+	#and for horizontal area detection
+	$self->current_hfacet(0);
+	
+	#generate ascending sorted list of horizontal facets
+	my $id = 0;
+	$self->horizontal_facets->[$id] = 0;
+	foreach my $facet (@sort_facets) {
+		if($facet->[1] == $facet->[2]) {
+			if($self->horizontal_facets->[-1] < $facet->[1]) {
+				$id = ($self->horizontal_facets->[-1] == 0) ? 0 : $id+1;
+				$self->horizontal_facets->[$id] = $facet->[1];
+			}
+		}
+	}
 }
 
 sub cusp_height {
@@ -104,8 +120,7 @@ sub cusp_height {
 			}
 			
 			#skip touching facets which could otherwise cause small cusp values
-			if($self->ordered_facets->[$ordered_id]->[2] <= $z+1)
-			{
+			if($self->ordered_facets->[$ordered_id]->[2] <= $z+1) {
 				$ordered_id++;
 				next;
 			}
@@ -163,22 +178,16 @@ sub horizontal_facet_distance {
 	my ($z, $max_height) = @_;
 	$max_height = scale $max_height;
 	
-	my $ordered_id = $self->current_facet;
-	while ($ordered_id <= $#{$self->ordered_facets}) {
-		
+	while($self->current_hfacet <= $#{$self->horizontal_facets}) {
 		# facet's minimum is higher than max forward distance -> end loop
-		if($self->ordered_facets->[$ordered_id]->[1] > $z+$max_height) {
+		if($self->horizontal_facets->[$self->current_hfacet] > $z+$max_height) {
 			last;
 		}
-		 
-		# min_z == max_z -> horizontal facet
-		if($self->ordered_facets->[$ordered_id]->[1] > $z) {
-			if($self->ordered_facets->[$ordered_id]->[1] == $self->ordered_facets->[$ordered_id]->[2]) {
-				return unscale $self->ordered_facets->[$ordered_id]->[1] - $z;
-			}
+		#skip facets < z
+		if($self->horizontal_facets->[$self->current_hfacet] > $z) {
+			return unscale $self->horizontal_facets->[$self->current_hfacet] - $z;
 		}
-		
-		$ordered_id++;
+		$self->current_hfacet($self->current_hfacet+1);
 	}
 	
 	# objects maximum?
