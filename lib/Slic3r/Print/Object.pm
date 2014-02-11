@@ -225,11 +225,14 @@ sub slice_adaptive {
 			my $perimeters_config = $Slic3r::Config->get('perimeters');
 			for my $region_id (0 .. $#{$self->meshes}) {
 				my ($spacing, $perimeters) = $layer->region($region_id)->perimeter_extrusion_width(1.5);
+				########remove this after offset testing!!!!!!###############
+				#return;
+				########remove this after offset testing!!!!!!###############
 				if(($perimeters_config > $perimeters) && ($Slic3r::Config->get_value('perimeter_extruder')-1 != $Slic3r::Config->get_value('perimeter_2_extruder')-1)) {
 					# redo height estimation?
 					if(($height > $max_height2) || ($height < $min_height2)) {
 						print "reduce height due to extruder change\n";
-						if($region_id == 0) {
+						if($region_id == 0) { #single-material objects only...
 							pop @{$self->layers};
 							$print_z -= $height;
 		    				$slice_z -= $height/2;
@@ -266,7 +269,6 @@ sub slice_adaptive {
 				}
 			}
 		}
-		
 		$slice_z += $height/2;       	       
 	}
 	

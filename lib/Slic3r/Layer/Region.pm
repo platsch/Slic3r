@@ -6,7 +6,7 @@ use Slic3r::ExtrusionPath ':roles';
 use Slic3r::Geometry qw(PI A B scale chained_path_items points_coincide scale unscale);
 use Slic3r::Geometry::Clipper qw(union_ex diff_ex intersection_ex 
     offset offset2 offset2_ex union_pt traverse_pt diff intersection
-    union diff);
+    union diff JT_ROUND JT_MITER JT_SQUARE CLIPPER_OFFSET_SCALE);
 use Slic3r::Surface ':types';
 
 has 'layer' => (
@@ -153,53 +153,116 @@ sub _merge_loops {
 # Returns the resulting spacing and the number of perimeters fitting into the polygon with the new spacing.
 sub perimeter_extrusion_width {
 	my $self = shift;
-	my ($width_limit_factor, $threshold) = @_;	
-	$threshold ||= &Slic3r::DYNAMIC_EXTRUSION_WIDTH_THRESHOLD;
+	my ($width_limit_factor) = @_;	
+	my $threshold = &Slic3r::DYNAMIC_EXTRUSION_WIDTH_THRESHOLD;
 	
 	# make sure local flows are up to date
 	$self->_update_flows;
+	
+	
+#	##########test code##########
+#	my @blue_expolygons;
+#	my @red_expolygons;
+#	my @green_expolygons;
+#	my $s = 0.9;
+#	#my $offset_ex2 = offset2_ex(\@{$self->slices}, scale -0.1, scale 0.1);
+#	foreach my $expolygon (map $_->expolygon, @{$self->slices}) {
+#		my $offset_ex = $expolygon->offset_ex(scale -$s, CLIPPER_OFFSET_SCALE, JT_MITER, 0.2); # this should be done in cpp an only return the number of polygons (or entire binary search in cpp)
+#		#my $offset_ex2 = offset2_ex(\@{$self->slices}, -$s, $s, CLIPPER_OFFSET_SCALE, JT_MITER, 0.2);
+#		#my $offset_ex2 = $expolygon->offset2_ex(scale -$s, $s,  CLIPPER_OFFSET_SCALE, JT_MITER, 0.2); # this should be done in cpp an only return the number of polygons (or entire binary search in cpp)
+#		my $offset_ex2 = $offset_ex->[0]->offset_ex(scale $s, CLIPPER_OFFSET_SCALE, JT_MITER, 2.5);
+#		push(@blue_expolygons, $expolygon);
+#		map push(@red_expolygons, $_), @{$offset_ex};
+#		map push(@green_expolygons, $_), @{$offset_ex2};
+#		
+##		if($#$offset_ex == 0 && ($#{$expolygon->holes} == $#{$offset_ex->[0]->holes})) {
+##			my $offset_ex2 = $offset_ex->[0]->offset_ex(scale $s, CLIPPER_OFFSET_SCALE, JT_MITER, 2.5);
+##			map push(@green_expolygons, $_), @{$offset_ex2};
+##			print "nicht zerfallen\n";
+##		}
+#	}
+#			
+#			
+#	require "Slic3r/SVG.pm";
+#    Slic3r::SVG::output("offset_test1.svg",
+#    blue_expolygons          => [ @blue_expolygons ],
+#    green_expolygons          => [ @green_expolygons ],
+#    red_expolygons          => [ @red_expolygons ],
+#    );
+#	##########test code##########
 	
 	# binary search through offsets to find first skeleton collision
 	# use perimeter extruders nozzle diameter as max_width
 	my $perimeters = $Slic3r::Config->get('perimeters'); # desired number of perimeters
 	my $perimeter_nozzle_diameter = $self->perimeter_flow->nozzle_diameter;
-	my $spacing = 0;			
+	my $spacing = $self->perimeter_flow->spacing;
 	my $initial_offset = scale $self->perimeter_flow->spacing * $perimeters;  # nozzle_diameter as max_value too small?
 	my $offset = $initial_offset;
 	my $distance = $offset;
 	my $iterations = 0;
 	my $widen;
-	while(1) {
-#		my @blue_expolygons;
-#		my @red_expolygons;
+	my $acuteAngleError = 0.4;
+	my $miter_limit;
+	my $area_threshold = scale 100;
+	while(1) { 
+		my @blue_expolygons;
+		my @red_expolygons;
+		my @green_expolygons;
 		$distance = $distance/2;
+		$offset = int($offset + 0.5); #round offset to int to avoid small polygons in diff-operation
+		$miter_limit = ($acuteAngleError + $spacing/2)/($spacing/2);
+		print "miter_limit: ", $miter_limit, "\n";
+		print "spacing: ", $spacing, "\n";
 		$iterations++;
 		$widen = 1;
 		foreach my $expolygon (map $_->expolygon, @{$self->slices}) {
-			my $offset_ex = $expolygon->offset_ex(-$offset); # this should be done in cpp an only return the number of polygons (or entire binary search in cpp)
+			my $offset_ex = $expolygon->offset_ex(-$offset, CLIPPER_OFFSET_SCALE, JT_MITER, $miter_limit);
 			
-#			push(@blue_expolygons, $expolygon);
-#			map push(@red_expolygons, $_), @{$offset_ex};
+			#push(@blue_expolygons, $expolygon);
+			#map push(@red_expolygons, $_), @{$offset_ex};
 			
+			#polygon decomposed?
 			if($#$offset_ex != 0 || ($#{$expolygon->holes} != $#{$offset_ex->[0]->holes})) {
 				# reduce offset
 				$offset -= $distance;
 				$widen = 0;
-				#Slic3r::debugf "reduce offset to %f, distance: %f\n", unscale $offset, unscale $distance;
+				Slic3r::debugf "reduce offset to %f, distance: %f (polygon split)\n", unscale $offset, unscale $distance;
 				last;
 			}
+			#polygon "r-regular" (walls and acute angels)?
+			my $offset_ex2 = $offset_ex->[0]->offset_ex($offset, CLIPPER_OFFSET_SCALE, JT_MITER, $miter_limit);
+			my $diff = diff_ex([ @{$expolygon} ], [ map @$_, @{$offset_ex2} ], 1);
+			foreach my $a (map $_->area, @{$diff}) {
+				if($a > $area_threshold) {
+					# reduce offset
+					$offset -= $distance;
+					$spacing = max(unscale $offset / $perimeters, $perimeter_nozzle_diameter/$width_limit_factor); #new spacing for miter_limit
+					$widen = 0;
+					Slic3r::debugf "reduce offset to %f, distance: %f (polygon diff)\n", unscale $offset, unscale $distance;
+					last;
+				};
+			}
+			
+			#push(@blue_expolygons, $expolygon);
+			#map push(@red_expolygons, $_), @{$offset_ex2};
+			#push(@red_expolygons, $diff->[1]);
+			#push(@green_expolygons, $diff->[2]);
+			#map push(@green_expolygons, $_), @{$diff};
 		}
-		
+				
 #			require "Slic3r/SVG.pm";
-#	        Slic3r::SVG::output("surfaces_iteration_$iterations.svg",
+#	        Slic3r::SVG::output("polygon.svg",
 #	            blue_expolygons          => [ @blue_expolygons ],
-#	            red_expolygons          => [ @red_expolygons ],
+#	            #red_expolygons          => [ @red_expolygons ],
+#	            green_expolygons          => [ @green_expolygons ],
 #	        );
+	        
 				
 		if(($offset < $initial_offset) && ($distance > scale $threshold)) {
 			if($widen) {
 				$offset += $distance;
-				#Slic3r::debugf "increase offset to %f, distance: %f\n", unscale $offset, unscale $distance;
+				$spacing = max(unscale $offset / $perimeters, $perimeter_nozzle_diameter/$width_limit_factor); #new spacing for miter_limit
+				Slic3r::debugf "increase offset to %f, distance: %f\n", unscale $offset, unscale $distance;
 			}
 			redo;	
 		}
