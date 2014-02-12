@@ -324,7 +324,15 @@ sub slice {
         # determine local variable perimeter width
 		if ($Slic3r::Config->dynamic_perimeter_width) {
 			for my $region_id (0 .. $regions_count-1) {
-				$layer->region($region_id)->perimeter_extrusion_width(1.5);
+				my ($spacing, $perimeters) = $layer->region($region_id)->perimeter_extrusion_width(1.5);
+				#switch extruder?
+				if(($Slic3r::Config->get('perimeters') > $perimeters) && ($Slic3r::Config->get_value('perimeter_extruder')-1 != $Slic3r::Config->get_value('perimeter_2_extruder')-1)) {
+					$layer->region($region_id)->region->extruders->{perimeter} = $layer->region($region_id)->region->extruders->{perimeter_2};
+					$layer->region($region_id)->region->flows->{perimeter} = $layer->region($region_id)->region->flows->{perimeter_2};
+					$layer->region($region_id)->region->first_layer_flows->{perimeter} = $layer->region($region_id)->region->first_layer_flows->{perimeter_2};
+					($spacing, $perimeters) = $layer->region($region_id)->perimeter_extrusion_width(1.5);
+					print "use perimeter_2_extruder. Layer: ", $layer->id, "\n\n";
+				}
 			}
 		}
     }
