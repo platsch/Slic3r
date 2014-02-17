@@ -225,13 +225,10 @@ sub slice_adaptive {
 			my $perimeters_config = $Slic3r::Config->get('perimeters');
 			for my $region_id (0 .. $#{$self->meshes}) {
 				my ($spacing, $perimeters) = $layer->region($region_id)->perimeter_extrusion_width(1.5);
-				########remove this after offset testing!!!!!!###############
-				#return;
-				########remove this after offset testing!!!!!!###############
 				if(($perimeters_config > $perimeters) && ($Slic3r::Config->get_value('perimeter_extruder')-1 != $Slic3r::Config->get_value('perimeter_2_extruder')-1)) {
 					# redo height estimation?
 					if(($height > $max_height2) || ($height < $min_height2)) {
-						print "reduce height due to extruder change\n";
+						Slic3r::debugf "reduce height due to extruder change\n";
 						if($region_id == 0) { #single-material objects only...
 							pop @{$self->layers};
 							$print_z -= $height;
@@ -265,9 +262,11 @@ sub slice_adaptive {
 					$layer->region($region_id)->region->flows->{perimeter} = $layer->region($region_id)->region->flows->{perimeter_2};
 					$layer->region($region_id)->region->first_layer_flows->{perimeter} = $layer->region($region_id)->region->first_layer_flows->{perimeter_2};
 					($spacing, $perimeters) = $layer->region($region_id)->perimeter_extrusion_width(1.5);
-					print "use perimeter_2_extruder. Layer: ", $id, "\n\n";
+					Slic3r::debugf "use perimeter_2_extruder. Layer: %d", $id;
+					$layer->region($region_id)->filltime_estimate(5);
 				}
 			}
+			Slic3r::debugf "\n\n\n";
 		}
 		$slice_z += $height/2;       	       
 	}
@@ -323,17 +322,21 @@ sub slice {
         $layer->make_slices;
         # determine local variable perimeter width
 		if ($Slic3r::Config->dynamic_perimeter_width) {
+			Slic3r::debugf "adjust extrusion width for layer %d\n", $layer->id;
 			for my $region_id (0 .. $regions_count-1) {
 				my ($spacing, $perimeters) = $layer->region($region_id)->perimeter_extrusion_width(1.5);
 				#switch extruder?
 				if(($Slic3r::Config->get('perimeters') > $perimeters) && ($Slic3r::Config->get_value('perimeter_extruder')-1 != $Slic3r::Config->get_value('perimeter_2_extruder')-1)) {
+					Slic3r::debugf "use perimeter_2_extruder\n";
 					$layer->region($region_id)->region->extruders->{perimeter} = $layer->region($region_id)->region->extruders->{perimeter_2};
 					$layer->region($region_id)->region->flows->{perimeter} = $layer->region($region_id)->region->flows->{perimeter_2};
 					$layer->region($region_id)->region->first_layer_flows->{perimeter} = $layer->region($region_id)->region->first_layer_flows->{perimeter_2};
 					($spacing, $perimeters) = $layer->region($region_id)->perimeter_extrusion_width(1.5);
-					print "use perimeter_2_extruder. Layer: ", $layer->id, "\n\n";
+					
+					$layer->region($region_id)->filltime_estimate(5);
 				}
 			}
+			Slic3r::debugf "\n\n\n";
 		}
     }
     
@@ -858,7 +861,8 @@ sub combine_infill {
     
     for my $region_id (0 .. ($self->print->regions_count-1)) {
         # limit the number of combined layers to the maximum height allowed by this regions' nozzle
-        my $nozzle_diameter = $self->print->regions->[$region_id]->extruders->{infill}->nozzle_diameter;
+        #my $nozzle_diameter = $self->print->regions->[$region_id]->extruders->{infill}->nozzle_diameter;
+        my $nozzle_diameter = $self->layers->[0]->region($region_id)->region->extruders->{infill}->nozzle_diameter;
         
         # define the combinations
         my @combine = ();   # layer_id => thickness in layers
@@ -867,9 +871,10 @@ sub combine_infill {
             for my $layer_id (1 .. $#layer_heights) {
                 my $height = $self->layers->[$layer_id]->height;
                 
-                if ($current_height + $height >= $nozzle_diameter || $layers >= $every) {
+                if ($current_height + $height >= $nozzle_diameter || $layers >= $every || $nozzle_diameter != $self->layers->[$layer_id]->region($region_id)->region->extruders->{infill}->nozzle_diameter) {
                     $combine[$layer_id-1] = $layers;
                     $current_height = $layers = 0;
+                    $nozzle_diameter = $self->layers->[$layer_id]->region($region_id)->region->extruders->{infill}->nozzle_diameter;
                 }
                 
                 $current_height += $height;

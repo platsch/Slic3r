@@ -203,7 +203,8 @@ sub perimeter_extrusion_width {
 	my $widen;
 	my $acuteAngleError = 0.4;
 	my $miter_limit;
-	my $area_threshold = scale 100;
+	my $area_threshold = scale 100000; #very high... but lower threshold leads to false detection. why is the polygon clipping so imprecise?
+	Slic3r::debugf "binary search, initial offset: %f, distance: %f\n", unscale $offset, unscale $distance/2;
 	while(1) { 
 		my @blue_expolygons;
 		my @red_expolygons;
@@ -211,15 +212,13 @@ sub perimeter_extrusion_width {
 		$distance = $distance/2;
 		$offset = int($offset + 0.5); #round offset to int to avoid small polygons in diff-operation
 		$miter_limit = ($acuteAngleError + $spacing/2)/($spacing/2);
-		print "miter_limit: ", $miter_limit, "\n";
-		print "spacing: ", $spacing, "\n";
 		$iterations++;
 		$widen = 1;
 		foreach my $expolygon (map $_->expolygon, @{$self->slices}) {
 			my $offset_ex = $expolygon->offset_ex(-$offset, CLIPPER_OFFSET_SCALE, JT_MITER, $miter_limit);
 			
-			#push(@blue_expolygons, $expolygon);
-			#map push(@red_expolygons, $_), @{$offset_ex};
+			push(@blue_expolygons, $expolygon);
+			map push(@red_expolygons, $_), @{$offset_ex};
 			
 			#polygon decomposed?
 			if($#$offset_ex != 0 || ($#{$expolygon->holes} != $#{$offset_ex->[0]->holes})) {
@@ -244,18 +243,20 @@ sub perimeter_extrusion_width {
 			}
 			
 			#push(@blue_expolygons, $expolygon);
-			#map push(@red_expolygons, $_), @{$offset_ex2};
+			#map push(@red_expolygons, $_), @{$offset_ex};
 			#push(@red_expolygons, $diff->[1]);
 			#push(@green_expolygons, $diff->[2]);
 			#map push(@green_expolygons, $_), @{$diff};
 		}
-				
-#			require "Slic3r/SVG.pm";
-#	        Slic3r::SVG::output("polygon.svg",
-#	            blue_expolygons          => [ @blue_expolygons ],
-#	            #red_expolygons          => [ @red_expolygons ],
-#	            green_expolygons          => [ @green_expolygons ],
-#	        );
+
+if($self->layer->id > 40 && $self->layer->id < 46) {				
+			require "Slic3r/SVG.pm";
+	        Slic3r::SVG::output("polygon_layer".$self->layer->id."_iteration".$iterations.".svg",
+	            blue_expolygons          => [ @blue_expolygons ],
+	            red_expolygons          => [ @red_expolygons ],
+	            #green_expolygons          => [ @green_expolygons ],
+	        );
+}
 	        
 				
 		if(($offset < $initial_offset) && ($distance > scale $threshold)) {
@@ -282,11 +283,39 @@ sub perimeter_extrusion_width {
 		$perimeters = int(unscale $offset / $min_width);
 		$spacing = unscale $offset / max(1, $perimeters);
 		$spacing = max($min_width, $spacing);
+		Slic3r::debugf "only %d perimeters possible with current extruder...\n", max(1, $perimeters);
 
 	}
 	Slic3r::debugf "found new extrusion_spacing: %f\n", $spacing;
-	$self->{perimeter_flow}->width_from_spacing($spacing);
+	$self->region->flows->{perimeter}->width_from_spacing($spacing);
+	$self->_update_flows;
+	
 	return ($spacing, $perimeters);
+}
+
+#this roughly estimates the time needed for infill with the the current PERIMETER extruder!
+#if the result is low, the caller may replace the infill extruder by the perimeter extruder to avoid switching.
+sub filltime_estimate {
+	my $self = shift;
+	my ($time_threshold) = @_;
+	
+	my $offset = scale $self->perimeter_flow->spacing * $Slic3r::Config->get('perimeters');
+	my $area = 0;
+	foreach my $expolygon (map $_->expolygon, @{$self->slices}) {
+		my $offset_ex = $expolygon->offset_ex(-$offset);
+		foreach my $a (map $_->area, @{$offset_ex}) {
+			$area += $a;
+		}
+	}
+	#print "time: ", (unscale ($area/(scale $self->perimeter_flow->spacing/$Slic3r::Config->get('fill_density'))))/$Slic3r::Config->get('infill_speed'), "s\n";
+	if($time_threshold > (unscale ($area/(scale $self->perimeter_flow->spacing/$Slic3r::Config->get('fill_density'))))/$Slic3r::Config->get('infill_speed')) {
+		for (qw(infill solid_infill top_infill)) {
+			$self->extruders->{$_} = $self->extruders->{perimeter_2};
+			$self->region->flows->{$_} = $self->region->flows->{perimeter_2};
+	    }
+		$self->_update_flows;
+		Slic3r::debugf "Set infill extruder to perimeter2 extruder\n";
+	}
 }
 
 sub make_perimeters {
@@ -295,6 +324,7 @@ sub make_perimeters {
     my $perimeter_spacing   = $self->perimeter_flow->scaled_spacing;
     my $infill_spacing      = $self->solid_infill_flow->scaled_spacing;
     my $gap_area_threshold  = $self->perimeter_flow->scaled_width ** 2;
+    
     
     $self->perimeters->clear;
     $self->fill_surfaces->clear;
