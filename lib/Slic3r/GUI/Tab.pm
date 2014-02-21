@@ -4,8 +4,8 @@ use warnings;
 use utf8;
 
 use File::Basename qw(basename);
-use List::Util qw(first);
-use Wx qw(:bookctrl :dialog :keycode :icon :id :misc :panel :sizer :treectrl :window);
+use List::Util qw(first min max);
+use Wx qw(:bookctrl :dialog :keycode :icon :id :misc :panel :sizer :treectrl :window :slider :button);
 use Wx::Event qw(EVT_BUTTON EVT_CHOICE EVT_KEY_DOWN EVT_TREE_SEL_CHANGED);
 use base 'Wx::Panel';
 
@@ -151,6 +151,7 @@ sub get_preset {
 # propagate event to the parent
 sub on_value_change {
     my $self = shift;
+    
     $self->{on_value_change}->(@_) if $self->{on_value_change};
 }
 
@@ -384,6 +385,7 @@ sub load_config_file {
 
 package Slic3r::GUI::Tab::Print;
 use base 'Slic3r::GUI::Tab';
+#use Wx qw(:misc :panel :sizer);
 
 sub name { 'print' }
 sub title { 'Print Settings' }
@@ -449,8 +451,13 @@ sub build {
     $self->add_options_page('Adaptive slicing', 'shape_align_bottom.png', optgroups => [
         {
             title => 'Adaptive slicing',
-            options => [qw(adaptive_slicing cusp_value dynamic_perimeter_width)],
+            options => [qw(adaptive_slicing quality_speed_ratio cusp_value surface_cusp_ratio)],
         },
+        {
+            title => 'Dynamic Extrusion',
+            options => [qw(dynamic_perimeter_width)],
+        },
+        
 #        {
 #            title => 'Dynamic perimeter width',
 #            options => [qw(dynamic_perimeter_width)],
@@ -560,9 +567,35 @@ sub build {
             options => [($Slic3r::have_threads ? qw(threads) : ()), qw(resolution)],
         },
     ]);
+    
+#    my  $slider = Wx::Slider->new( $self, -1, 0, 0, 200, [-1, -1], [200, 1]);
+#    my $sizer = Wx::StaticBoxSizer->new(Wx::StaticBox->new($self->{pages}->[2], -1, "test"), wxVERTICAL); 
+#    $self->{pages}->[2]->{vsizer}->Add($sizer, 0, wxEXPAND | wxALL, 5);
+#    my $button = Wx::Button->new($self->{pages}->[2], 'Click Me');
 }
 
+
+
 sub hidden_options { !$Slic3r::have_threads ? qw(threads) : () }
+
+sub on_value_change {
+    my $self = shift;
+    my ($opt_key, $opt_value) = @_;
+    $self->SUPER::on_value_change(@_);
+    
+    my $config = $self->config;
+    
+    if($opt_key eq "cusp_value") {
+    	if($opt_value < 0) {
+    		$self->set_value($opt_key, 0);
+    	}
+    	#limit Lmax to extruder diameter
+    	my $max_value = 1; #how to get max_layer_height values from printer tab???
+    	if($opt_value > $max_value) {
+    		$self->set_value($opt_key, $max_value);
+    	}
+    }
+}
 
 package Slic3r::GUI::Tab::Filament;
 use base 'Slic3r::GUI::Tab';
@@ -732,11 +765,10 @@ sub build {
 }
 
 sub _extruder_options { qw(nozzle_diameter extruder_offset retract_length retract_lift retract_speed retract_restart_extra retract_before_travel wipe
-    retract_layer_change retract_length_toolchange retract_restart_extra_toolchange) }
+    retract_layer_change retract_length_toolchange retract_restart_extra_toolchange min_layer_height max_layer_height) }
 
 sub config {
     my $self = shift;
-    
     my $config = $self->SUPER::config(@_);
     
     # remove all unused values
@@ -816,6 +848,7 @@ sub on_value_change {
         # update page list and select first page (General)
         $self->update_tree(0);
     }
+    
 }
 
 # this gets executed after preset is loaded and before GUI fields are updated

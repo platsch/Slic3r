@@ -155,6 +155,10 @@ sub slice_adaptive {
 		}
 	}
 	
+	# layer height by surface quality setting:
+	my $surface_layer_height = ($max_height-$min_height)*$Slic3r::Config->get_value('quality_speed_ratio') + $min_height;
+	my $surface_cusp_ratio = $Slic3r::Config->get_value('surface_cusp_ratio');
+	
 	# prepare raft layers
 	foreach my $layer (@{ $self->layers }) {
 		# make sure all layers contain layer region objects for all regions
@@ -173,6 +177,9 @@ sub slice_adaptive {
        	for my $region_id (0 .. $#{$self->meshes}) {
 	       	# get cusp height
 	       	my $cusp_height = $adaptive_slicing[$region_id]->cusp_height(scale $slice_z, $cusp_value, $min_height, $max_height);
+	       	# weighting between cusp height and surface height
+	       	my $w_height = $surface_layer_height * $surface_cusp_ratio + $cusp_height * $surface_cusp_ratio;
+	       	print "w_height: ", $w_height, "\n"; 
 	       	# check for horizontal features and object size
 	       	my $horizontal_dist = $adaptive_slicing[$region_id]->horizontal_facet_distance(scale $slice_z+$cusp_height, $min_height);
 	       	if(($horizontal_dist < $min_height) && ($horizontal_dist > 0)) {
@@ -180,13 +187,15 @@ sub slice_adaptive {
 	       		# can we shrink the current layer a bit?
 	       		if($cusp_height-($min_height-$horizontal_dist) > $min_height) {
 	       			# yes we can
-	       			$cusp_height = $cusp_height-($min_height-$horizontal_dist);
+	       			$cusp_height = min($cusp_height-($min_height-$horizontal_dist), $w_height);
 	       			Slic3r::debugf "Shrink layer height to %f\n", $cusp_height;
 	       		}else{
 	       			# no, current layer would become too thin
 	       			$cusp_height = $cusp_height+$horizontal_dist;
 	       			Slic3r::debugf "Widen layer height to %f\n", $cusp_height;
 	       		}
+	       	}else{
+	       		$cusp_height = $w_height;
 	       	}
 	       	$height = ($id == 0)
 	        ? $Slic3r::Config->get_value('first_layer_height')
@@ -263,7 +272,7 @@ sub slice_adaptive {
 					$layer->region($region_id)->region->first_layer_flows->{perimeter} = $layer->region($region_id)->region->first_layer_flows->{perimeter_2};
 					($spacing, $perimeters) = $layer->region($region_id)->perimeter_extrusion_width(1.5);
 					Slic3r::debugf "use perimeter_2_extruder. Layer: %d", $id;
-					$layer->region($region_id)->filltime_estimate(5);
+					$layer->region($region_id)->filltime_estimate(20);
 				}
 			}
 			Slic3r::debugf "\n\n\n";
@@ -333,7 +342,7 @@ sub slice {
 					$layer->region($region_id)->region->first_layer_flows->{perimeter} = $layer->region($region_id)->region->first_layer_flows->{perimeter_2};
 					($spacing, $perimeters) = $layer->region($region_id)->perimeter_extrusion_width(1.5);
 					
-					$layer->region($region_id)->filltime_estimate(5);
+					$layer->region($region_id)->filltime_estimate(20);
 				}
 			}
 			Slic3r::debugf "\n\n\n";
