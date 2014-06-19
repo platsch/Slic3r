@@ -64,7 +64,8 @@ sub _build_spacing {
         $min_flow_spacing = $self->width - $self->layer_height * (1 - PI/4);
     } else {
         # rectangle with shrunk semicircles at the ends
-        $min_flow_spacing = $self->nozzle_diameter * (1 - PI/4) + $self->width * PI/4;
+        $min_flow_spacing = $self->width - $self->layer_height * (1 - PI/4);
+        #$min_flow_spacing = $self->nozzle_diameter * (1 - PI/4) + $self->width * PI/4;
     }
     #print "spacing: ", $self->width - &Slic3r::OVERLAP_FACTOR * ($self->width - $min_flow_spacing), "\n";
     return $self->width - &Slic3r::OVERLAP_FACTOR * ($self->width - $min_flow_spacing);
@@ -78,10 +79,10 @@ sub width_from_spacing {
 	my $width = $spacing + &Slic3r::OVERLAP_FACTOR * $self->layer_height * (1 - PI/4);
 	
 	# check wether this case is correct
-	if ($width < ($self->nozzle_diameter + $self->layer_height)) {
-		# not correct, compute 2. case
-		$width = ($spacing - $self->nozzle_diameter * (1 - PI/4) * &Slic3r::OVERLAP_FACTOR) / ((1- &Slic3r::OVERLAP_FACTOR) + PI/4 * &Slic3r::OVERLAP_FACTOR);
-	}
+	#if ($width < ($self->nozzle_diameter + $self->layer_height)) {
+	#	# not correct, compute 2. case
+	#	$width = ($spacing - $self->nozzle_diameter * (1 - PI/4) * &Slic3r::OVERLAP_FACTOR) / ((1- &Slic3r::OVERLAP_FACTOR) + PI/4 * &Slic3r::OVERLAP_FACTOR);
+	#}
 	
 	$self->_set_width($width);
 	$self->_set_spacing($spacing);

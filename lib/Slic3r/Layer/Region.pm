@@ -243,18 +243,18 @@ sub perimeter_extrusion_width {
 			}
 			
 			#push(@blue_expolygons, $expolygon);
-			#map push(@red_expolygons, $_), @{$offset_ex};
+			#map push(@green_expolygons, $_), @{$offset_ex2};
 			#push(@red_expolygons, $diff->[1]);
 			#push(@green_expolygons, $diff->[2]);
 			#map push(@green_expolygons, $_), @{$diff};
 		}
 
-#if($self->layer->id > 40 && $self->layer->id < 46) {				
+#if($self->layer->id == 2) {				
 #			require "Slic3r/SVG.pm";
 #	        Slic3r::SVG::output("polygon_layer".$self->layer->id."_iteration".$iterations.".svg",
 #	            blue_expolygons          => [ @blue_expolygons ],
+#	            green_expolygons          => [ @green_expolygons ],
 #	            red_expolygons          => [ @red_expolygons ],
-#	            #green_expolygons          => [ @green_expolygons ],
 #	        );
 #}
 	        

@@ -178,8 +178,8 @@ sub slice_adaptive {
 	       	# get cusp height
 	       	my $cusp_height = $adaptive_slicing[$region_id]->cusp_height(scale $slice_z, $cusp_value, $min_height, $max_height);
 	       	# weighting between cusp height and surface height
-	       	my $w_height = $surface_layer_height * $surface_cusp_ratio + $cusp_height * $surface_cusp_ratio;
-	       	print "w_height: ", $w_height, "\n"; 
+	       	my $w_height = $surface_layer_height * (1-$surface_cusp_ratio) + $cusp_height * $surface_cusp_ratio;
+	       	print "w_height: ", $w_height, "\n";
 	       	# check for horizontal features and object size
 	       	my $horizontal_dist = $adaptive_slicing[$region_id]->horizontal_facet_distance(scale $slice_z+$cusp_height, $min_height);
 	       	if(($horizontal_dist < $min_height) && ($horizontal_dist > 0)) {
