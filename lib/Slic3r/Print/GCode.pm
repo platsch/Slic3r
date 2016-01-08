@@ -116,7 +116,8 @@ sub BUILD {
 }
 
 sub export {
-    my ($self) = @_;
+    my $self = shift;
+    my ($schematic) = @_;
     
     my $fh          = $self->fh;
     my $gcodegen    = $self->_gcodegen;
@@ -264,7 +265,7 @@ sub export {
                             if $self->config->first_layer_bed_temperature;
                         $self->_print_first_layer_temperature(0);
                     }
-                    $self->process_layer($layer, [$copy]);
+                    $self->process_layer($layer, [$copy], $schematic);
                 }
                 $self->flush_filters;
                 $finished_objects++;
@@ -289,11 +290,17 @@ sub export {
         foreach my $print_z (sort { $a <=> $b } keys %layers) {
             foreach my $obj_idx (@obj_idx) {
                 foreach my $layer (@{ $layers{$print_z}[$obj_idx] // [] }) {
-                    $self->process_layer($layer, $layer->object->_shifted_copies);
+                    $self->process_layer($layer, $layer->object->_shifted_copies, $schematic);
                 }
             }
         }
         $self->flush_filters;
+    }
+    
+    my $id = 1;
+    foreach my $part (@{$schematic->{partlist}}) {
+        print $fh $part->getPlaceGcode(~0, $id);
+        $id += 1;
     }
     
     # write end commands to file
@@ -319,6 +326,17 @@ sub export {
         $self->print->total_extruded_volume($self->print->total_extruded_volume + $extruded_volume);
     }
     
+    my $length = @{$schematic->{partlist}};
+    if ($length > 0){
+        print $fh "\n" . ';<object name="none">' . "\n";
+        my $id = 1;
+        foreach my $part (@{$schematic->{partlist}}) {
+            print $fh $part->getPlaceDescription($id, @{$schematic->{root_offset}});
+            $id += 1;
+        }
+        print $fh ";</object>\n\n";
+    }
+    
     # append full config
     print $fh "\n";
     foreach my $config ($self->print->config, $self->print->default_object_config, $self->print->default_region_config) {
@@ -342,7 +360,7 @@ sub _print_first_layer_temperature {
 
 sub process_layer {
     my $self = shift;
-    my ($layer, $object_copies) = @_;
+    my ($layer, $object_copies, $schematic) = @_;
     my $gcode = "";
     
     my $object = $layer->object;
@@ -562,6 +580,12 @@ sub process_layer {
                 }
             }
         }
+        my $id = 1;
+        foreach my $part (@{$schematic->{partlist}}) {
+            $gcode .= $part->getPlaceGcode($layer->print_z, $id);
+            $id += 1;
+        }
+        
     }
     
     # apply spiral vase post-processing if this layer contains suitable geometry

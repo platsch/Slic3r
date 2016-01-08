@@ -24,6 +24,7 @@ use Slic3r::GUI::Plater::3DPreview;
 use Slic3r::GUI::Plater::ObjectPartsPanel;
 use Slic3r::GUI::Plater::ObjectCutDialog;
 use Slic3r::GUI::Plater::ObjectSettingsDialog;
+use Slic3r::GUI::Plater::ObjectElectronicsDialog;
 use Slic3r::GUI::Plater::OverrideSettingsPanel;
 use Slic3r::GUI::Preferences;
 use Slic3r::GUI::ProgressStatusBar;
@@ -49,6 +50,7 @@ use constant FILE_WILDCARDS => {
     ini     => 'INI files *.ini|*.ini;*.INI',
     gcode   => 'G-code files (*.gcode, *.gco, *.g, *.ngc)|*.gcode;*.GCODE;*.gco;*.GCO;*.g;*.G;*.ngc;*.NGC',
     svg     => 'SVG files *.svg|*.svg;*.SVG',
+    sch     => 'Schematic files (*.sch, *.3de)|*.sch;*.SCH;*.3de;*.3DE',
 };
 use constant MODEL_WILDCARD => join '|', @{&FILE_WILDCARDS}{qw(known stl obj amf)};
 
@@ -97,7 +99,7 @@ sub OnInit {
     # just checking for existence of $datadir is not enough: it may be an empty directory
     # supplied as argument to --datadir; in that case we should still run the wizard
     my $run_wizard = (-d $enc_datadir && -e "$enc_datadir/slic3r.ini") ? 0 : 1;
-    foreach my $dir ($enc_datadir, "$enc_datadir/print", "$enc_datadir/filament", "$enc_datadir/printer") {
+    foreach my $dir ($enc_datadir, "$enc_datadir/print", "$enc_datadir/filament", "$enc_datadir/printer", "$enc_datadir/electronics") {
         next if -d $dir;
         if (!mkdir $dir) {
             my $error = "Slic3r was unable to create its data directory at $dir ($!).";

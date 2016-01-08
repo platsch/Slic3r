@@ -28,6 +28,7 @@ use constant TB_SCALE   => &Wx::NewId;
 use constant TB_SPLIT   => &Wx::NewId;
 use constant TB_CUT     => &Wx::NewId;
 use constant TB_SETTINGS => &Wx::NewId;
+use constant TB_ELECTRONICS => &Wx::NewId;
 
 # package variables to avoid passing lexicals to threads
 our $THUMBNAIL_DONE_EVENT    : shared = Wx::NewEventType;
@@ -52,6 +53,8 @@ sub new {
     $self->{model} = Slic3r::Model->new;
     $self->{print} = Slic3r::Print->new;
     $self->{objects} = [];
+    
+    $self->{schematic} = {};
     
     $self->{print}->set_status_cb(sub {
         my ($percent, $message) = @_;
@@ -150,6 +153,7 @@ sub new {
         $self->{htoolbar}->AddTool(TB_CUT, "Cut…", Wx::Bitmap->new("$Slic3r::var/package.png", wxBITMAP_TYPE_PNG), '');
         $self->{htoolbar}->AddSeparator;
         $self->{htoolbar}->AddTool(TB_SETTINGS, "Settings…", Wx::Bitmap->new("$Slic3r::var/cog.png", wxBITMAP_TYPE_PNG), '');
+        $self->{htoolbar}->AddTool(TB_ELECTRONICS, "3D Electronics", Wx::Bitmap->new("$Slic3r::var/cog.png", wxBITMAP_TYPE_PNG), '');
     } else {
         my %tbar_buttons = (
             add             => "Add…",
@@ -164,9 +168,10 @@ sub new {
             split           => "Split",
             cut             => "Cut…",
             settings        => "Settings…",
+            electronics     => "3D Electronics",
         );
         $self->{btoolbar} = Wx::BoxSizer->new(wxHORIZONTAL);
-        for (qw(add remove reset arrange increase decrease rotate45ccw rotate45cw changescale split cut settings)) {
+        for (qw(add remove reset arrange increase decrease rotate45ccw rotate45cw changescale split cut settings electronics)) {
             $self->{"btn_$_"} = Wx::Button->new($self, -1, $tbar_buttons{$_}, wxDefaultPosition, wxDefaultSize, wxBU_EXACTFIT);
             $self->{btoolbar}->Add($self->{"btn_$_"});
         }
@@ -218,6 +223,7 @@ sub new {
             split           shape_ungroup.png
             cut             package.png
             settings        cog.png
+            electronics     cog.png
         );
         for (grep $self->{"btn_$_"}, keys %icons) {
             $self->{"btn_$_"}->SetBitmap(Wx::Bitmap->new("$Slic3r::var/$icons{$_}", wxBITMAP_TYPE_PNG));
@@ -249,6 +255,7 @@ sub new {
         EVT_TOOL($self, TB_SPLIT, sub { $self->split_object; });
         EVT_TOOL($self, TB_CUT, sub { $_[0]->object_cut_dialog });
         EVT_TOOL($self, TB_SETTINGS, sub { $_[0]->object_settings_dialog });
+        EVT_TOOL($self, TB_ELECTRONICS, sub { $_[0]->object_electronics_dialog });
     } else {
         EVT_BUTTON($self, $self->{btn_add}, sub { $self->add; });
         EVT_BUTTON($self, $self->{btn_remove}, sub { $self->remove() }); # explicitly pass no argument to remove
@@ -262,6 +269,7 @@ sub new {
         EVT_BUTTON($self, $self->{btn_split}, sub { $self->split_object; });
         EVT_BUTTON($self, $self->{btn_cut}, sub { $_[0]->object_cut_dialog });
         EVT_BUTTON($self, $self->{btn_settings}, sub { $_[0]->object_settings_dialog });
+        EVT_BUTTON($self, $self->{btn_electronics}, sub { $_[0]->object_electronics_dialog });
     }
     
     $_->SetDropTarget(Slic3r::GUI::Plater::DropTarget->new($self))
@@ -1155,7 +1163,7 @@ sub export_gcode {
     } else {
         eval {
             $self->{print}->process;
-            $self->{print}->export_gcode(output_file => $self->{export_gcode_output_file});
+            $self->{print}->export_gcode(output_file => $self->{export_gcode_output_file}, schematic => $self->{schematic});
         };
         my $result = !Slic3r::GUI::catch_error($self);
         $self->on_export_completed($result);
@@ -1198,7 +1206,7 @@ sub on_process_completed {
         
         $self->{export_thread} = Slic3r::spawn_thread(sub {
             eval {
-                $_thread_self->{print}->export_gcode(output_file => $_thread_self->{export_gcode_output_file});
+                $_thread_self->{print}->export_gcode(output_file => $_thread_self->{export_gcode_output_file}, schematic => $self->{schematic});
             };
             if ($@) {
                 Wx::PostEvent($_thread_self, Wx::PlThreadEvent->new(-1, $ERROR_EVENT, shared_clone([ $@ ])));
@@ -1588,6 +1596,38 @@ sub object_settings_dialog {
     }
 }
 
+#######################################################################
+# Purpose    : Opens the 3D electronics window
+# Parameters : object to integrate electronics
+# Returns    : undef of config is not valid
+# Commet     : 
+#######################################################################
+sub object_electronics_dialog {
+    my $self = shift;
+    my ($obj_idx) = @_;
+    
+    if (!defined $obj_idx) {
+        ($obj_idx, undef) = $self->selected_object;
+    }
+    my $model_object = $self->{model}->objects->[$obj_idx];
+    
+    # validate config before opening the settings dialog because
+    # that dialog can't be closed if validation fails, but user
+    # can't fix any error which is outside that dialog
+    return unless $self->validate_config;
+    
+    my $dlg = Slic3r::GUI::Plater::ObjectElectronicsDialog->new($self,
+        $self->{print},
+        object          => $self->{objects}[$obj_idx],
+        model_object    => $model_object,
+        schematic       => $self->{schematic},
+    );
+    $self->pause_background_process;
+    $dlg->Show;
+    
+    $self->resume_background_process;
+}
+
 sub object_list_changed {
     my $self = shift;
     
@@ -1616,11 +1656,11 @@ sub selection_changed {
     
     my $method = $have_sel ? 'Enable' : 'Disable';
     $self->{"btn_$_"}->$method
-        for grep $self->{"btn_$_"}, qw(remove increase decrease rotate45cw rotate45ccw changescale split cut settings);
+        for grep $self->{"btn_$_"}, qw(remove increase decrease rotate45cw rotate45ccw changescale split cut settings electronics);
     
     if ($self->{htoolbar}) {
         $self->{htoolbar}->EnableTool($_, $have_sel)
-            for (TB_REMOVE, TB_MORE, TB_FEWER, TB_45CW, TB_45CCW, TB_SCALE, TB_SPLIT, TB_CUT, TB_SETTINGS);
+            for (TB_REMOVE, TB_MORE, TB_FEWER, TB_45CW, TB_45CCW, TB_SCALE, TB_SPLIT, TB_CUT, TB_SETTINGS, TB_ELECTRONICS);
     }
     
     if ($self->{object_info_size}) { # have we already loaded the info pane?
@@ -1803,6 +1843,10 @@ sub object_menu {
     $menu->AppendSeparator();
     $frame->_append_menu_item($menu, "Settings…", 'Open the object editor dialog', sub {
         $self->object_settings_dialog;
+    }, undef, 'cog.png');
+    $menu->AppendSeparator();
+    $frame->_append_menu_item($menu, "3D Electronics", 'Open the 3D electronics editor', sub {
+        $self->object_electronics_dialog;
     }, undef, 'cog.png');
     $menu->AppendSeparator();
     $frame->_append_menu_item($menu, "Export object as STL…", 'Export this single object as STL file', sub {

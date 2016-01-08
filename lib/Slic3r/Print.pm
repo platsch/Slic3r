@@ -72,7 +72,7 @@ sub export_gcode {
     # output everything to a G-code file
     my $output_file = $self->expanded_output_filepath($params{output_file});
     $self->status_cb->(90, "Exporting G-code" . ($output_file ? " to $output_file" : ""));
-    $self->write_gcode($params{output_fh} || $output_file);
+    $self->write_gcode($params{output_fh} || $output_file, $params{schematic});
     
     # run post-processing scripts
     if (@{$self->config->post_process}) {
@@ -384,7 +384,7 @@ sub make_brim {
 
 sub write_gcode {
     my $self = shift;
-    my ($file) = @_;
+    my ($file,$schematic) = @_;
     
     # open output gcode file if we weren't supplied a file-handle
     my $fh;
@@ -399,10 +399,10 @@ sub write_gcode {
     }
     
     my $exporter = Slic3r::Print::GCode->new(
-        print   => $self,
-        fh      => $fh,
+        print      => $self,
+        fh         => $fh,
     );
-    $exporter->export;
+    $exporter->export($schematic);
     
     # close our gcode file
     close $fh;

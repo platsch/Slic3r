@@ -1,6 +1,5 @@
-_Q: Oh cool, a new RepRap slicer?_
+This is a modification of the Slic3r to itegrate electronic parts into 3D printable objects.
 
-A: Yes.
 
 Slic3r [![Build Status](https://travis-ci.org/alexrj/Slic3r.png?branch=master)](https://travis-ci.org/alexrj/Slic3r)
 ======
