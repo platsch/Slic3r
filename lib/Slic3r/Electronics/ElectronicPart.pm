@@ -20,7 +20,8 @@ sub new {
     my $class = shift;
     my $self = {};
     bless ($self, $class);
-    my ($name,$library,$deviceset,$device,$package) = @_;
+    my ($config,$name,$library,$deviceset,$device,$package) = @_;
+    $self->{config} = $config;
     $self->{name} = $name;
     $self->{library} = $library;
     $self->{deviceset} = $deviceset;
@@ -103,7 +104,6 @@ sub setPartsize {
 #######################################################################
 sub getPartsize {
     my $self = shift;
-    my ($config) = @_;
     if (!(defined($self->{componentsize}[0]) && defined($self->{componentsize}[0]) && defined($self->{componentsize}[0]))) {
         my $xmin = 0;
         my $ymin = 0;
@@ -123,9 +123,9 @@ sub getPartsize {
                 $ymax = max($ymax, $pad->{position}[1]+($pad->{drill}/2+0.25));
             }
         }
-        my $x = $xmax-$xmin+$config->{offset}{chip_x_offset};
-        my $y = $ymax-$ymin+$config->{offset}{chip_y_offset};
-        my $z = $self->getPartheight($config)+$config->{offset}{chip_z_offset};
+        my $x = $xmax-$xmin+$self->{config}->{offset}{chip_x_offset};
+        my $y = $ymax-$ymin+$self->{config}->{offset}{chip_y_offset};
+        my $z = $self->getPartheight+$self->{config}->{offset}{chip_z_offset};
         @{$self->{componentsize}} = ($x,$y,$z);
         @{$self->{componentpos}} = (($xmax-abs($xmin))/2,($ymax-abs($ymin))/2,0);
     }
@@ -141,11 +141,10 @@ sub getPartsize {
 #######################################################################
 sub getPartheight {
     my $self = shift;
-    my ($config) = @_;
-    if ($config->{chip_height}{$self->{package}}) {
-        return $config->{chip_height}{$self->{package}};
+    if ($self->{config}->{chip_height}{$self->{package}}) {
+        return $self->{config}->{chip_height}{$self->{package}};
     } else {
-        return $config->{chip_height}{default};
+        return $self->{config}->{chip_height}{default};
     }
 }
 
@@ -159,7 +158,6 @@ sub setPartpos {
     my $self = shift;
     my ($x,$y,$z) = @_;
     $self->{componentpos} = [$x,$y,$z];
-    $self->getHullPolygon();
 }
 
 #######################################################################
@@ -204,9 +202,9 @@ sub getFootprintModel {
 #######################################################################
 sub getPartModel {
     my $self = shift;
-    my ($config, $rot) = @_;
+    my ($rot) = @_;
     my @triangles = ();
-    push @triangles, Slic3r::Electronics::Geometrics->getCube(@{$self->{componentpos}}, $self->getPartsize($config), 0);
+    push @triangles, Slic3r::Electronics::Geometrics->getCube(@{$self->{componentpos}}, $self->getPartsize, 0);
     my $model = $self->getTriangleMesh($rot, @triangles);
     return $model;
 }
@@ -235,7 +233,7 @@ sub getTriangleMesh {
     $mesh->repair;
     $mesh->rotate_x(deg2rad($self->{rotation}[0])) if ($self->{rotation}[0] != 0);
     $mesh->rotate_y(deg2rad($self->{rotation}[1])) if ($self->{rotation}[1] != 0);
-    $mesh->rotate_z(deg2rad($self->{rotation}[2])+$rot);convex_hull
+    $mesh->rotate_z(deg2rad($self->{rotation}[2])+$rot);
     $mesh->translate($self->transformWorldtoObject($rot,(0,0,0)));
     
     

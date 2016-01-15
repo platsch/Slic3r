@@ -599,7 +599,7 @@ sub displayPart {
             }
         }
         
-        my $chip_model = $part->getPartModel($self->{config}, $self->{model_object}->instances->[0]->rotation);
+        my $chip_model = $part->getPartModel($self->{model_object}->instances->[0]->rotation);
             
         foreach my $object (@{$chip_model->objects}) {
             foreach my $volume (@{$object->volumes}) {

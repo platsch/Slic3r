@@ -34,6 +34,7 @@ sub readFile {
                     my $package = $devicesetlist->getAttribute('package');
                     if (defined $package) {
                         my $newpart = Slic3r::Electronics::ElectronicPart->new(
+                        	$config,
                             $part,
                             $library,
                             $deviceset,
@@ -137,8 +138,8 @@ sub readFile {
                         }
                         my $x = $xmax-$xmin;
                         my $y = $ymax-$ymin;
-                        my $z = $newpart->getPartheight($config);
-                        $newpart->setPartsize($x+$config->{offset}{chip_x_offset},$y+$config->{offset}{chip_y_offset},$z+$config->{offset}{chip_z_offset});
+                        my $z = $newpart->getPartheight;
+                        $newpart->setPartsize($x,$y,$z);
                         $newpart->setPartpos($xmax-$x/2,$ymax-$y/2,0);
                         push @{$schematic->{partlist}}, $newpart;
                     } else {
