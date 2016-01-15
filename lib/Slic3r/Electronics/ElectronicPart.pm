@@ -105,7 +105,7 @@ sub setPartsize {
 #######################################################################
 sub getPartsize {
     my $self = shift;
-    if (!(defined($self->{componentsize}[0]) && defined($self->{componentsize}[0]) && defined($self->{componentsize}[0]))) {
+    if (!(defined($self->{componentsize}[0]) && defined($self->{componentsize}[1]) && defined($self->{componentsize}[2]))) {
         my $xmin = 0;
         my $ymin = 0;
         my $xmax = 0;
@@ -124,14 +124,16 @@ sub getPartsize {
                 $ymax = max($ymax, $pad->{position}[1]+($pad->{drill}/2+0.25));
             }
         }
-        my $x = $xmax-$xmin+$self->{config}->{offset}{chip_x_offset};
-        my $y = $ymax-$ymin+$self->{config}->{offset}{chip_y_offset};
-        my $z = $self->getPartheight+$self->{config}->{offset}{chip_z_offset};
+        my $x = $xmax-$xmin;
+        my $y = $ymax-$ymin;
+        my $z = $self->getPartheight;
         @{$self->{componentsize}} = ($x,$y,$z);
         @{$self->{componentpos}} = (($xmax-abs($xmin))/2,($ymax-abs($ymin))/2,0);
     }
     
-    return @{$self->{componentsize}};
+    return ($self->{componentsize}[0] + $self->{config}->{offset}{chip_x_offset},
+    	$self->{componentsize}[1] + $self->{config}->{offset}{chip_y_offset},
+    	$self->{componentsize}[2] + $self->{config}->{offset}{chip_z_offset});
 }
 
 #######################################################################
