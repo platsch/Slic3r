@@ -69,6 +69,7 @@ sub setPosition {
     my $self = shift;
     my ($x,$y,$z) = @_;
     $self->{position} = [$x,$y,$z];
+    $self->getHullPolygon();
 }
 
 #######################################################################
@@ -272,14 +273,24 @@ sub getHullPolygon {
 	}
 	
 	# outline of smd body
+	my $dx = $self->{componentsize}[0]/2;
+	my $dy = $self->{componentsize}[1]/2;
+    push @points, Slic3r::Point->new(scale $self->{componentpos}[0]+$dx, scale $self->{componentpos}[1]+$dy);
+    push @points, Slic3r::Point->new(scale $self->{componentpos}[0]+$dx, scale $self->{componentpos}[1]-$dy);
+    push @points, Slic3r::Point->new(scale $self->{componentpos}[0]-$dx, scale $self->{componentpos}[1]-$dy);
+    push @points, Slic3r::Point->new(scale $self->{componentpos}[0]-$dx, scale $self->{componentpos}[1]+$dy);
 	
-
-	#my $p = Slic3r::ExPolygon->new(\@points);
 	#my $p = Slic3r::Polygon->new_scale([0, 10], [0, 0], [10, 0], [10, 10], [0, 10]);
-	#my $p = Slic3r::Polygon->new_scale(@testarray[1], @testarray[2], @testarray[3], @testarray[4]);
-	#my $p = Slic3r::ExPolygon->new_scale(\@points);
-	
 	my $polygon = convex_hull(\@points);
+	
+	# apply object rotation
+	$polygon->rotate(deg2rad($self->{rotation}[2]), Slic3r::Point->new(0, 0));
+	
+	# apply object translation
+	my @pos = $self->transformObjecttoWorld(0, (0, 0, 0));
+	$polygon->translate(scale $pos[0], scale $pos[1]);
+	
+	# Debugging
 	print "ref q: " . ref($polygon) . "\n";
 	print "area2: " . unscale $polygon->area() . "\n";
 	
