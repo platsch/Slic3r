@@ -55,6 +55,37 @@ LayerRegion::merge_slices()
         this->slices.surfaces.push_back(Surface(stInternal, *expoly));
 }
 
+Slic3r::ExPolygons
+LayerRegion::modify_slices(const Polygon &polygon)
+{
+	std::cout << "modify_slices called!" << "\n";
+	Surfaces::iterator end = this->slices.surfaces.end();
+	std::cout << "vor iterator\n";
+	for (Surfaces::iterator surface = this->slices.surfaces.begin(); surface != end; ++surface) {
+		std::cout << "vor expolygon dec\n";
+		Polygons subject;
+		subject.push_back(surface->expolygon.contour);
+		Polygons clip;
+		for (Polygons::iterator p = surface->expolygon.holes.begin(); p != surface->expolygon.holes.end(); ++p) {
+			clip.push_back(*p);
+		}
+		clip.push_back(polygon);
+		std::cout << "vor diff_ex\n";
+		ExPolygons diffp = diff_ex(subject, clip);
+		std::cout << "nr of resulting polygons: " << diffp.size() << "\n";
+		if(diffp.size() > 0) {
+			surface->expolygon = diffp[0];
+			if(diffp.size() > 1) {
+				std::cout << "Polygon zerfallen!!!!!!!!!!!!" << "\n";
+				/*for (ExPolygons::iterator exp = diffp.begin()+1; exp != diffp.end(); ++exp) {
+					this->slices.surfaces.push_back(*exp);
+				}*/
+			}
+		}
+		return diffp;
+	}
+}
+
 void
 LayerRegion::make_perimeters(const SurfaceCollection &slices, SurfaceCollection* fill_surfaces)
 {
