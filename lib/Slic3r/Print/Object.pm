@@ -10,6 +10,16 @@ use Slic3r::Geometry::Clipper qw(diff diff_ex intersection intersection_ex union
 use Slic3r::Print::State ':steps';
 use Slic3r::Surface ':types';
 
+our $electronicPartList;
+
+sub registerElectronicPartList {
+	 my ($class, $list) = @_;
+   	 $electronicPartList = $list;	
+}
+
+sub electronicPartList {
+	return $electronicPartList;
+}
 
 # TODO: lazy
 sub fill_maker {
@@ -321,6 +331,53 @@ sub slice {
     
     die "No layers were detected. You might want to repair your STL file(s) or check their size or thickness and retry.\n"
         if !@{$self->layers};
+        
+    ## Electronic parts extension
+    print "object pointer: " . $self->bounding_box . "\n";
+    if($electronicPartList) {
+    	# electronic parts are placed with respect to the objects bounding box center.
+    	#$self->{model_object}->update_bounding_box;
+	    my $bb_offset = [$self->bounding_box->center->[0]-$self->bounding_box->min_point->[0], $self->bounding_box->center->[1]-$self->bounding_box->min_point->[1]];     
+    
+    	foreach my $layer (@{ $self->layers }) {
+    		foreach my $region_id (0 .. ($layer->region_count - 1)) {
+            	my $layerm = $layer->region($region_id);
+            	foreach my $part (@{$electronicPartList}) {
+            		my $polygon = $part->getHullPolygon($layer->slice_z);
+            		# only if this part is affected and returns a valid polygon
+            		if($polygon) {
+            			# translate the difference between bounding box center and origin
+            			print "translate offset: [" . $bb_offset->[0] . "," . $bb_offset->[1] . "]\n";
+            			$polygon->translate($bb_offset->[0], $bb_offset->[1]);
+            			print "pre-surfaces size: " . $layerm->slices->[0]->expolygon->area . "\n";
+            			print "modifier size: " . $polygon->area . "\n";
+            			if (1) {
+	                        require "Slic3r/SVG.pm";
+	                        Slic3r::SVG::output(
+	                            "diff_op_pre.svg",
+	                            no_arrows   => 1,
+	                            red_expolygons  => [$layerm->slices->[0]->expolygon]
+	                       );
+	                    }
+            			
+            			my $expp = $layerm->modify_slices($polygon);
+	                    
+	                    if (1) {
+							require "Slic3r/SVG.pm";
+							Slic3r::SVG::output(
+								"diff_op_post.svg",
+								no_arrows   => 1,
+								red_expolygons  => [$layerm->slices->[0]->expolygon]
+								#red_expolygons  => [$expp->[0]],
+							);
+						}
+            		}
+            	}
+    		}
+    	}
+    }else{
+    	print "testvar undef\n";
+    }
     
     $self->set_typed_slices(0);
     $self->set_step_done(STEP_SLICE);

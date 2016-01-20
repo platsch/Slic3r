@@ -10,6 +10,9 @@ use Slic3r::ExPolygon;
 use Slic3r::Geometry qw(X Y Z deg2rad convex_hull scale unscale);
 use List::Util qw[min max];
 
+
+use Slic3r::Geometry::Clipper qw(diff diff_ex);
+
 #######################################################################
 # Purpose    : Generates new Part
 # Parameters : Name, library, deviceset, device and package of new part
@@ -69,7 +72,6 @@ sub setPosition {
     my $self = shift;
     my ($x,$y,$z) = @_;
     $self->{position} = [$x,$y,$z];
-    $self->getHullPolygon();
 }
 
 #######################################################################
@@ -257,56 +259,63 @@ sub getTriangleMesh {
 #######################################################################
 sub getHullPolygon {
 	my $self = shift;
-	my @points;
+	my ($z) = @_;
 	
-	# outline of smd (and TH) pads
-	for my $pad (@{$self->{padlist}}) {
-        if ($pad->{type} eq 'smd') {
-            my $dx = $pad->{size}[0]/2;
-            my $dy = $pad->{size}[1]/2;
-            push @points, Slic3r::Point->new(scale $pad->{position}[0]+$dx, scale $pad->{position}[1]+$dy);
-            push @points, Slic3r::Point->new(scale $pad->{position}[0]+$dx, scale $pad->{position}[1]-$dy);
-            push @points, Slic3r::Point->new(scale $pad->{position}[0]-$dx, scale $pad->{position}[1]-$dy);
-            push @points, Slic3r::Point->new(scale $pad->{position}[0]-$dx, scale $pad->{position}[1]+$dy);
-        }
-        #if ($pad->{type} eq 'pad') {
-            #push @triangles, Slic3r::Electronics::Geometrics->getCylinder(@{$pad->{position}}, $pad->{drill}/2+0.25, $self->{height}*(-1));
-        #}
+	# part placed?
+	if(!@{$self->{position}}[0]) {
+		return undef
 	}
 	
-	# outline of smd body
-	my $dx = $self->{componentsize}[0]/2;
-	my $dy = $self->{componentsize}[1]/2;
-    push @points, Slic3r::Point->new(scale $self->{componentpos}[0]+$dx, scale $self->{componentpos}[1]+$dy);
-    push @points, Slic3r::Point->new(scale $self->{componentpos}[0]+$dx, scale $self->{componentpos}[1]-$dy);
-    push @points, Slic3r::Point->new(scale $self->{componentpos}[0]-$dx, scale $self->{componentpos}[1]-$dy);
-    push @points, Slic3r::Point->new(scale $self->{componentpos}[0]-$dx, scale $self->{componentpos}[1]+$dy);
-	
-	#my $p = Slic3r::Polygon->new_scale([0, 10], [0, 0], [10, 0], [10, 10], [0, 10]);
-	my $polygon = convex_hull(\@points);
-	
-	# apply object rotation
-	$polygon->rotate(deg2rad($self->{rotation}[2]), Slic3r::Point->new(0, 0));
-	
-	# apply object translation
-	my @pos = $self->transformObjecttoWorld(0, (0, 0, 0));
-	$polygon->translate(scale $pos[0], scale $pos[1]);
-	
-	# Debugging
-	print "ref q: " . ref($polygon) . "\n";
-	print "area2: " . unscale $polygon->area() . "\n";
-	
-	
-	if (1) {
-		require "Slic3r/SVG.pm";
-		Slic3r::SVG::output(
-			"polygontest.svg",
-			no_arrows   => 1,
-			red_expolygons  => [Slic3r::ExPolygon->new($polygon)],
-		);
+	# part affected?
+	if($z > $self->{position}[2] - $self->{height} && $z < ($self->{position}[2] + $self->{componentsize}[2])) {
+		my @points;
+		
+		# outline of smd (and TH) pads
+		for my $pad (@{$self->{padlist}}) {
+	        if ($pad->{type} eq 'smd') {
+	            my $dx = $pad->{size}[0]/2;
+	            my $dy = $pad->{size}[1]/2;
+	            push @points, Slic3r::Point->new(scale $pad->{position}[0]+$dx, scale $pad->{position}[1]+$dy);
+	            push @points, Slic3r::Point->new(scale $pad->{position}[0]+$dx, scale $pad->{position}[1]-$dy);
+	            push @points, Slic3r::Point->new(scale $pad->{position}[0]-$dx, scale $pad->{position}[1]-$dy);
+	            push @points, Slic3r::Point->new(scale $pad->{position}[0]-$dx, scale $pad->{position}[1]+$dy);
+	        }
+	        #if ($pad->{type} eq 'pad') {
+	            #push @triangles, Slic3r::Electronics::Geometrics->getCylinder(@{$pad->{position}}, $pad->{drill}/2+0.25, $self->{height}*(-1));
+	        #}
+		}
+
+		# outline of smd body
+		my $dx = $self->{componentsize}[0]/2;
+		my $dy = $self->{componentsize}[1]/2;
+	    push @points, Slic3r::Point->new(scale $self->{componentpos}[0]+$dx, scale $self->{componentpos}[1]+$dy);
+	    push @points, Slic3r::Point->new(scale $self->{componentpos}[0]+$dx, scale $self->{componentpos}[1]-$dy);
+	    push @points, Slic3r::Point->new(scale $self->{componentpos}[0]-$dx, scale $self->{componentpos}[1]-$dy);
+	    push @points, Slic3r::Point->new(scale $self->{componentpos}[0]-$dx, scale $self->{componentpos}[1]+$dy);
+		
+		#my $p = Slic3r::Polygon->new_scale([0, 10], [0, 0], [10, 0], [10, 10], [0, 10]);
+		my $polygon = convex_hull(\@points);
+		
+		# apply object rotation
+		$polygon->rotate(deg2rad($self->{rotation}[2]), Slic3r::Point->new(0, 0));
+				
+		# apply object translation
+		my @pos = $self->transformObjecttoWorld(0, (0, 0, 0));
+		$polygon->translate(scale $pos[0], scale $pos[1]);
+		
+		if (0) {
+			require "Slic3r/SVG.pm";
+			Slic3r::SVG::output(
+				"polygontest.svg",
+				no_arrows   => 1,
+				red_expolygons  => [Slic3r::ExPolygon->new($polygon)],
+			);
+		}
+		
+		return $polygon;
+	}else{
+		return undef;
 	}
-	
-	return $polygon;
 }
 
 #######################################################################
