@@ -20,7 +20,13 @@ sub new {
     $self->{$_} = $params{$_} for keys %params;
     
     $self->{tabpanel} = Wx::Notebook->new($self, -1, wxDefaultPosition, wxDefaultSize, wxNB_TOP | wxTAB_TRAVERSAL);
-    $self->{tabpanel}->AddPage($self->{parts} = Slic3r::GUI::Plater::ElectronicsPanel->new($self->{tabpanel},$print, model_object => $params{model_object}, schematic => $params{schematic}), "Electronics");
+    $self->{tabpanel}->AddPage($self->{parts} = Slic3r::GUI::Plater::ElectronicsPanel->new(
+    	$self->{tabpanel},
+    	$print,
+    	obj_idx => $params{obj_idx},
+    	model_object => $params{model_object},
+    	schematic => $params{schematic}),
+    "Electronics");
         
     my $sizer = Wx::BoxSizer->new(wxVERTICAL);
     $sizer->Add($self->{tabpanel}, 1, wxEXPAND | wxTOP | wxLEFT | wxRIGHT, 10);
@@ -68,11 +74,12 @@ sub new {
     my ($parent, $print, %params) = @_;
     my $self = $class->SUPER::new($parent, -1, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL);
     
+    $self->{obj_idx} = $params{obj_idx};
     my $object = $self->{model_object} = $params{model_object};
     my $schematic = $self->{schematic} = $params{schematic};
     my $place = $self->{place} = 0;
     $self->{model_object}->update_bounding_box;
-    my $root_offset = $self->{schematic}->{root_offset} = $self->{model_object}->_bounding_box->center;
+    my $root_offset = $self->{schematic}->{root_offset} = $self->{model_object}->_bounding_box->center; 
     
     my $configfile ||= Slic3r::decode_path(Wx::StandardPaths::Get->GetUserDataDir . "/electronics/electronics.ini");
     my $config = $self->{config};
@@ -916,6 +923,9 @@ sub loadButtonPressed {
     for my $part (@{$self->{schematic}->{partlist}}) {
         $self->displayPart($part);
     }
+    
+    # register partlist for slicing modifications in Print->Object
+    $self->{print}->objects->[$self->{obj_idx}]->registerElectronicPartList($self->{schematic}->{partlist});
 
     $self->reload_tree;
 }

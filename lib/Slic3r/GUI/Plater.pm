@@ -1615,9 +1615,10 @@ sub object_electronics_dialog {
     # that dialog can't be closed if validation fails, but user
     # can't fix any error which is outside that dialog
     return unless $self->validate_config;
-    
+       
     my $dlg = Slic3r::GUI::Plater::ObjectElectronicsDialog->new($self,
         $self->{print},
+        obj_idx			=> $obj_idx,
         object          => $self->{objects}[$obj_idx],
         model_object    => $model_object,
         schematic       => $self->{schematic},
