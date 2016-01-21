@@ -333,10 +333,9 @@ sub slice {
         if !@{$self->layers};
         
     ## Electronic parts extension
-    print "object pointer: " . $self->bounding_box . "\n";
     if($electronicPartList) {
-    	# electronic parts are placed with respect to the objects bounding box center.
-    	#$self->{model_object}->update_bounding_box;
+    	# electronic parts are placed with respect to the objects bounding box center but the object
+    	# uses the bounding box min point as origin, so we need to translate them.
 	    my $bb_offset = [$self->bounding_box->center->[0]-$self->bounding_box->min_point->[0], $self->bounding_box->center->[1]-$self->bounding_box->min_point->[1]];     
     
     	foreach my $layer (@{ $self->layers }) {
@@ -347,36 +346,23 @@ sub slice {
             		# only if this part is affected and returns a valid polygon
             		if($polygon) {
             			# translate the difference between bounding box center and origin
-            			print "translate offset: [" . $bb_offset->[0] . "," . $bb_offset->[1] . "]\n";
             			$polygon->translate($bb_offset->[0], $bb_offset->[1]);
-            			print "pre-surfaces size: " . $layerm->slices->[0]->expolygon->area . "\n";
-            			print "modifier size: " . $polygon->area . "\n";
-            			if (1) {
-	                        require "Slic3r/SVG.pm";
-	                        Slic3r::SVG::output(
-	                            "diff_op_pre.svg",
-	                            no_arrows   => 1,
-	                            red_expolygons  => [$layerm->slices->[0]->expolygon]
-	                       );
-	                    }
-            			
-            			my $expp = $layerm->modify_slices($polygon);
 	                    
-	                    if (1) {
+	                    # cut part from object polygon
+	                    $layerm->modify_slices($polygon);
+	                    
+	                    if (0) {	                    	
 							require "Slic3r/SVG.pm";
 							Slic3r::SVG::output(
 								"diff_op_post.svg",
 								no_arrows   => 1,
 								red_expolygons  => [$layerm->slices->[0]->expolygon]
-								#red_expolygons  => [$expp->[0]],
 							);
 						}
             		}
             	}
     		}
     	}
-    }else{
-    	print "testvar undef\n";
     }
     
     $self->set_typed_slices(0);

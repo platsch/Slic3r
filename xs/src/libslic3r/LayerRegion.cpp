@@ -55,14 +55,11 @@ LayerRegion::merge_slices()
         this->slices.surfaces.push_back(Surface(stInternal, *expoly));
 }
 
-Slic3r::ExPolygons
+void
 LayerRegion::modify_slices(const Polygon &polygon)
 {
-	std::cout << "modify_slices called!" << "\n";
 	Surfaces::iterator end = this->slices.surfaces.end();
-	std::cout << "vor iterator\n";
 	for (Surfaces::iterator surface = this->slices.surfaces.begin(); surface != end; ++surface) {
-		std::cout << "vor expolygon dec\n";
 		Polygons subject;
 		subject.push_back(surface->expolygon.contour);
 		Polygons clip;
@@ -70,7 +67,6 @@ LayerRegion::modify_slices(const Polygon &polygon)
 			clip.push_back(*p);
 		}
 		clip.push_back(polygon);
-		std::cout << "vor diff_ex\n";
 		ExPolygons diffp = diff_ex(subject, clip);
 		std::cout << "nr of resulting polygons: " << diffp.size() << "\n";
 		if(diffp.size() > 0) {
@@ -82,7 +78,6 @@ LayerRegion::modify_slices(const Polygon &polygon)
 				}*/
 			}
 		}
-		return diffp;
 	}
 }
 
