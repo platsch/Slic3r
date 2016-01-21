@@ -134,9 +134,7 @@ sub getPartsize {
         @{$self->{componentpos}} = (($xmax-abs($xmin))/2,($ymax-abs($ymin))/2,0);
     }
     
-    return ($self->{componentsize}[0] + $self->{config}->{offset}{margin},
-    	$self->{componentsize}[1] + $self->{config}->{offset}{margin},
-    	$self->{componentsize}[2] + $self->{config}->{offset}{margin});
+    return ($self->{componentsize}[0], $self->{componentsize}[1], $self->{componentsize}[2]);
 }
 
 #######################################################################
