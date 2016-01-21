@@ -258,7 +258,7 @@ sub getTriangleMesh {
 #######################################################################
 sub getHullPolygon {
 	my $self = shift;
-	my ($z) = @_;
+	my ($z_lower, $z_upper) = @_;
 	
 	# part placed?
 	if(!@{$self->{position}}[0]) {
@@ -266,7 +266,7 @@ sub getHullPolygon {
 	}
 	
 	# part affected?
-	if($z > $self->{position}[2] - $self->{height} && $z < ($self->{position}[2] + $self->{componentsize}[2])) {
+	if($z_upper > $self->{position}[2] - $self->{height} && $z_lower < ($self->{position}[2] + $self->{componentsize}[2])) {
 		my @points;
 		
 		# outline of smd (and TH) pads

@@ -342,7 +342,7 @@ sub slice {
     		foreach my $region_id (0 .. ($layer->region_count - 1)) {
             	my $layerm = $layer->region($region_id);
             	foreach my $part (@{$electronicPartList}) {
-            		my $polygon = $part->getHullPolygon($layer->slice_z);
+            		my $polygon = $part->getHullPolygon($layer->print_z - $layer->height, $layer->print_z);
             		# only if this part is affected and returns a valid polygon
             		if($polygon) {
             			# translate the difference between bounding box center and origin
