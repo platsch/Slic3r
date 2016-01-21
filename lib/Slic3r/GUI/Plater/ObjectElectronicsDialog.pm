@@ -430,9 +430,7 @@ sub createDefaultConfig {
     $self->{config}->{_}{footprint_extruder} = 0;
     $self->{config}->{_}{part_extruder} = 0;
     
-    $self->{config}->{offset}{chip_x_offset} = 0;
-    $self->{config}->{offset}{chip_y_offset} = 0;
-    $self->{config}->{offset}{chip_z_offset} = 0;
+    $self->{config}->{offset}{margin} = 0.5;
     
     $self->{config}->{chip_height}{default} = 1;
     Slic3r::Config->write_ini($configfile, $self->{config});

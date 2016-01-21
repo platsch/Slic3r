@@ -8,6 +8,7 @@ use Slic3r::Point;
 use Slic3r::Polygon;
 use Slic3r::ExPolygon;
 use Slic3r::Geometry qw(X Y Z deg2rad convex_hull scale unscale);
+use Slic3r::Geometry::Clipper qw(offset CLIPPER_OFFSET_SCALE JT_MITER JT_SQUARE);
 use List::Util qw[min max];
 
 
@@ -133,9 +134,9 @@ sub getPartsize {
         @{$self->{componentpos}} = (($xmax-abs($xmin))/2,($ymax-abs($ymin))/2,0);
     }
     
-    return ($self->{componentsize}[0] + $self->{config}->{offset}{chip_x_offset},
-    	$self->{componentsize}[1] + $self->{config}->{offset}{chip_y_offset},
-    	$self->{componentsize}[2] + $self->{config}->{offset}{chip_z_offset});
+    return ($self->{componentsize}[0] + $self->{config}->{offset}{margin},
+    	$self->{componentsize}[1] + $self->{config}->{offset}{margin},
+    	$self->{componentsize}[2] + $self->{config}->{offset}{margin});
 }
 
 #######################################################################
@@ -295,6 +296,9 @@ sub getHullPolygon {
 		
 		#my $p = Slic3r::Polygon->new_scale([0, 10], [0, 0], [10, 0], [10, 10], [0, 10]);
 		my $polygon = convex_hull(\@points);
+		
+		# apply margin to have some space between part an extruded plastic
+		$polygon = offset([$polygon], scale $self->{config}->{offset}{margin}, CLIPPER_OFFSET_SCALE, JT_SQUARE)->[0];
 		
 		# apply object rotation
 		$polygon->rotate(deg2rad($self->{rotation}[2]), Slic3r::Point->new(0, 0));
