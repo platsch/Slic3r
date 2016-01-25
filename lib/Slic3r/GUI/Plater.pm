@@ -1196,6 +1196,7 @@ sub on_process_completed {
     return if $error;
     $self->{toolpaths2D}->reload_print if $self->{toolpaths2D};
     $self->{preview3D}->reload_print if $self->{preview3D};
+    $self->{electronicPartsDlg}->reload_print if $self->{electronicPartsDlg};
     
     # if we have an export filename, start a new thread for exporting G-code
     if ($self->{export_gcode_output_file}) {
@@ -1616,16 +1617,17 @@ sub object_electronics_dialog {
     # can't fix any error which is outside that dialog
     return unless $self->validate_config;
        
-    my $dlg = Slic3r::GUI::Plater::ObjectElectronicsDialog->new($self,
+    $self->{electronicPartsDlg} = Slic3r::GUI::Plater::ObjectElectronicsDialog->new($self,
         $self->{print},
         obj_idx			=> $obj_idx,
         object          => $self->{objects}[$obj_idx],
         model_object    => $model_object,
         schematic       => $self->{schematic},
     );
-    $self->pause_background_process;
-    $dlg->Show;
     
+    # Why is the background process paused?
+    $self->pause_background_process;    
+    $self->{electronicPartsDlg}->Show;
     $self->resume_background_process;
 }
 

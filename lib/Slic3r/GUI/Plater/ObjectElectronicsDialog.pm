@@ -22,6 +22,7 @@ sub new {
     $self->{tabpanel} = Wx::Notebook->new($self, -1, wxDefaultPosition, wxDefaultSize, wxNB_TOP | wxTAB_TRAVERSAL);
     $self->{tabpanel}->AddPage($self->{parts} = Slic3r::GUI::Plater::ElectronicsPanel->new(
     	$self->{tabpanel},
+    	$parent,
     	$print,
     	obj_idx => $params{obj_idx},
     	model_object => $params{model_object},
@@ -35,6 +36,11 @@ sub new {
     $self->SetMinSize($self->GetSize);
     
     return $self;
+}
+
+sub reload_print{
+	my $self = shift;
+	$self->{parts}->reload_print;
 }
 
 
@@ -71,9 +77,10 @@ use constant ICON_PCB           => 3;
 #######################################################################
 sub new {
     my $class = shift;
-    my ($parent, $print, %params) = @_;
+    my ($parent, $plater, $print, %params) = @_;
     my $self = $class->SUPER::new($parent, -1, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL);
     
+    $self->{plater} = $plater;
     $self->{obj_idx} = $params{obj_idx};
     my $object = $self->{model_object} = $params{model_object};
     my $schematic = $self->{schematic} = $params{schematic};
@@ -564,6 +571,11 @@ sub placePart {
     $part->setPosition($x, $y, $z);
     $self->displayPart($part);
     $self->reload_tree($self->findVolumeId($part->{volume}));
+    
+    # trigger slicing steps to update modifications;
+    $self->{print}->objects->[$self->{obj_idx}]->invalidate_step(STEP_SLICE);
+    $self->{plater}->schedule_background_process;
+    
 }
 
 #######################################################################
@@ -889,7 +901,6 @@ sub savePartInfo {
     @{$part->{componentsize}} = ($self->{xs_field}->GetValue, $self->{ys_field}->GetValue, $self->{zs_field}->GetValue) if (!($self->{xs_field}->GetValue eq "") && !($self->{ys_field}->GetValue eq "") && !($self->{zs_field}->GetValue eq ""));
     @{$part->{componentpos}} = ($self->{xp_field}->GetValue, $self->{yp_field}->GetValue, $self->{zp_field}->GetValue) if (!($self->{xp_field}->GetValue eq "") && !($self->{yp_field}->GetValue eq "") && !($self->{zp_field}->GetValue eq ""));
     $self->displayPart($part);
-        
 }
 
 #######################################################################
@@ -998,6 +1009,10 @@ sub savePartButtonPressed {
         $self->savePartInfo($part);
         $self->reload_tree($self->findVolumeId($part->{volume}));
     }
+    
+    # trigger slicing steps to update modifications;
+    $self->{print}->objects->[$self->{obj_idx}]->invalidate_step(STEP_SLICE);
+    $self->{plater}->schedule_background_process;
 }
 
 #######################################################################
@@ -1028,6 +1043,7 @@ sub movePart {
     my $selected = $self->get_selection;
     my $part = $self->findPartByVolume($selected->{volume});
     if ($part) {
+    	$self->{plater}->stop_background_process;
         if ($z != 0) {
             $part->{position}[2] += $self->get_layer_thickness($part->{position}[2])*$z;
         }
@@ -1036,6 +1052,10 @@ sub movePart {
         $self->showPartInfo($part);
         $self->displayPart($part);
         $self->reload_tree($self->findVolumeId($part->{volume}));
+                
+        # trigger slicing steps to update modifications;
+		$self->{print}->objects->[$self->{obj_idx}]->invalidate_step(STEP_SLICE);
+		$self->{plater}->start_background_process;
     }
 }
 
