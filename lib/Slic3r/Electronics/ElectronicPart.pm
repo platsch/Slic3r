@@ -261,7 +261,7 @@ sub getHullPolygon {
 	my ($z_lower, $z_upper) = @_;
 	
 	# part placed?
-	if(!@{$self->{position}}[0]) {
+	if(!defined $self->{position}[0]) {
 		return undef
 	}
 	
