@@ -29,8 +29,8 @@
     Clone<Flow> flow(FlowRole role, bool bridge = false, double width = -1)
         %code%{ RETVAL = THIS->flow(role, bridge, width); %};
     void merge_slices();
-    ExPolygons modify_slices(Polygon* polygon)
-    	%code%{ THIS->modify_slices(*polygon); %};
+    void modify_slices(Polygons polygons)
+    	%code%{ THIS->modify_slices(polygons); %};
     void prepare_fill_surfaces();
     void make_perimeters(SurfaceCollection* slices, SurfaceCollection* fill_surfaces)
         %code%{ THIS->make_perimeters(*slices, fill_surfaces); %};

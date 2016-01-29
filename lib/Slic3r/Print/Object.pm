@@ -9,6 +9,7 @@ use Slic3r::Geometry::Clipper qw(diff diff_ex intersection intersection_ex union
     offset offset_ex offset2 offset2_ex intersection_ppl CLIPPER_OFFSET_SCALE JT_MITER);
 use Slic3r::Print::State ':steps';
 use Slic3r::Surface ':types';
+use Slic3r::Polygon;
 
 our $electronicPartList;
 
@@ -341,26 +342,31 @@ sub slice {
     	foreach my $layer (@{ $self->layers }) {
     		foreach my $region_id (0 .. ($layer->region_count - 1)) {
             	my $layerm = $layer->region($region_id);
+            	my @polygons;
+            	
             	foreach my $part (@{$electronicPartList}) {
             		my $polygon = $part->getHullPolygon($layer->print_z - $layer->height, $layer->print_z);
+            		
             		# only if this part is affected and returns a valid polygon
-            		if($polygon) {
-            			# translate the difference between bounding box center and origin
+            		if($polygon) {	
             			$polygon->translate($bb_offset->[0], $bb_offset->[1]);
-	                    
-	                    # cut part from object polygon
-	                    $layerm->modify_slices($polygon);
+            			push @polygons, $polygon;
 	                    
 	                    if (0) {	                    	
 							require "Slic3r/SVG.pm";
 							Slic3r::SVG::output(
 								"diff_op_post.svg",
 								no_arrows   => 1,
-								red_expolygons  => [$layerm->slices->[0]->expolygon]
+								#red_expolygons  => [$layerm->slices->[0]->expolygon]
+								red_expolygons  => [Slic3r::ExPolygon->new($polygons[0])],
 							);
 						}
             		}
             	}
+            	# cut part from object polygon
+            	if(scalar @polygons > 0){ 
+            		$layerm->modify_slices(\@polygons);
+    			}
     		}
     	}
     }

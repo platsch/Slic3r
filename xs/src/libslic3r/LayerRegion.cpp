@@ -56,30 +56,44 @@ LayerRegion::merge_slices()
 }
 
 void
-LayerRegion::modify_slices(const Polygon &polygon)
+LayerRegion::modify_slices(Polygons &polygons)
 {
-	Surfaces::iterator end = this->slices.surfaces.end();
-	for (Surfaces::iterator surface = this->slices.surfaces.begin(); surface != end; ++surface) {
+	// Make a copy of the original surfaces to avoid reslicing if modify_slices is
+	// invoked multiple times
+	if(this->unmodified_slices.surfaces.size() == 0) {
+		this->unmodified_slices.append(this->slices);
+	}
+
+	// remove previously modified surfaces
+	this->slices.surfaces.clear();
+
+	for (Surfaces::iterator surface = this->unmodified_slices.surfaces.begin(); surface != this->unmodified_slices.surfaces.end(); ++surface) {
 		Polygons subject;
 		subject.push_back(surface->expolygon.contour);
 		Polygons clip;
-		for (Polygons::iterator p = surface->expolygon.holes.begin(); p != surface->expolygon.holes.end(); ++p) {
+		clip.insert(clip.end(), surface->expolygon.holes.begin(), surface->expolygon.holes.end());
+
+		for (Polygons::iterator p = polygons.begin(); p != polygons.end(); ++p) {
+			// Internal polygons must be clockwise
+			p->make_clockwise();
 			clip.push_back(*p);
 		}
-		clip.push_back(polygon);
+
+		// modify island by cutting away inner polygons
 		ExPolygons diffp = diff_ex(subject, clip);
-		std::cout << "nr of resulting polygons: " << diffp.size() << "\n";
-		if(diffp.size() > 0) {
-			surface->expolygon = diffp[0];
-			if(diffp.size() > 1) {
-				std::cout << "Polygon zerfallen!!!!!!!!!!!!" << "\n";
-				/*for (ExPolygons::iterator exp = diffp.begin()+1; exp != diffp.end(); ++exp) {
-					this->slices.surfaces.push_back(*exp);
-				}*/
-			}
+
+		for (ExPolygons::iterator exp = diffp.begin(); exp != diffp.end(); ++exp) {
+			// generate new surface(s) and copy properties from unmodified surface
+			Surface s = Surface(surface->surface_type, *exp);
+			s.thickness = surface->thickness;
+			s.thickness_layers = surface->thickness_layers;
+			s.bridge_angle = surface->bridge_angle;
+			s.extra_perimeters = surface->extra_perimeters;
+			this->slices.surfaces.push_back(s);
 		}
 	}
 }
+
 
 void
 LayerRegion::make_perimeters(const SurfaceCollection &slices, SurfaceCollection* fill_surfaces)
