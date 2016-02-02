@@ -71,6 +71,10 @@
     size_t region_count();
     Ref<LayerRegion> get_region(int idx);
     Ref<LayerRegion> add_region(PrintRegion* print_region);
+    
+    void setDirty(bool dirty);
+	bool isDirty()
+		%code%{ RETVAL = THIS->isDirty(); %};
 
     Ref<ExPolygonCollection> slices()
         %code%{ RETVAL = &THIS->slices; %};

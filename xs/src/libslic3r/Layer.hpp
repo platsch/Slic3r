@@ -101,6 +101,8 @@ class Layer {
     size_t region_count() const;
     LayerRegion* get_region(int idx);
     LayerRegion* add_region(PrintRegion* print_region);
+    void setDirty(bool dirty);
+    bool isDirty();
     
     void make_slices();
     void merge_slices();
@@ -111,6 +113,7 @@ class Layer {
     protected:
     size_t _id;     // sequential number of layer, 0-based
     PrintObject *_object;
+    bool dirty;		// used for partial re-processing after modifications from electronic part placing
 
 
     Layer(size_t id, PrintObject *object, coordf_t height, coordf_t print_z,

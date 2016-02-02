@@ -332,44 +332,6 @@ sub slice {
     
     die "No layers were detected. You might want to repair your STL file(s) or check their size or thickness and retry.\n"
         if !@{$self->layers};
-        
-    ## Electronic parts extension
-    if($electronicPartList) {
-    	# electronic parts are placed with respect to the objects bounding box center but the object
-    	# uses the bounding box min point as origin, so we need to translate them.
-	    my $bb_offset = [$self->bounding_box->center->[0]-$self->bounding_box->min_point->[0], $self->bounding_box->center->[1]-$self->bounding_box->min_point->[1]];     
-    
-    	foreach my $layer (@{ $self->layers }) {
-    		foreach my $region_id (0 .. ($layer->region_count - 1)) {
-            	my $layerm = $layer->region($region_id);
-            	my @polygons;
-            	
-            	foreach my $part (@{$electronicPartList}) {
-            		my $polygon = $part->getHullPolygon($layer->print_z - $layer->height, $layer->print_z);
-            		
-            		# only if this part is affected and returns a valid polygon
-            		if($polygon) {	
-            			$polygon->translate($bb_offset->[0], $bb_offset->[1]);
-            			push @polygons, $polygon;
-	                    
-	                    if (0) {	                    	
-							require "Slic3r/SVG.pm";
-							Slic3r::SVG::output(
-								"diff_op_post.svg",
-								no_arrows   => 1,
-								#red_expolygons  => [$layerm->slices->[0]->expolygon]
-								red_expolygons  => [Slic3r::ExPolygon->new($polygons[0])],
-							);
-						}
-            		}
-            	}
-            	# cut part from object polygon
-            	if(scalar @polygons > 0){ 
-            		$layerm->modify_slices(\@polygons);
-    			}
-    		}
-    	}
-    }
     
     $self->set_typed_slices(0);
     $self->set_step_done(STEP_SLICE);
@@ -417,8 +379,11 @@ sub make_perimeters {
     $self->set_step_started(STEP_PERIMETERS);
     $self->print->status_cb->(20, "Generating perimeters");
     
+    $self->process_electronic_parts;
+    
     # merge slices if they were split into types
     if ($self->typed_slices) {
+    	print "!!!TYPED SLICES!!!\n";
         $_->merge_slices for @{$self->layers};
         $self->set_typed_slices(0);
         $self->invalidate_step(STEP_PREPARE_INFILL);
@@ -440,55 +405,57 @@ sub make_perimeters {
         next if $region->config->fill_density == 0;
         
         for my $i (0 .. ($self->layer_count - 2)) {
-            my $layerm                  = $self->get_layer($i)->get_region($region_id);
-            my $upper_layerm            = $self->get_layer($i+1)->get_region($region_id);
-            
-            my $perimeter_spacing       = $layerm->flow(FLOW_ROLE_PERIMETER)->scaled_spacing;
-            my $ext_perimeter_flow      = $layerm->flow(FLOW_ROLE_EXTERNAL_PERIMETER);
-            my $ext_perimeter_width     = $ext_perimeter_flow->scaled_width;
-            my $ext_perimeter_spacing   = $ext_perimeter_flow->scaled_spacing;
-            
-            foreach my $slice (@{$layerm->slices}) {
-                while (1) {
-                    # compute the total thickness of perimeters
-                    my $perimeters_thickness = $ext_perimeter_width/2 + $ext_perimeter_spacing/2
-                        + ($region_perimeters-1 + $slice->extra_perimeters) * $perimeter_spacing;
-                    
-                    # define a critical area where we don't want the upper slice to fall into
-                    # (it should either lay over our perimeters or outside this area)
-                    my $critical_area_depth = $perimeter_spacing*1.5;
-                    my $critical_area = diff(
-                        offset($slice->expolygon->arrayref, -$perimeters_thickness),
-                        offset($slice->expolygon->arrayref, -($perimeters_thickness + $critical_area_depth)),
-                    );
-                    
-                    # check whether a portion of the upper slices falls inside the critical area
-                    my $intersection = intersection_ppl(
-                        [ map $_->p, @{$upper_layerm->slices} ],
-                        $critical_area,
-                    );
-                    
-                    # only add an additional loop if at least 30% of the slice loop would benefit from it
-                    my $total_loop_length = sum(map $_->length, map $_->p, @{$upper_layerm->slices}) // 0;
-                    my $total_intersection_length = sum(map $_->length, @$intersection) // 0;
-                    last unless $total_intersection_length > $total_loop_length*0.3;
-                    
-                    if (0) {
-                        require "Slic3r/SVG.pm";
-                        Slic3r::SVG::output(
-                            "extra.svg",
-                            no_arrows   => 1,
-                            expolygons  => union_ex($critical_area),
-                            polylines   => [ map $_->split_at_first_point, map $_->p, @{$upper_layerm->slices} ],
-                        );
-                    }
-                    
-                    $slice->extra_perimeters($slice->extra_perimeters + 1);
-                }
-                Slic3r::debugf "  adding %d more perimeter(s) at layer %d\n",
-                    $slice->extra_perimeters, $layerm->layer->id
-                    if $slice->extra_perimeters > 0;
-            }
+        	if($self->get_layer($i)->isDirty) {
+	            my $layerm                  = $self->get_layer($i)->get_region($region_id);
+	            my $upper_layerm            = $self->get_layer($i+1)->get_region($region_id);
+	            
+	            my $perimeter_spacing       = $layerm->flow(FLOW_ROLE_PERIMETER)->scaled_spacing;
+	            my $ext_perimeter_flow      = $layerm->flow(FLOW_ROLE_EXTERNAL_PERIMETER);
+	            my $ext_perimeter_width     = $ext_perimeter_flow->scaled_width;
+	            my $ext_perimeter_spacing   = $ext_perimeter_flow->scaled_spacing;
+	            
+	            foreach my $slice (@{$layerm->slices}) {
+	                while (1) {
+	                    # compute the total thickness of perimeters
+	                    my $perimeters_thickness = $ext_perimeter_width/2 + $ext_perimeter_spacing/2
+	                        + ($region_perimeters-1 + $slice->extra_perimeters) * $perimeter_spacing;
+	                    
+	                    # define a critical area where we don't want the upper slice to fall into
+	                    # (it should either lay over our perimeters or outside this area)
+	                    my $critical_area_depth = $perimeter_spacing*1.5;
+	                    my $critical_area = diff(
+	                        offset($slice->expolygon->arrayref, -$perimeters_thickness),
+	                        offset($slice->expolygon->arrayref, -($perimeters_thickness + $critical_area_depth)),
+	                    );
+	                    
+	                    # check whether a portion of the upper slices falls inside the critical area
+	                    my $intersection = intersection_ppl(
+	                        [ map $_->p, @{$upper_layerm->slices} ],
+	                        $critical_area,
+	                    );
+	                    
+	                    # only add an additional loop if at least 30% of the slice loop would benefit from it
+	                    my $total_loop_length = sum(map $_->length, map $_->p, @{$upper_layerm->slices}) // 0;
+	                    my $total_intersection_length = sum(map $_->length, @$intersection) // 0;
+	                    last unless $total_intersection_length > $total_loop_length*0.3;
+	                    
+	                    if (0) {
+	                        require "Slic3r/SVG.pm";
+	                        Slic3r::SVG::output(
+	                            "extra.svg",
+	                            no_arrows   => 1,
+	                            expolygons  => union_ex($critical_area),
+	                            polylines   => [ map $_->split_at_first_point, map $_->p, @{$upper_layerm->slices} ],
+	                        );
+	                    }
+	                    
+	                    $slice->extra_perimeters($slice->extra_perimeters + 1);
+	                }
+	                Slic3r::debugf "  adding %d more perimeter(s) at layer %d\n",
+	                    $slice->extra_perimeters, $layerm->layer->id
+	                    if $slice->extra_perimeters > 0;
+	            }
+        	}
         }
     }
     
@@ -498,11 +465,17 @@ sub make_perimeters {
         thread_cb => sub {
             my $q = shift;
             while (defined (my $i = $q->dequeue)) {
-                $self->get_layer($i)->make_perimeters;
+            	if($self->get_layer($i)->isDirty) {
+                	$self->get_layer($i)->make_perimeters;
+            	}
             }
         },
         no_threads_cb => sub {
-            $_->make_perimeters for @{$self->layers};
+        	foreach my $layer (@{$self->layers}) {
+        		if($layer->isDirty) {
+            		$layer->make_perimeters;
+        		}
+        	}
         },
     );
     
@@ -512,6 +485,49 @@ sub make_perimeters {
     ###$self->_simplify_slices(&Slic3r::SCALED_RESOLUTION);
     
     $self->set_step_done(STEP_PERIMETERS);
+}
+
+sub process_electronic_parts {
+	my ($self) = @_;
+	
+	## Electronic parts extension
+    if($electronicPartList) {
+    	# electronic parts are placed with respect to the objects bounding box center but the object
+    	# uses the bounding box min point as origin, so we need to translate them.
+	    my $bb_offset = [$self->bounding_box->center->[0]-$self->bounding_box->min_point->[0], $self->bounding_box->center->[1]-$self->bounding_box->min_point->[1]];     
+    
+    	foreach my $layer (@{ $self->layers }) {
+    		foreach my $region_id (0 .. ($layer->region_count - 1)) {
+            	my $layerm = $layer->region($region_id);
+            	my @polygons;
+            	
+            	foreach my $part (@{$electronicPartList}) {
+            		my $polygon = $part->getHullPolygon($layer->print_z - $layer->height, $layer->print_z);
+            		
+            		# only if this part is affected and returns a valid polygon
+            		if($polygon) {	
+            			$polygon->translate($bb_offset->[0], $bb_offset->[1]);
+            			push @polygons, $polygon;
+	                    
+	                    if (0) {	                    	
+							require "Slic3r/SVG.pm";
+							Slic3r::SVG::output(
+								"diff_op_post.svg",
+								no_arrows   => 1,
+								#red_expolygons  => [$layerm->slices->[0]->expolygon]
+								red_expolygons  => [Slic3r::ExPolygon->new($polygons[0])],
+							);
+						}
+            		}
+            	}
+            	# cut part from object polygon
+            	if(scalar @polygons > 0){ 
+            		$layerm->modify_slices(\@polygons);
+            		$layer->setDirty(1);
+    			}
+    		}
+    	}
+    }
 }
 
 sub prepare_infill {
@@ -554,7 +570,7 @@ sub prepare_infill {
 
 sub infill {
     my ($self) = @_;
-    
+        
     # prerequisites
     $self->prepare_infill;
     
@@ -573,20 +589,30 @@ sub infill {
         },
         thread_cb => sub {
             my $q = shift;
-            while (defined (my $obj_layer = $q->dequeue)) {
+            while (defined (my $obj_layer = $q->dequeue)) {	
                 my ($i, $region_id) = @$obj_layer;
-                my $layerm = $self->get_layer($i)->regions->[$region_id];
-                $layerm->fills->clear;
-                $layerm->fills->append($_) for $self->fill_maker->make_fill($layerm);
+                if($self->get_layer($i)->isDirty) {
+	                my $layerm = $self->get_layer($i)->regions->[$region_id];
+	                $layerm->fills->clear;
+	                $layerm->fills->append($_) for $self->fill_maker->make_fill($layerm);
+                }
             }
         },
         no_threads_cb => sub {
-            foreach my $layerm (map @{$_->regions}, @{$self->layers}) {
-                $layerm->fills->clear;
-                $layerm->fills->append($_) for $self->fill_maker->make_fill($layerm);
-            }
+        	foreach my $layer (@{$self->layers}) {
+        		if($layer->isDirty) {
+	            	foreach my $layerm (@{$self->layers->regions}) {
+	                	$layerm->fills->clear;
+	                	$layerm->fills->append($_) for $self->fill_maker->make_fill($layerm);
+	            	}
+        		}
+        	}
         },
     );
+    
+    foreach my $layer (@{$self->layers}) {
+    	$layer->setDirty(0);
+    }
 
     ### we could free memory now, but this would make this step not idempotent
     ### $_->fill_surfaces->clear for map @{$_->regions}, @{$object->layers};

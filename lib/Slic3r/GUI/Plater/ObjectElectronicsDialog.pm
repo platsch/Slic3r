@@ -573,8 +573,9 @@ sub placePart {
     $self->reload_tree($self->findVolumeId($part->{volume}));
     
     # trigger slicing steps to update modifications;
-    $self->{print}->objects->[$self->{obj_idx}]->invalidate_step(STEP_SLICE);
-    $self->{plater}->schedule_background_process;
+    $self->{print}->objects->[$self->{obj_idx}]->invalidate_step(STEP_PERIMETERS);
+    $self->{plater}->stop_background_process;
+    $self->{plater}->start_background_process(1);
     
 }
 

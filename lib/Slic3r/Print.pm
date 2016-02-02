@@ -12,6 +12,7 @@ use Slic3r::Geometry qw(X Y Z X1 Y1 X2 Y2 MIN MAX PI scale unscale convex_hull);
 use Slic3r::Geometry::Clipper qw(diff_ex union_ex intersection_ex intersection offset
     offset2 union union_pt_chained JT_ROUND JT_SQUARE);
 use Slic3r::Print::State ':steps';
+use Time::HiRes qw(time); # temporary for debugging, should be removed!
 
 our $status_cb;
 
@@ -38,13 +39,45 @@ sub size {
 
 sub process {
     my ($self) = @_;
-    
-    $_->make_perimeters for @{$self->objects};
+    # make all layers "dirty"
+    foreach my $object (@{$self->objects}) {
+    	print "object\n";
+    	print "layers: " . scalar @{$object->layers} . "\n";
+    	$_->setDirty(1) for @{$object->layers};
+    	foreach my $layer (@{$object->layers}) {
+    		print "process, dirty? " . $layer->isDirty . "\n";
+    	}
+    }
+    $self->process_by_layer;
+}
+
+sub process_by_layer {
+	my ($self) = @_;
+	
+	my $start = time;
+	my $tmpstart = time;
+	
+	$_->make_perimeters for @{$self->objects};
+	my $duration = time - $tmpstart;
+	$tmpstart = time;
+	print "make perimeters: $duration s\n";
     $_->infill for @{$self->objects};
+    $duration = time - $tmpstart;
+	$tmpstart = time;
+	print "infill: $duration s\n";
     $_->generate_support_material for @{$self->objects};
+    $duration = time - $tmpstart;
+	$tmpstart = time;
+	print "support: $duration s\n";
     $self->make_skirt;
-    $self->make_brim;  # must come after make_skirt
-    
+    $self->make_brim;  # must come after make_skirt    
+    $duration = time - $tmpstart;
+	$tmpstart = time;
+	print "skirt/brim: $duration s\n";
+
+	$duration = time - $start;
+	print "Full Execution time: $duration s\n";
+	    
     # time to make some statistics
     if (0) {
         eval "use Devel::Size";
