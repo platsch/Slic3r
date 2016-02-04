@@ -383,7 +383,6 @@ sub make_perimeters {
     
     # merge slices if they were split into types
     if ($self->typed_slices) {
-    	print "!!!TYPED SLICES!!!\n";
         $_->merge_slices for @{$self->layers};
         $self->set_typed_slices(0);
         $self->invalidate_step(STEP_PREPARE_INFILL);
@@ -494,7 +493,16 @@ sub process_electronic_parts {
     if($electronicPartList) {
     	# electronic parts are placed with respect to the objects bounding box center but the object
     	# uses the bounding box min point as origin, so we need to translate them.
-	    my $bb_offset = [$self->bounding_box->center->[0]-$self->bounding_box->min_point->[0], $self->bounding_box->center->[1]-$self->bounding_box->min_point->[1]];     
+	    my $bb_offset = [$self->bounding_box->center->[0]-$self->bounding_box->min_point->[0], $self->bounding_box->center->[1]-$self->bounding_box->min_point->[1]];
+	    
+	    # scope for marking adjacent layers dirty	    
+	    my $dirty_scope = 1;
+	    foreach my $region (@{$self->print->regions}) {
+	    	$dirty_scope = max($dirty_scope, 
+	    	$region->config->infill_every_layers,
+	    	$region->config->top_solid_layers,
+	    	$region->config->bottom_solid_layers);
+	    }
     
     	foreach my $layer (@{ $self->layers }) {
     		foreach my $region_id (0 .. ($layer->region_count - 1)) {
@@ -523,9 +531,19 @@ sub process_electronic_parts {
             	# cut part from object polygon
             	if(scalar @polygons > 0){ 
             		$layerm->modify_slices(\@polygons);
-            		$layer->setDirty(1);
+            		# Adjacent layers are possibly also affected due to combined infill
+            		# and/or solid TOP/BOTTOM shells -> mark all layers in this scope dirty.
+            		for my $layer_id (($layer->id - $dirty_scope) .. ($layer->id + $dirty_scope)) {
+            			if($layer_id > 0 && $layer_id < $self->layer_count) {
+            				$self->get_layer($layer_id)->setDirty(1);
+            			}
+            		}
     			}
     		}
+    	}
+    	# make slices by merging all slices from layer regions
+    	foreach my $layer (@{ $self->layers }) {
+    		if($layer->isDirty) {$layer->make_slices;}
     	}
     }
 }

@@ -41,12 +41,7 @@ sub process {
     my ($self) = @_;
     # make all layers "dirty"
     foreach my $object (@{$self->objects}) {
-    	print "object\n";
-    	print "layers: " . scalar @{$object->layers} . "\n";
     	$_->setDirty(1) for @{$object->layers};
-    	foreach my $layer (@{$object->layers}) {
-    		print "process, dirty? " . $layer->isDirty . "\n";
-    	}
     }
     $self->process_by_layer;
 }

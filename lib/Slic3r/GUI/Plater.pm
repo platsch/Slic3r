@@ -1004,13 +1004,6 @@ sub async_apply_config {
 sub start_background_process {
     my ($self, $by_layer) = @_;
     
-    if (defined $by_layer) {
-    	print "by layer\n";	
-    }else{
-    	print "not by layer\n";
-    }
-    
-    
     return if !$Slic3r::have_threads;
     return if !@{$self->{objects}};
     return if $self->{process_thread};
@@ -1041,11 +1034,9 @@ sub start_background_process {
     $self->{process_thread} = Slic3r::spawn_thread(sub {
         eval {
         	if(defined $by_layer) {
-        		print "spawn process by layer\n";
         		$self->{print}->process_by_layer;
         	}else{
         		$self->{print}->process;
-        		print "spawn process for all layers\n";
         	}
             
         };
