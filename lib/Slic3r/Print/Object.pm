@@ -4,7 +4,7 @@ use warnings;
 
 use List::Util qw(min max sum first);
 use Slic3r::Flow ':roles';
-use Slic3r::Geometry qw(X Y Z PI scale unscale chained_path);
+use Slic3r::Geometry qw(X Y Z PI scale unscale chained_path epsilon);
 use Slic3r::Geometry::Clipper qw(diff diff_ex intersection intersection_ex union union_ex 
     offset offset_ex offset2 offset2_ex intersection_ppl CLIPPER_OFFSET_SCALE JT_MITER);
 use Slic3r::Print::State ':steps';
@@ -588,7 +588,7 @@ sub prepare_infill {
 
 sub infill {
     my ($self) = @_;
-        
+    
     # prerequisites
     $self->prepare_infill;
     
@@ -598,33 +598,21 @@ sub infill {
     
     Slic3r::parallelize(
         threads => $self->print->config->threads,
-        items => sub {
-            my @items = ();  # [layer_id, region_id]
-            for my $region_id (0 .. ($self->print->region_count-1)) {
-                push @items, map [$_, $region_id], 0..($self->layer_count - 1);
-            }
-            @items;
-        },
+        items => sub { 0..$#{$self->layers} },
         thread_cb => sub {
             my $q = shift;
-            while (defined (my $obj_layer = $q->dequeue)) {	
-                my ($i, $region_id) = @$obj_layer;
-                if($self->get_layer($i)->isDirty) {
-	                my $layerm = $self->get_layer($i)->regions->[$region_id];
-	                $layerm->fills->clear;
-	                $layerm->fills->append($_) for $self->fill_maker->make_fill($layerm);
-                }
+            while (defined (my $i = $q->dequeue)) {
+				if($self->get_layer($i)->isDirty) {
+                	$self->get_layer($i)->make_fill;
+				}
             }
         },
         no_threads_cb => sub {
-        	foreach my $layer (@{$self->layers}) {
-        		if($layer->isDirty) {
-	            	foreach my $layerm (@{$self->layers->regions}) {
-	                	$layerm->fills->clear;
-	                	$layerm->fills->append($_) for $self->fill_maker->make_fill($layerm);
-	            	}
-        		}
-        	}
+            foreach my $layer (@{$self->layers}) {
+				if($layer->isDirty) {
+                	$layer->make_fill;
+				}
+            }
         },
     );
     
@@ -1113,7 +1101,7 @@ sub combine_infill {
                 
                 # check whether the combination of this layer with the lower layers' buffer
                 # would exceed max layer height or max combined layer count
-                if ($current_height + $height >= $nozzle_diameter || $layers >= $every) {
+                if ($current_height + $height >= $nozzle_diameter + epsilon || $layers >= $every) {
                     # append combination to lower layer
                     $combine{$layer_idx-1} = $layers;
                     $current_height = $layers = 0;
