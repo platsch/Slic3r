@@ -480,16 +480,16 @@ sub reload_print {
     for my $part (@{$self->{schematic}->{partlist}}) {
         $part->{shown} = 0;
     }
-    $self->load_print;
+    $self->render_print;
 }
 
 #######################################################################
-# Purpose    : loads the print and the objects on the canvas
+# Purpose    : renders the print preview and the objects on the canvas
 # Parameters : none
 # Returns    : undef if not loaded
 # Commet     : First loads Print, second footprints and third parts
 #######################################################################
-sub load_print {
+sub render_print {
     my ($self) = @_;
     return if $self->_loaded;
     
@@ -729,6 +729,12 @@ sub reload_tree {
     $tree->ExpandAll;
     
     $self->{tree}->SelectItem($selectedId);
+    
+    my $a = Slic3r::Pointf3->new(0, 0, 0);
+    my $b = Slic3r::Pointf3->new(50, 40, 10);
+    
+    $self->canvas->draw_line($b, $a, 0.5, [0, 1, 0, 0.9]);
+    $self->canvas->draw_line(Slic3r::Pointf3->new(0, 0, 20), Slic3r::Pointf3->new(50, 20, 20), 0.5);
 }
 
 #######################################################################
