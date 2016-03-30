@@ -152,6 +152,10 @@
 %typemap{Ref<GCode>}{simple};
 %typemap{Clone<GCode>}{simple};
 
+%typemap{ElectronicNet*};
+%typemap{Ref<ElectronicNet>}{simple};
+%typemap{Clone<ElectronicNet>}{simple};
+
 
 %typemap{Points};
 %typemap{Pointfs};

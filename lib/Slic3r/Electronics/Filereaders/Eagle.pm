@@ -5,7 +5,6 @@ use utf8;
 
 use XML::LibXML;
 use Slic3r::Electronics::ElectronicPart;
-use Slic3r::Electronics::ElectronicNet;
 use List::Util qw[min max];
 
 #######################################################################

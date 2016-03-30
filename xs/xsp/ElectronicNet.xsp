@@ -1,0 +1,15 @@
+%module{Slic3r::XS};
+
+%{
+#include <xsinit.h>
+#include "libslic3r/ElectronicNet.hpp"
+%}
+
+%name{Slic3r::Electronics::ElectronicNet} class ElectronicNet {
+    ElectronicNet(std::string name)
+    %code{% RETVAL = new ElectronicNet(name); %};
+    ~ElectronicNet();
+    Clone<ElectronicNet> clone()
+        %code{% RETVAL = THIS; %};
+    void addPin(std::string part, std::string pin, std::string gate);
+};

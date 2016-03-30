@@ -55,6 +55,7 @@ REGISTER_CLASS(Surface, "Surface");
 REGISTER_CLASS(SurfaceCollection, "Surface::Collection");
 REGISTER_CLASS(TriangleMesh, "TriangleMesh");
 REGISTER_CLASS(GLVertexArray, "GUI::_3DScene::GLVertexArray");
+REGISTER_CLASS(ElectronicNet, "Electronics::ElectronicNet");
 
 SV*
 ConfigBase__as_hash(ConfigBase* THIS) {

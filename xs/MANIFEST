@@ -18,6 +18,9 @@ src/libslic3r/ClipperUtils.cpp
 src/libslic3r/ClipperUtils.hpp
 src/libslic3r/Config.cpp
 src/libslic3r/Config.hpp
+src/libslic3r/ElectronicNet.hpp
+src/libslic3r/ElectronicNet.cpp
+src/libslic3r/ElectronicNetPin.cpp
 src/libslic3r/ExPolygon.cpp
 src/libslic3r/ExPolygon.hpp
 src/libslic3r/ExPolygonCollection.cpp
@@ -123,6 +126,7 @@ xsp/BoundingBox.xsp
 xsp/BridgeDetector.xsp
 xsp/Clipper.xsp
 xsp/Config.xsp
+xsp/ElectronicNet.xsp
 xsp/ExPolygon.xsp
 xsp/ExPolygonCollection.xsp
 xsp/Extruder.xsp
