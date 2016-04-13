@@ -7,6 +7,8 @@ use XML::LibXML;
 use Slic3r::Electronics::ElectronicPart;
 use List::Util qw[min max];
 
+use Devel::Peek 'SvREFCNT';
+
 #######################################################################
 # Purpose    : Reads file of the Eagle type
 # Parameters : Filename to read
@@ -20,7 +22,7 @@ sub readFile {
     my $parser = XML::LibXML->new();
     my $xmldoc = $parser->parse_file($filename);
     
-    $schematic->{filename} = $filename;
+    $schematic->setFilename($filename);
 
     for my $sheet ($xmldoc->findnodes('/eagle/drawing/schematic/sheets/sheet')) {
         for my $instance ($sheet->findnodes('./instances/instance')) {
@@ -32,14 +34,18 @@ sub readFile {
                 for my $devicesetlist ($xmldoc->findnodes("/eagle/drawing/schematic/libraries/library[\@name='$library']/devicesets/deviceset[\@name='$deviceset']/devices/device[\@name='$device']")) {
                     my $package = $devicesetlist->getAttribute('package');
                     if (defined $package) {
-                        my $newpart = Slic3r::Electronics::ElectronicPart->new(
-                        	$config,
+                        my $newpart = Slic3r::Electronics::ElectronicPart->new(#$schematic->addElectronicPart(
+#                        	$config,
+#                        );
                             $part,
                             $library,
                             $deviceset,
                             $device,
                             $package,
                         );
+                        
+                        print "reference count: ", SvREFCNT($newpart), "\n";
+                        
                         for my $packagelist ($xmldoc->findnodes("/eagle/drawing/schematic/libraries/library[\@name='$library']/packages/package[\@name='$package']/smd")) {
                             my $shape = $packagelist->getAttribute('shape');
                             my $rotation = $packagelist->getAttribute('rot');
@@ -137,16 +143,17 @@ sub readFile {
                         }
                         my $x = $xmax-$xmin;
                         my $y = $ymax-$ymin;
-                        my $z = $newpart->getPartheight;
-                        $newpart->setPartsize($x,$y,$z);
-                        $newpart->setPartpos($xmax-$x/2,$ymax-$y/2,0);
-                        push @{$schematic->{partlist}}, $newpart;
+                        my $z = $newpart->getPartHeight;
+                        $newpart->setSize($x,$y,$z);
+                        $newpart->setPartOrigin($xmax-$x/2,$ymax-$y/2,0);
+                        $schematic->addElectronicPart($newpart);                        
                     } else {
                         print $part, " has no package assigned.\n";
                     }
                 }
             }
         }
+        
         for my $net ($sheet->findnodes('./nets/net')) {
             my $newnet = Slic3r::Electronics::ElectronicNet->new($net->getAttribute('name'));
             for my $segment ($net->findnodes('./segment')) {
@@ -158,7 +165,7 @@ sub readFile {
                     );
                 }
             }
-            push @{$schematic->{netlist}}, $newnet;
+            $schematic->addElectronicNet($newnet);
         }
     }
     

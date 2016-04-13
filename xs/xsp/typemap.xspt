@@ -152,6 +152,15 @@
 %typemap{Ref<GCode>}{simple};
 %typemap{Clone<GCode>}{simple};
 
+%typemap{Schematic*};
+%typemap{Ref<Schematic>}{simple};
+%typemap{Clone<Schematic>}{simple};
+
+%typemap{ElectronicPart*};
+%typemap{ElectronicParts*};
+%typemap{Ref<ElectronicPart>}{simple};
+%typemap{Clone<ElectronicPart>}{simple};
+
 %typemap{ElectronicNet*};
 %typemap{Ref<ElectronicNet>}{simple};
 %typemap{Clone<ElectronicNet>}{simple};

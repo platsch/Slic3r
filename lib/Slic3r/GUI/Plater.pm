@@ -54,7 +54,7 @@ sub new {
     $self->{print} = Slic3r::Print->new;
     $self->{objects} = [];
     
-    $self->{schematic} = {};
+    $self->{schematic} = Slic3r::Electronics::Schematic->new;
     
     $self->{print}->set_status_cb(sub {
         my ($percent, $message) = @_;
@@ -1605,7 +1605,7 @@ sub object_settings_dialog {
 #######################################################################
 # Purpose    : Opens the 3D electronics window
 # Parameters : object to integrate electronics
-# Returns    : undef of config is not valid
+# Returns    : undef if config is not valid
 # Commet     : 
 #######################################################################
 sub object_electronics_dialog {
@@ -1621,7 +1621,7 @@ sub object_electronics_dialog {
     # that dialog can't be closed if validation fails, but user
     # can't fix any error which is outside that dialog
     return unless $self->validate_config;
-       
+    
     $self->{electronicPartsDlg} = Slic3r::GUI::Plater::ObjectElectronicsDialog->new($self,
         $self->{print},
         obj_idx			=> $obj_idx,

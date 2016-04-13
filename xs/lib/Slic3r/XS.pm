@@ -199,6 +199,7 @@ sub new {
 package Slic3r::GUI::_3DScene::GLVertexArray;
 sub CLONE_SKIP { 1 }
 
+
 package main;
 for my $class (qw(
         Slic3r::BridgeDetector
@@ -249,6 +250,7 @@ for my $class (qw(
         Slic3r::Surface
         Slic3r::Surface::Collection
         Slic3r::TriangleMesh
+        Slic3r::Electronics::ElectronicPart
     ))
 {
     no strict 'refs';

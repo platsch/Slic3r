@@ -55,6 +55,8 @@ REGISTER_CLASS(Surface, "Surface");
 REGISTER_CLASS(SurfaceCollection, "Surface::Collection");
 REGISTER_CLASS(TriangleMesh, "TriangleMesh");
 REGISTER_CLASS(GLVertexArray, "GUI::_3DScene::GLVertexArray");
+REGISTER_CLASS(Schematic, "Electronics::Schematic");
+REGISTER_CLASS(ElectronicPart, "Electronics::ElectronicPart");
 REGISTER_CLASS(ElectronicNet, "Electronics::ElectronicNet");
 
 SV*

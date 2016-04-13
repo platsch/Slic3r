@@ -18,42 +18,42 @@ use Slic3r::Geometry::Clipper qw(diff diff_ex);
 # Purpose    : Generates new Part
 # Parameters : Name, library, deviceset, device and package of new part
 # Returns    : Reference to new Part
-# Commet     :
+# Comment    :
 #######################################################################
-sub new {
-    my $class = shift;
-    my $self = {};
-    bless ($self, $class);
-    my ($config,$name,$library,$deviceset,$device,$package) = @_;
-    $self->{config} = $config;
-    $self->{name} = $name;
-    $self->{library} = $library;
-    $self->{deviceset} = $deviceset;
-    $self->{device} = $device;
-    $self->{package} = $package;
-    $self->{height} = undef;
-    $self->{volume} = undef;
-    $self->{chipVolume} = undef;
-    $self->{shown} = 0;
-    $self->{printed} = 0;
-    
-    my @position = @{$self->{position}} = (undef,undef,undef);
-    my @rotation = @{$self->{rotation}} = (0,0,0);
-    
-    my @padlist = @{$self->{padlist}} = ();
-    
-    my @componentpos = @{$self->{componentpos}} = (0,0,0);
-    
-    my @componentsize = @{$self->{componentsize}} = (0,0,0);
-
-    return $self;
-}
+#sub new {
+#    my $class = shift;
+#    my $self = {};
+#    bless ($self, $class);
+#    my ($config,$name,$library,$deviceset,$device,$package) = @_;
+#    $self->{config} = $config;
+#    $self->{name} = $name;
+#    $self->{library} = $library;
+#    $self->{deviceset} = $deviceset;
+#    $self->{device} = $device;
+#    $self->{package} = $package;
+#    $self->{height} = undef;
+#    $self->{volume} = undef;
+#    $self->{chipVolume} = undef;
+#    $self->{shown} = 0;
+#    $self->{printed} = 0;
+#    
+#    my @position = @{$self->{position}} = (undef,undef,undef);
+#    my @rotation = @{$self->{rotation}} = (0,0,0);
+#    
+#    my @padlist = @{$self->{padlist}} = ();
+#    
+#    my @componentpos = @{$self->{componentpos}} = (0,0,0);
+#    
+#    my @componentsize = @{$self->{componentsize}} = (0,0,0);
+#
+#    return $self;
+#}
 
 #######################################################################
 # Purpose    : Removes the position of the part
 # Parameters : none
 # Returns    : none
-# Commet     : Doesnt removes the part itself
+# Comment    : Doesnt removes the part itself
 #######################################################################
 sub removePart {
     my $self = shift;
@@ -67,19 +67,19 @@ sub removePart {
 # Purpose    : Sets the position of the part
 # Parameters : x, y, z coordinates of the part
 # Returns    : none
-# Commet     : coordinates have to be valid
+# Comment    : coordinates have to be valid
 #######################################################################
-sub setPosition {
-    my $self = shift;
-    my ($x,$y,$z) = @_;
-    $self->{position} = [$x,$y,$z];
-}
+#sub setPosition {
+#    my $self = shift;
+#    my ($x,$y,$z) = @_;
+#    $self->{position} = [$x,$y,$z];
+#}
 
 #######################################################################
 # Purpose    : Sets the rotation angles of the part
 # Parameters : x, y, z rotation angles
 # Returns    : none
-# Commet     : rotation angles have to be in degree and valid
+# Comment    : rotation angles have to be in degree and valid
 #######################################################################
 sub setRotation {
     my $self = shift;
@@ -91,19 +91,19 @@ sub setRotation {
 # Purpose    : Sets the componentsize of the part itself
 # Parameters : x, y, z dimensions of the part
 # Returns    : none
-# Commet     : values have to be valid
+# Comment    : values have to be valid
 #######################################################################
-sub setPartsize {
-    my $self = shift;
-    my ($x,$y,$z) = @_;
-    $self->{componentsize} = [$x,$y,$z];
-}
+#sub setPartsize {
+#    my $self = shift;
+#    my ($x,$y,$z) = @_;
+#    $self->{componentsize} = [$x,$y,$z];
+#}
 
 #######################################################################
 # Purpose    : returns the componentsize of the part
 # Parameters : none
 # Returns    : (x, y, z) dimensions of the part
-# Commet     : when the dimensions are not set,
+# Comment    : when the dimensions are not set,
 #            : they are calculated by the footprint
 #######################################################################
 sub getPartsize {
@@ -141,46 +141,46 @@ sub getPartsize {
 # Purpose    : returns the height of the chip
 # Parameters : none
 # Returns    : height of chip
-# Commet     : 
+# Comment    : 
 #######################################################################
-sub getPartheight {
-    my $self = shift;
-    if ($self->{config}->{chip_height}{$self->{package}}) {
-        return $self->{config}->{chip_height}{$self->{package}};
-    } else {
-        return $self->{config}->{chip_height}{default};
-    }
-}
+#sub getPartheight {
+#    my $self = shift;
+#    if ($self->{config}->{chip_height}{$self->{package}}) {
+#        return $self->{config}->{chip_height}{$self->{package}};
+#    } else {
+#        return $self->{config}->{chip_height}{default};
+#    }
+#}
 
 #######################################################################
 # Purpose    : Sets the Partposition of the part itself
 # Parameters : x, y, z coordinates of the part
 # Returns    : none
-# Commet     : values have to be valid
+# Comment    : values have to be valid
 #######################################################################
-sub setPartpos {
-    my $self = shift;
-    my ($x,$y,$z) = @_;
-    $self->{componentpos} = [$x,$y,$z];
-}
+#sub setPartpos {
+#    my $self = shift;
+#    my ($x,$y,$z) = @_;
+#    $self->{componentpos} = [$x,$y,$z];
+#}
 
 #######################################################################
 # Purpose    : adds a pad to the footprint of the part
 # Parameters : see Slic3r::Electronics::ElectronicPad->new
 # Returns    : none
-# Commet     :
+# Comment    :
 #######################################################################
-sub addPad {
-    my $self = shift;
-    my $pad = Slic3r::Electronics::ElectronicPad->new(@_);
-    push @{$self->{padlist}}, $pad;
-}
+#sub addPad {
+#    my $self = shift;
+#    my $pad = Slic3r::Electronics::ElectronicPad->new(@_);
+#    push @{$self->{padlist}}, $pad;
+#}
 
 #######################################################################
 # Purpose    : Gives a model of the parts footprint
 # Parameters : none
 # Returns    : Footprint model
-# Commet     : The model is translated and rotated
+# Comment    : The model is translated and rotated
 #######################################################################
 sub getFootprintModel {
     my $self = shift;
@@ -202,7 +202,7 @@ sub getFootprintModel {
 # Purpose    : Gives a model of the parts
 # Parameters : none
 # Returns    : Part model
-# Commet     : The model is translated and rotated
+# Comment    : The model is translated and rotated
 #######################################################################
 sub getPartModel {
     my $self = shift;
@@ -217,7 +217,7 @@ sub getPartModel {
 # Purpose    : Converts triagles to a triaglesMesh
 # Parameters : Triagles to convert
 # Returns    : a Model
-# Commet     : Translates and rotates the model
+# Comment    : Translates and rotates the model
 #######################################################################
 sub getTriangleMesh {
     my $self = shift;
@@ -254,7 +254,7 @@ sub getTriangleMesh {
 #              to be removed from single layers during the slicing process
 # Parameters : none
 # Returns    : A polygon
-# Comment    : How about rotations in X/Y?
+# Comment   : How about rotations in X/Y?
 #######################################################################
 sub getHullPolygon {
 	my $self = shift;
@@ -298,7 +298,6 @@ sub getHullPolygon {
 		# apply margin to have some space between part an extruded plastic
 		$polygon = offset([$polygon], scale $self->{config}->{offset}{margin}, CLIPPER_OFFSET_SCALE, JT_SQUARE)->[0];
 		
-		# apply object rotation
 		$polygon->rotate(deg2rad($self->{rotation}[2]), Slic3r::Point->new(0, 0));
 				
 		# apply object translation
@@ -324,7 +323,7 @@ sub getHullPolygon {
 # Purpose    : Gives a vertex id for a given vertex
 # Parameters : The vertex
 # Returns    : An id
-# Commet     : If the vertex doesnt exists it will be created
+# Comment    : If the vertex doesnt exists it will be created
 #######################################################################
 sub getVertexID {
     my $self = shift;
@@ -344,7 +343,7 @@ sub getVertexID {
 # Purpose    : Transforms world coodrdinates to object coordinates
 # Parameters : world coordinates and rotation in rad
 # Returns    : transformed coordinates
-# Commet     : does not transform z axis
+# Comment    : does not transform z axis
 #######################################################################
 sub transformWorldtoObject {
     my $self = shift;
@@ -363,7 +362,7 @@ sub transformWorldtoObject {
 # Purpose    : Transforms object coodrdinates to world coordinates
 # Parameters : world coordinates and rotation in rad
 # Returns    : transformed coordinates
-# Commet     : does not transform z axis
+# Comment    : does not transform z axis
 #######################################################################
 sub transformObjecttoWorld {
     my $self = shift;
@@ -381,7 +380,7 @@ sub transformObjecttoWorld {
 # Purpose    : Returns the G-code for the placement
 # Parameters : actual layer and $id of the part
 # Returns    : G-code or ""
-# Commet     : If part should not be placed now, return ""
+# Comment    : If part should not be placed now, return ""
 #######################################################################
 sub getPlaceGcode {
     my $self = shift;
@@ -399,7 +398,7 @@ sub getPlaceGcode {
 # Purpose    : Returns the description for the placement
 # Parameters : $id of the part
 # Returns    : description 
-# Commet     : 
+# Comment    : 
 #######################################################################
 sub getPlaceDescription {
     my $self = shift;
@@ -432,41 +431,41 @@ sub getPlaceDescription {
 # Purpose    : Returns the layer where the component is placed on
 # Parameters : none
 # Returns    : position 
-# Commet     : 
+# Comment    : 
 #######################################################################
 sub getPlacementLayer {
     my $self = shift;
     return $self->{position}[2]+$self->{componentsize}[2];
 }
-
-package Slic3r::Electronics::ElectronicPad;
-use strict;
-use warnings;
-use utf8;
-
-#######################################################################
-# Purpose    : Creates a new pad
-# Parameters : type, pin, pad, gate, x, y, r, dx, dy, drill, shape of the pad
-# Returns    : A new Pad
-# Commet     : 
-#######################################################################
-sub new {
-    my $class = shift;
-    my $self = {};
-    bless ($self, $class);
-    my ($type,$pad,$pin,$gate,$x,$y,$r,$dx,$dy,$drill,$shape) = @_;
-    $self->{type} = $type;
-    $self->{pad} = $pad;
-    $self->{pin} = $pin;
-    $self->{gate} = $gate;
-    $self->{drill} = $drill;
-    $self->{shape} = $shape;
-    
-    my @position = @{$self->{position}} = ($x,$y,0);
-    my @size = @{$self->{size}} = ($dx,$dy,0);
-    my @rotation = @{$self->{rotation}} = (0,0,$r);
-    
-    return $self
-}
+#
+#package Slic3r::Electronics::ElectronicPad;
+#use strict;
+#use warnings;
+#use utf8;
+#
+########################################################################
+## Purpose    : Creates a new pad
+## Parameters : type, pin, pad, gate, x, y, r, dx, dy, drill, shape of the pad
+## Returns    : A new Pad
+## Comment    : 
+########################################################################
+#sub new {
+#    my $class = shift;
+#    my $self = {};
+#    bless ($self, $class);
+#    my ($type,$pad,$pin,$gate,$x,$y,$r,$dx,$dy,$drill,$shape) = @_;
+#    $self->{type} = $type;
+#    $self->{pad} = $pad;
+#    $self->{pin} = $pin;
+#    $self->{gate} = $gate;
+#    $self->{drill} = $drill;
+#    $self->{shape} = $shape;
+#    
+#    my @position = @{$self->{position}} = ($x,$y,0);
+#    my @size = @{$self->{size}} = ($dx,$dy,0);
+#    my @rotation = @{$self->{rotation}} = (0,0,$r);
+#    
+#    return $self
+#}
 
 1;

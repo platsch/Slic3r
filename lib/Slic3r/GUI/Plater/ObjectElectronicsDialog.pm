@@ -18,7 +18,7 @@ sub new {
     my ($parent, $print, %params) = @_;
     my $self = $class->SUPER::new($parent, -1, "3D Electronics for " . $params{object}->name, wxDefaultPosition, [800,600], &Wx::wxMAXIMIZE | &Wx::wxDEFAULT_FRAME_STYLE);
     $self->{$_} = $params{$_} for keys %params;
-    
+        
     $self->{tabpanel} = Wx::Notebook->new($self, -1, wxDefaultPosition, wxDefaultSize, wxNB_TOP | wxTAB_TRAVERSAL);
     $self->{tabpanel}->AddPage($self->{parts} = Slic3r::GUI::Plater::ElectronicsPanel->new(
     	$self->{tabpanel},
@@ -28,7 +28,7 @@ sub new {
     	model_object => $params{model_object},
     	schematic => $params{schematic}),
     "Electronics");
-        
+
     my $sizer = Wx::BoxSizer->new(wxVERTICAL);
     $sizer->Add($self->{tabpanel}, 1, wxEXPAND | wxTOP | wxLEFT | wxRIGHT, 10);
     
@@ -79,15 +79,13 @@ sub new {
     my $class = shift;
     my ($parent, $plater, $print, %params) = @_;
     my $self = $class->SUPER::new($parent, -1, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL);
-    
     $self->{plater} = $plater;
     $self->{obj_idx} = $params{obj_idx};
     my $object = $self->{model_object} = $params{model_object};
-    my $schematic = $self->{schematic} = $params{schematic};
+    $self->{schematic} = $params{schematic};
     my $place = $self->{place} = 0;
     $self->{model_object}->update_bounding_box;
-    my $root_offset = $self->{schematic}->{root_offset} = $self->{model_object}->_bounding_box->center; 
-    
+    $self->{schematic}->setRootOffset($self->{model_object}->_bounding_box->center);
     my $configfile ||= Slic3r::decode_path(Wx::StandardPaths::Get->GetUserDataDir . "/electronics/electronics.ini");
     my $config = $self->{config};
     if (-f $configfile) {
@@ -104,7 +102,7 @@ sub new {
     $buttons_sizer->Add($btn_load_netlist, 0);
     $btn_load_netlist->SetFont($Slic3r::GUI::small_font);
     
-    
+
     # create TreeCtrl
     my $tree = $self->{tree} = Wx::TreeCtrl->new($self, -1, wxDefaultPosition, [350,-1], 
         wxTR_NO_BUTTONS | wxSUNKEN_BORDER | wxTR_HAS_VARIABLE_ROW_HEIGHT
@@ -419,7 +417,7 @@ sub new {
     });
     
     $self->reload_tree;
-    
+
     return $self;
 }
 
@@ -454,13 +452,13 @@ sub sliderMoved {
     my $height =  $self->{layers_z}[$self->{slider}->GetValue];
     my $changed = 0;
     
-    for my $part (@{$self->{schematic}->{partlist}}) {
-        if (($part->{height} && 
-            ($part->{shown} == 0 && $part->{position}[2]-$part->{height} <= $height) ||
-            ($part->{shown} == 1 && $part->{position}[2]-$part->{height} > $height))) {
-            $changed = 1;
-        }
-    }
+#    for my $part (@{$self->{schematic}->{partlist}}) {
+#        if (($part->{height} && 
+#            ($part->{shown} == 0 && $part->{position}[2]-$part->{height} <= $height) ||
+#            ($part->{shown} == 1 && $part->{position}[2]-$part->{height} > $height))) {
+#            $changed = 1;
+#        }
+#    }
     $self->set_z($height);
     if ($changed == 1) {
         $self->reload_print;
@@ -477,9 +475,17 @@ sub reload_print {
     my ($self) = @_;
     $self->canvas->reset_objects;
     $self->_loaded(0);
-    for my $part (@{$self->{schematic}->{partlist}}) {
-        $part->{shown} = 0;
+    
+    print "\n\nRELOAD PRINT:\n";
+    my $partlist = $self->{schematic}->getPartlist();
+    print "schematic reference: " . $self->{schematic} . "\n";
+    print "partlist reference: " . $partlist . "\n";
+    
+    for my $part (@{$partlist}) {
+    	print "type of part: " . $part . "\n";
+	    print "getPartHeight perl loop: " . $part->getPartHeight() . "\n";
     }
+    
     $self->render_print;
 }
 
@@ -536,7 +542,8 @@ sub render_print {
         }
         
         my $height =  $self->{layers_z}[$self->{slider}->GetValue];
-                
+        
+        # Display SMD models
         my $model_object = $self->{model_object};
         for my $volume_idx (0..$#{$model_object->volumes}) {
             my $volume = $model_object->volumes->[$volume_idx];
@@ -546,6 +553,14 @@ sub render_print {
                 $part->{shown} = 1;
             }
         }
+        
+        # Display rubber-banding
+#        for my $part (@{$self->{schematic}->{partlist}}) {
+#	        if ($part->{shown}) {
+#	        	
+#	        }
+#	    }
+        
         $self->set_z($height) if $self->enabled;
         
         if (!$self->{sliderconf}) {
@@ -565,7 +580,10 @@ sub render_print {
 sub placePart {
     my $self = shift;
     my ($part, $x, $y, $z) = @_;
-    my @offset = @{$self->{schematic}->{root_offset}};
+    my @offset = 0;#@{$self->{schematic}->getRootOffset};
+    print "root offset: ";
+    print @offset;
+    print "\n";
     $part->setPosition($x, $y, $z);
     ($x,$y,$z) = $part->transformWorldtoObject(0,@offset);
     $part->setPosition($x, $y, $z);
@@ -707,24 +725,24 @@ sub reload_tree {
         });
     }
     if (defined $self->{schematic}) {
-        my $length = @{$self->{schematic}->{partlist}};
-        if ($length > 0) {
-            my $eIcon = ICON_PCB;
-            my $eItemId = $tree->AppendItem($rootId, "unplaced");
-            $tree->SetPlData($eItemId, {
-                type        => 'unplaced',
-                volume_id   => 0,
-            });
-            foreach my $part (@{$self->{schematic}->{partlist}}) {
-                if (!$part->{volume}) {
-                    my $ItemId = $tree->AppendItem($eItemId, $part->{name}, $eIcon);
-                    $tree->SetPlData($ItemId, {
-                        type        => 'part',
-                        part        => $part,
-                    });
-                }
-            }
-        }
+#        my $length = @{$self->{schematic}->{partlist}};
+#        if ($length > 0) {
+#            my $eIcon = ICON_PCB;
+#            my $eItemId = $tree->AppendItem($rootId, "unplaced");
+#            $tree->SetPlData($eItemId, {
+#                type        => 'unplaced',
+#                volume_id   => 0,
+#            });
+#            foreach my $part (@{$self->{schematic}->{partlist}}) {
+#                if (!$part->{volume}) {
+#                    my $ItemId = $tree->AppendItem($eItemId, $part->{name}, $eIcon);
+#                    $tree->SetPlData($ItemId, {
+#                        type        => 'part',
+#                        part        => $part,
+#                    });
+#                }
+#            }
+#        }
     }
     $tree->ExpandAll;
     
@@ -932,18 +950,40 @@ sub loadButtonPressed {
         $file = Slic3r::decode_path($dlg->GetPaths);
         $dlg->Destroy;
     }
-    for my $part (@{$self->{schematic}->{partlist}}) {
-        $self->removePart($part);
-    }
+    #for my $part (@{$self->{schematic}->{partlist}}) {
+    #    $self->removePart($part);
+    #}
+    print "REMOVE PART REMINDER\n";
     Slic3r::Electronics::Electronics->readFile($file,$self->{schematic}, $self->{config});
-    for my $part (@{$self->{schematic}->{partlist}}) {
-        $self->displayPart($part);
+    
+    print "\n\nAFTER READING FILE:\n";
+    my $partlist = $self->{schematic}->getPartlist();
+    print "schematic reference: " . $self->{schematic} . "\n";
+    print "partlist reference: " . $partlist . "\n";
+    
+    for my $part (@{$partlist}) {
+    	print "type of part: " . $part . "\n";
+	    print "getPartHeight perl loop: " . $part->getPartHeight() . "\n";
     }
     
+    print "\n\n2nd Iteration:\n";
+    my $partlist = $self->{schematic}->getPartlist();
+    print "schematic reference: " . $self->{schematic} . "\n";
+    print "partlist reference: " . $partlist . "\n";
+    
+    for my $part (@{$partlist}) {
+    	print "type of part: " . $part . "\n";
+	    print "getPartHeight perl loop: " . $part->getPartHeight() . "\n";
+    }
+    
+    #for my $part (@{$self->{schematic}->{partlist}}) {
+    #    $self->displayPart($part);
+    #}
+    
     # register partlist for slicing modifications in Print->Object
-    $self->{print}->objects->[$self->{obj_idx}]->registerElectronicPartList($self->{schematic}->{partlist});
+    #$self->{print}->objects->[$self->{obj_idx}]->registerElectronicPartList($self->{schematic}->{partlist});
 
-    $self->reload_tree;
+    #$self->reload_tree;
 }
 
 #######################################################################
@@ -1030,12 +1070,12 @@ sub savePartButtonPressed {
 #######################################################################
 sub saveButtonPressed {
     my $self = shift;
-    my ($base,$path,$type) = fileparse($self->{schematic}->{filename},('.sch','.SCH','3de','.3DE'));
-    if (Slic3r::Electronics::Electronics->writeFile($self->{schematic},$self->{config})) {
-        Wx::MessageBox('File saved as '.$base.'.3de','Saved', Wx::wxICON_INFORMATION | Wx::wxOK,undef)
-    } else {
-        Wx::MessageBox('Saving failed','Failed',Wx::wxICON_ERROR | Wx::wxOK,undef)
-    }
+    #my ($base,$path,$type) = fileparse($self->{schematic}->{filename},('.sch','.SCH','3de','.3DE'));
+    #if (Slic3r::Electronics::Electronics->writeFile($self->{schematic},$self->{config})) {
+    #    Wx::MessageBox('File saved as '.$base.'.3de','Saved', Wx::wxICON_INFORMATION | Wx::wxOK,undef)
+    #} else {
+    #    Wx::MessageBox('Saving failed','Failed',Wx::wxICON_ERROR | Wx::wxOK,undef)
+    #}
 }
 
 #######################################################################
@@ -1076,11 +1116,11 @@ sub findPartByVolume {
     my $self = shift;
     my ($volume) = @_;
     if (defined $self->{schematic}) {
-        for my $part (@{$self->{schematic}->{partlist}}) {
-            if (Dumper($part->{volume}) eq Dumper($volume) || Dumper($part->{chipVolume}) eq Dumper($volume)) {
-                return $part;  
-            } 
-        }
+        #for my $part (@{$self->{schematic}->{partlist}}) {
+        #    if (Dumper($part->{volume}) eq Dumper($volume) || Dumper($part->{chipVolume}) eq Dumper($volume)) {
+        #        return $part;  
+        #    } 
+        #}
     }
     return;
 }
