@@ -14,6 +14,11 @@
         %code%{ RETVAL = THIS->verts.empty() ? 0 : &THIS->verts.front(); %};
     void* norms_ptr() const
         %code%{ RETVAL = THIS->verts.empty() ? 0 : &THIS->norms.front(); %};
+    void push_vert(float x, float y, float z) const
+        	%code%{ THIS->push_vert(x, y, z); %};
+    void push_norm(float x, float y, float z) const
+        	%code%{ THIS->push_norm(x, y, z); %};
+    	
 };
 
 %package{Slic3r::GUI::_3DScene};
