@@ -55,13 +55,13 @@ use Slic3r::Geometry::Clipper qw(diff diff_ex);
 # Returns    : none
 # Comment    : Doesnt removes the part itself
 #######################################################################
-sub removePart {
-    my $self = shift;
-    $self->{volume} = undef; 
-    $self->{chipVolume} = undef; 
-    @{$self->{position}} = (undef,undef,undef);
-    @{$self->{rotation}} = (0,0,0);
-}
+#sub removePart {
+#    my $self = shift;
+#    $self->{volume} = undef; 
+#    $self->{chipVolume} = undef; 
+#    @{$self->{position}} = (undef,undef,undef);
+#    @{$self->{rotation}} = (0,0,0);
+#}
 
 #######################################################################
 # Purpose    : Sets the position of the part
@@ -81,11 +81,11 @@ sub removePart {
 # Returns    : none
 # Comment    : rotation angles have to be in degree and valid
 #######################################################################
-sub setRotation {
-    my $self = shift;
-    my ($x,$y,$z) = @_;
-    $self->{rotation} = [$x,$y,$z];
-}
+#sub setRotation {
+#    my $self = shift;
+#    my ($x,$y,$z) = @_;
+#    $self->{rotation} = [$x,$y,$z];
+#}
 
 #######################################################################
 # Purpose    : Sets the componentsize of the part itself

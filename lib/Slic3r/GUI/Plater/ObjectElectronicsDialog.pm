@@ -11,7 +11,7 @@ use base 'Wx::Frame';
 # Purpose    : Creates a new Frame for 3DElectronics
 # Parameters : name, object model, schematic and source filename
 # Returns    : A new Frame
-# Commet     :
+# Comment     :
 #######################################################################
 sub new {
     my $class = shift;
@@ -73,7 +73,7 @@ use constant ICON_PCB           => 3;
 # Purpose    : Creates a Panel for 3DElectronics
 # Parameters : model_object, schematic and source filename to edit
 # Returns    : A Panel
-# Commet     : Main Panel for 3D Electronics
+# Comment     : Main Panel for 3D Electronics
 #######################################################################
 sub new {
     my $class = shift;
@@ -149,6 +149,10 @@ sub new {
     my $height_text = $self->{height_text} = Wx::StaticText->new($self, -1, "Layer height:",wxDefaultPosition,[100,-1]);
     my $height_field = $self->{height_field} = Wx::TextCtrl->new($self, -1, "",wxDefaultPosition,  [230,-1]);
     
+    my $partheight_text = $self->{partheight_text} = Wx::StaticText->new($self, -1, "Part height:",wxDefaultPosition,[105,-1]);
+    my $partheight_field = $self->{partheight_field} = Wx::TextCtrl->new($self, -1, "",wxDefaultPosition,  [230,-1]);
+    
+    
     my $position_text = $self->{position_text} = Wx::StaticText->new($self, -1, "Position:",wxDefaultPosition,[85,-1]);
     my $x_text = $self->{x_text} = Wx::StaticText->new($self, -1, "X:",wxDefaultPosition,[15,-1]);
     my $x_field = $self->{x_field} = Wx::TextCtrl->new($self, -1, "",wxDefaultPosition,  [60,-1]);
@@ -168,26 +172,6 @@ sub new {
     
     my $zr_text = $self->{zr_text} = Wx::StaticText->new($self, -1, "Z:",wxDefaultPosition,[15,-1]);
     my $zr_field = $self->{zr_field} = Wx::TextCtrl->new($self, -1, "",wxDefaultPosition,  [60,-1]);
-    
-    my $componentsize_text = $self->{componentsize_text} = Wx::StaticText->new($self, -1, "Component size:",wxDefaultPosition,[85,-1]);
-    my $xs_text = $self->{xs_text} = Wx::StaticText->new($self, -1, "X:",wxDefaultPosition,[15,-1]);
-    my $xs_field = $self->{xs_field} = Wx::TextCtrl->new($self, -1, "",wxDefaultPosition,  [60,-1]);
-    
-    my $ys_text = $self->{ys_text} = Wx::StaticText->new($self, -1, "Y:",wxDefaultPosition,[15,-1]);
-    my $ys_field = $self->{ys_field} = Wx::TextCtrl->new($self, -1, "",wxDefaultPosition,  [60,-1]);
-    
-    my $zs_text = $self->{zs_text} = Wx::StaticText->new($self, -1, "Z:",wxDefaultPosition,[15,-1]);
-    my $zs_field = $self->{zs_field} = Wx::TextCtrl->new($self, -1, "",wxDefaultPosition,  [60,-1]);
-    
-    my $componentpos_text = $self->{componentpos_text} = Wx::StaticText->new($self, -1, "Component position:",wxDefaultPosition,[85,-1]);
-    my $xp_text = $self->{xp_text} = Wx::StaticText->new($self, -1, "X:",wxDefaultPosition,[15,-1]);
-    my $xp_field = $self->{xp_field} = Wx::TextCtrl->new($self, -1, "",wxDefaultPosition,  [60,-1]);
-    
-    my $yp_text = $self->{yp_text} = Wx::StaticText->new($self, -1, "Y:",wxDefaultPosition,[15,-1]);
-    my $yp_field = $self->{yp_field} = Wx::TextCtrl->new($self, -1, "",wxDefaultPosition,  [60,-1]);
-    
-    my $zp_text = $self->{zp_text} = Wx::StaticText->new($self, -1, "Z:",wxDefaultPosition,[15,-1]);
-    my $zp_field = $self->{zp_field} = Wx::TextCtrl->new($self, -1, "",wxDefaultPosition,  [60,-1]);
     
     my $empty_text = $self->{empty_text} = Wx::StaticText->new($self, -1, "",wxDefaultPosition,[15,-1]);
     
@@ -215,8 +199,8 @@ sub new {
     # settings sizer
     my $settings_sizer_main = Wx::StaticBoxSizer->new($self->{staticbox} = Wx::StaticBox->new($self, -1, "Part Settings"),wxVERTICAL);
     my $settings_sizer_main_grid = Wx::FlexGridSizer->new( 3, 1, 5, 5);
-    my $settings_sizer_sttings = Wx::FlexGridSizer->new( 6, 2, 5, 5);
-    my $settings_sizer_positions = Wx::FlexGridSizer->new( 5, 7, 5, 5);
+    my $settings_sizer_sttings = Wx::FlexGridSizer->new( 7, 2, 5, 5);
+    my $settings_sizer_positions = Wx::FlexGridSizer->new( 3, 7, 5, 5);
     my $settings_sizer_buttons = Wx::FlexGridSizer->new( 1, 1, 5, 5);
     
     $settings_sizer_main->Add($settings_sizer_main_grid, 0,wxTOP, 0);
@@ -237,6 +221,8 @@ sub new {
     $settings_sizer_sttings->Add($self->{package_field}, 1,wxTOP, 0);
     $settings_sizer_sttings->Add($self->{height_text}, 1,wxTOP, 0);
     $settings_sizer_sttings->Add($self->{height_field}, 1,wxTOP, 0);
+    $settings_sizer_sttings->Add($self->{partheight_text}, 1,wxTOP, 0);
+    $settings_sizer_sttings->Add($self->{partheight_field}, 1,wxTOP, 0);
     
     $settings_sizer_positions->Add($self->{position_text}, 1,wxTOP, 0);
     $settings_sizer_positions->Add($self->{x_text}, 1,wxTOP, 0);
@@ -262,22 +248,6 @@ sub new {
     $settings_sizer_positions->Add($self->{zr_text}, 1,wxTOP, 0);
     $settings_sizer_positions->Add($self->{zr_field}, 1,wxTOP, 0);
     
-    
-    $settings_sizer_positions->Add($self->{componentsize_text}, 1,wxTOP, 0);
-    $settings_sizer_positions->Add($self->{xs_text}, 1,wxTOP, 0);
-    $settings_sizer_positions->Add($self->{xs_field}, 1,wxTOP, 0);
-    $settings_sizer_positions->Add($self->{ys_text}, 1,wxTOP, 0);
-    $settings_sizer_positions->Add($self->{ys_field}, 1,wxTOP, 0);
-    $settings_sizer_positions->Add($self->{zs_text}, 1,wxTOP, 0);
-    $settings_sizer_positions->Add($self->{zs_field}, 1,wxTOP, 0);
-    
-    $settings_sizer_positions->Add($self->{componentpos_text}, 1,wxTOP, 0);
-    $settings_sizer_positions->Add($self->{xp_text}, 1,wxTOP, 0);
-    $settings_sizer_positions->Add($self->{xp_field}, 1,wxTOP, 0);
-    $settings_sizer_positions->Add($self->{yp_text}, 1,wxTOP, 0);
-    $settings_sizer_positions->Add($self->{yp_field}, 1,wxTOP, 0);
-    $settings_sizer_positions->Add($self->{zp_text}, 1,wxTOP, 0); 
-    $settings_sizer_positions->Add($self->{zp_field}, 1,wxTOP, 0);    
     
     my $btn_save_part = $self->{btn_save_part} = Wx::Button->new($self, -1, "Save Part", wxDefaultPosition, wxDefaultSize, wxBU_LEFT);
     $settings_sizer_buttons->Add($btn_save_part, 0);
@@ -425,7 +395,7 @@ sub new {
 # Purpose    : Writes the default configutation
 # Parameters : $configfile to write
 # Returns    : none
-# Commet     : 
+# Comment     : 
 #######################################################################
 sub createDefaultConfig {
     my $self = shift;
@@ -445,7 +415,7 @@ sub createDefaultConfig {
 # Purpose    : Reloads canvas when necesary
 # Parameters : none
 # Returns    : none
-# Commet     : 
+# Comment     : 
 #######################################################################
 sub sliderMoved {
     my $self = shift;
@@ -469,7 +439,7 @@ sub sliderMoved {
 # Purpose    : Reloads the print on the canvas
 # Parameters : none
 # Returns    : none
-# Commet     :
+# Comment     :
 #######################################################################
 sub reload_print {
     my ($self) = @_;
@@ -478,13 +448,6 @@ sub reload_print {
     
     print "\n\nRELOAD PRINT:\n";
     my $partlist = $self->{schematic}->getPartlist();
-    print "schematic reference: " . $self->{schematic} . "\n";
-    print "partlist reference: " . $partlist . "\n";
-    
-    for my $part (@{$partlist}) {
-    	print "type of part: " . $part . "\n";
-	    print "getPartHeight perl loop: " . $part->getPartHeight() . "\n";
-    }
     
     $self->render_print;
 }
@@ -493,7 +456,7 @@ sub reload_print {
 # Purpose    : renders the print preview and the objects on the canvas
 # Parameters : none
 # Returns    : undef if not loaded
-# Commet     : First loads Print, second footprints and third parts
+# Comment     : First loads Print, second footprints and third parts
 #######################################################################
 sub render_print {
     my ($self) = @_;
@@ -575,7 +538,7 @@ sub render_print {
 # Purpose    : Places a part to a position on canvas
 # Parameters : part and x,y,z positions
 # Returns    : none
-# Commet     : For mouse placement, also calculates the offset
+# Comment     : For mouse placement, also calculates the offset
 #######################################################################
 sub placePart {
     my $self = shift;
@@ -601,7 +564,7 @@ sub placePart {
 # Purpose    : Displays a Part and its footprint on the canvas
 # Parameters : part to display
 # Returns    : none
-# Commet     : When the part already exists on canvas it will be deleted
+# Comment     : When the part already exists on canvas it will be deleted
 #######################################################################
 sub displayPart {
     my $self = shift;
@@ -657,7 +620,7 @@ sub displayPart {
 # Purpose    : Removes a part and its footprint form canvas
 # Parameters : part or volume_id
 # Returns    : none
-# Commet     : 
+# Comment     : 
 #######################################################################
 sub removePart {
     my $self = shift;
@@ -687,7 +650,7 @@ sub removePart {
 # Purpose    : Reloads the model tree
 # Parameters : currently selected volume
 # Returns    : none
-# Commet     : 
+# Comment     : 
 #######################################################################
 sub reload_tree {
     my ($self, $selected_volume_idx) = @_;
@@ -724,25 +687,27 @@ sub reload_tree {
             volume      => $volume,
         });
     }
+    
     if (defined $self->{schematic}) {
-#        my $length = @{$self->{schematic}->{partlist}};
-#        if ($length > 0) {
-#            my $eIcon = ICON_PCB;
-#            my $eItemId = $tree->AppendItem($rootId, "unplaced");
-#            $tree->SetPlData($eItemId, {
-#                type        => 'unplaced',
-#                volume_id   => 0,
-#            });
-#            foreach my $part (@{$self->{schematic}->{partlist}}) {
-#                if (!$part->{volume}) {
-#                    my $ItemId = $tree->AppendItem($eItemId, $part->{name}, $eIcon);
-#                    $tree->SetPlData($ItemId, {
-#                        type        => 'part',
-#                        part        => $part,
-#                    });
-#                }
-#            }
-#        }
+    	my $partlist = $self->{schematic}->getPartlist();
+        if ($#{$partlist} > 0) {
+        	
+            my $eIcon = ICON_PCB;
+            my $eItemId = $tree->AppendItem($rootId, "unplaced");
+            $tree->SetPlData($eItemId, {
+                type        => 'unplaced',
+                volume_id   => 0,
+            });
+            foreach my $part (@{$partlist}) {
+            	if(!$part->isPlaced()) {
+                    my $ItemId = $tree->AppendItem($eItemId, $part->getName(), $eIcon);
+                    $tree->SetPlData($ItemId, {
+                        type        => 'part',
+                        part        => $part,
+                    });
+                }
+            }
+        }
     }
     $tree->ExpandAll;
     
@@ -759,7 +724,7 @@ sub reload_tree {
 # Purpose    : Gets the selected volume form the model tree
 # Parameters : none
 # Returns    : volumeid or undef
-# Commet     :
+# Comment     :
 #######################################################################
 sub get_selection {
     my ($self) = @_;
@@ -775,7 +740,7 @@ sub get_selection {
 # Purpose    : Changes the GUI when the seletion in the model tree changes
 # Parameters : none
 # Returns    : none
-# Commet     :
+# Comment     :
 #######################################################################
 sub selection_changed {
     my ($self) = @_;
@@ -800,7 +765,7 @@ sub selection_changed {
 # Purpose    : Gets the current z position of the canvas
 # Parameters : none
 # Returns    : z position
-# Commet     :
+# Comment     :
 #######################################################################
 sub get_z {
     my ($self) = @_;
@@ -811,7 +776,7 @@ sub get_z {
 # Purpose    : Sets the z position on the canvas
 # Parameters : z position
 # Returns    : undef if canvas is not active
-# Commet     :
+# Comment     :
 #######################################################################
 sub set_z {
     my ($self, $z) = @_;
@@ -826,7 +791,7 @@ sub set_z {
 # Purpose    : Gets the thickness of the current layer
 # Parameters : z position
 # Returns    : layer thickness
-# Commet     :
+# Comment     :
 #######################################################################
 sub get_layer_thickness {
     my $self = shift;
@@ -848,37 +813,34 @@ sub get_layer_thickness {
 # Purpose    : Shows the part info in the GUI
 # Parameters : part to display
 # Returns    : none
-# Commet     :
+# Comment     :
 #######################################################################
 sub showPartInfo {
     my $self = shift;
     my ($part) = @_;
     $self->clearPartInfo;
-    $self->{name_field}->SetValue($part->{name}) if defined($part->{name});
-    $self->{library_field}->SetValue($part->{library})if defined($part->{library});
-    $self->{deviceset_field}->SetValue($part->{deviceset})if defined($part->{deviceset});
-    $self->{device_field}->SetValue($part->{device})if defined($part->{device});
-    $self->{package_field}->SetValue($part->{package})if defined($part->{package});
-    $self->{height_field}->SetValue($part->{height})if defined($part->{height});
-    $self->{x_field}->SetValue($part->{position}[0]) if (defined($part->{position}[0]));
-    $self->{y_field}->SetValue($part->{position}[1]) if (defined($part->{position}[1]));
-    $self->{z_field}->SetValue($part->{position}[2]) if (defined($part->{position}[2]));
-    $self->{xr_field}->SetValue($part->{rotation}[0]) if (defined($part->{rotation}[0]));
-    $self->{yr_field}->SetValue($part->{rotation}[1]) if (defined($part->{rotation}[1]));
-    $self->{zr_field}->SetValue($part->{rotation}[2]) if (defined($part->{rotation}[2]));
-    $self->{xs_field}->SetValue($part->{componentsize}[0]) if (defined($part->{componentsize}[0]));
-    $self->{ys_field}->SetValue($part->{componentsize}[1]) if (defined($part->{componentsize}[1]));
-    $self->{zs_field}->SetValue($part->{componentsize}[2]) if (defined($part->{componentsize}[2]));
-    $self->{xp_field}->SetValue($part->{componentpos}[0]) if (defined($part->{componentpos}[0]));
-    $self->{yp_field}->SetValue($part->{componentpos}[1]) if (defined($part->{componentpos}[1]));
-    $self->{zp_field}->SetValue($part->{componentpos}[2]) if (defined($part->{componentpos}[2]));
+    $self->{name_field}->SetValue($part->getName());
+    $self->{library_field}->SetValue($part->getLibrary());
+    $self->{deviceset_field}->SetValue($part->getDeviceset());
+    $self->{device_field}->SetValue($part->getDevice());
+    $self->{package_field}->SetValue($part->getPackage());
+    $self->{height_field}->SetValue($part->getFootprintHeight());
+    $self->{partheight_field}->SetValue($part->getPartHeight());
+    my $position = $part->getPosition();
+    $self->{x_field}->SetValue($position->x);
+    $self->{y_field}->SetValue($position->y);
+    $self->{z_field}->SetValue($position->z);
+    my $rotation = $part->getRotation();
+    $self->{xr_field}->SetValue($rotation->x);
+    $self->{yr_field}->SetValue($rotation->y);
+    $self->{zr_field}->SetValue($rotation->z);
 }
 
 #######################################################################
 # Purpose    : Clears the part info
 # Parameters : none
 # Returns    : none
-# Commet     :
+# Comment     :
 #######################################################################
 sub clearPartInfo {
     my $self = shift;
@@ -888,43 +850,39 @@ sub clearPartInfo {
     $self->{device_field}->SetValue("");
     $self->{package_field}->SetValue("");
     $self->{height_field}->SetValue("");
+    $self->{partheight_field}->SetValue("");
     $self->{x_field}->SetValue("");
     $self->{y_field}->SetValue("");
     $self->{z_field}->SetValue("");
     $self->{xr_field}->SetValue("");
     $self->{yr_field}->SetValue("");
     $self->{zr_field}->SetValue("");
-    $self->{xs_field}->SetValue("");
-    $self->{ys_field}->SetValue("");
-    $self->{zs_field}->SetValue("");
-    $self->{xp_field}->SetValue("");
-    $self->{yp_field}->SetValue("");
-    $self->{zp_field}->SetValue("");
 }
 
 #######################################################################
 # Purpose    : Saves the partinfo of the displayed part
 # Parameters : part to save
 # Returns    : none
-# Commet     :
+# Comment     :
 #######################################################################
 sub savePartInfo {
     my $self = shift;
     my ($part) = @_;
-    $part->{name} = $self->{name_field}->GetValue;
-    $part->{library} = $self->{library_field}->GetValue;
-    $part->{deviceset} = $self->{deviceset_field}->GetValue;
-    $part->{device} = $self->{device_field}->GetValue;
-    $part->{package} = $self->{package_field}->GetValue;
-    $part->{height} = $self->{height_field}->GetValue;
+    # Should the user be able to change this values??
+#    $part->{name} = $self->{name_field}->GetValue;
+#    $part->{library} = $self->{library_field}->GetValue;
+#    $part->{deviceset} = $self->{deviceset_field}->GetValue;
+#    $part->{device} = $self->{device_field}->GetValue;
+#    $part->{package} = $self->{package_field}->GetValue;
+	$part->setPartHeight($self->{partheight_field}->GetValue);
+
     if (!($self->{x_field}->GetValue eq "") && !($self->{y_field}->GetValue eq "") && !($self->{z_field}->GetValue eq "")) {
     	$part->setPosition($self->{x_field}->GetValue, $self->{y_field}->GetValue, $self->{z_field}->GetValue);
     }
     if (!($self->{xr_field}->GetValue eq "") && !($self->{yr_field}->GetValue eq "") && !($self->{zr_field}->GetValue eq "")) {
     	$part->setRotation($self->{xr_field}->GetValue, $self->{yr_field}->GetValue, $self->{zr_field}->GetValue);
     }
-    @{$part->{componentsize}} = ($self->{xs_field}->GetValue, $self->{ys_field}->GetValue, $self->{zs_field}->GetValue) if (!($self->{xs_field}->GetValue eq "") && !($self->{ys_field}->GetValue eq "") && !($self->{zs_field}->GetValue eq ""));
-    @{$part->{componentpos}} = ($self->{xp_field}->GetValue, $self->{yp_field}->GetValue, $self->{zp_field}->GetValue) if (!($self->{xp_field}->GetValue eq "") && !($self->{yp_field}->GetValue eq "") && !($self->{zp_field}->GetValue eq ""));
+
     $self->displayPart($part);
 }
 
@@ -932,7 +890,7 @@ sub savePartInfo {
 # Purpose    : Event for load button
 # Parameters : $file to load
 # Returns    : none
-# Commet     : calls the method to read the file
+# Comment     : calls the method to read the file
 #######################################################################
 sub loadButtonPressed {
     my $self = shift;
@@ -956,26 +914,6 @@ sub loadButtonPressed {
     print "REMOVE PART REMINDER\n";
     Slic3r::Electronics::Electronics->readFile($file,$self->{schematic}, $self->{config});
     
-    print "\n\nAFTER READING FILE:\n";
-    my $partlist = $self->{schematic}->getPartlist();
-    print "schematic reference: " . $self->{schematic} . "\n";
-    print "partlist reference: " . $partlist . "\n";
-    
-    for my $part (@{$partlist}) {
-    	print "type of part: " . $part . "\n";
-	    print "getPartHeight perl loop: " . $part->getPartHeight() . "\n";
-    }
-    
-    print "\n\n2nd Iteration:\n";
-    my $partlist = $self->{schematic}->getPartlist();
-    print "schematic reference: " . $self->{schematic} . "\n";
-    print "partlist reference: " . $partlist . "\n";
-    
-    for my $part (@{$partlist}) {
-    	print "type of part: " . $part . "\n";
-	    print "getPartHeight perl loop: " . $part->getPartHeight() . "\n";
-    }
-    
     #for my $part (@{$self->{schematic}->{partlist}}) {
     #    $self->displayPart($part);
     #}
@@ -983,14 +921,14 @@ sub loadButtonPressed {
     # register partlist for slicing modifications in Print->Object
     #$self->{print}->objects->[$self->{obj_idx}]->registerElectronicPartList($self->{schematic}->{partlist});
 
-    #$self->reload_tree;
+    $self->reload_tree;
 }
 
 #######################################################################
 # Purpose    : Event for place button
 # Parameters : none
 # Returns    : none
-# Commet     : sets the place variable to the current selection
+# Comment     : sets the place variable to the current selection
 #######################################################################
 sub placeButtonPressed {
     my $self = shift;
@@ -1001,7 +939,7 @@ sub placeButtonPressed {
 # Purpose    : Returns the current item to place
 # Parameters : none
 # Returns    : item to place
-# Commet     :
+# Comment     :
 #######################################################################
 sub get_place {
     my $self = shift;
@@ -1012,7 +950,7 @@ sub get_place {
 # Purpose    : Sets the item to place
 # Parameters : item to place
 # Returns    : none
-# Commet     :
+# Comment     :
 #######################################################################
 sub set_place {
     my $self = shift;
@@ -1024,7 +962,7 @@ sub set_place {
 # Purpose    : Event for remove button
 # Parameters : none
 # Returns    : none
-# Commet     : calls the remove function
+# Comment     : calls the remove function
 #######################################################################
 sub removeButtonPressed {
     my $self = shift;
@@ -1039,7 +977,7 @@ sub removeButtonPressed {
 # Purpose    : Event for save part button
 # Parameters : none
 # Returns    : none
-# Commet     : saves the partinfo
+# Comment     : saves the partinfo
 #######################################################################
 sub savePartButtonPressed {
     my $self = shift;
@@ -1066,7 +1004,7 @@ sub savePartButtonPressed {
 # Purpose    : Event for save button
 # Parameters : none
 # Returns    : none
-# Commet     : Calls Slic3r::Electronics::Electronics->writeFile
+# Comment     : Calls Slic3r::Electronics::Electronics->writeFile
 #######################################################################
 sub saveButtonPressed {
     my $self = shift;
@@ -1082,7 +1020,7 @@ sub saveButtonPressed {
 # Purpose    : MovesPart with Buttons
 # Parameters : x, y and z coordinates
 # Returns    : none
-# Commet     : moves Z by layer thickness
+# Comment     : moves Z by layer thickness
 #######################################################################
 sub movePart {
     my $self = shift;
@@ -1110,7 +1048,7 @@ sub movePart {
 # Purpose    : Returns the part to a given volume
 # Parameters : volume to find
 # Returns    : part or undef
-# Commet     : compares volumes with Data::Dumper
+# Comment     : compares volumes with Data::Dumper
 #######################################################################
 sub findPartByVolume {
     my $self = shift;
@@ -1129,7 +1067,7 @@ sub findPartByVolume {
 # Purpose    : Returns a volumeID to a given volume
 # Parameters : volume to find
 # Returns    : volumeid
-# Commet     : compares volumes with Data::Dumper
+# Comment     : compares volumes with Data::Dumper
 #######################################################################
 sub findVolumeId {
     my $self = shift;
