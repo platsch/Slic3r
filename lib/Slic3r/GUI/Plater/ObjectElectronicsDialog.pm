@@ -55,7 +55,7 @@ use Slic3r::GUI::Electronics3DScene;
 use Slic3r::Config;
 use File::Basename qw(basename);
 use Wx qw(:misc :sizer :slider :treectrl :button :filedialog wxTAB_TRAVERSAL wxSUNKEN_BORDER wxBITMAP_TYPE_PNG wxFD_OPEN wxFD_FILE_MUST_EXIST wxID_OK
-    wxTheApp);
+    wxTheApp wxTE_READONLY);
 use Wx::Event qw(EVT_BUTTON EVT_TREE_ITEM_COLLAPSING EVT_TREE_SEL_CHANGED EVT_SLIDER EVT_MOUSE_EVENTS);
 use base qw(Wx::Panel Class::Accessor);
 use Scalar::Util qw(blessed);
@@ -85,7 +85,7 @@ sub new {
     $self->{schematic} = $params{schematic};
     my $place = $self->{place} = 0;
     $self->{model_object}->update_bounding_box;
-    $self->{schematic}->setRootOffset($self->{model_object}->_bounding_box->center);
+    $self->{rootOffset} = $self->{model_object}->_bounding_box->center;
     my $configfile ||= Slic3r::decode_path(Wx::StandardPaths::Get->GetUserDataDir . "/electronics/electronics.ini");
     my $config = $self->{config};
     if (-f $configfile) {
@@ -132,19 +132,19 @@ sub new {
     
     # part settings fields
     my $name_text = $self->{name_text} = Wx::StaticText->new($self, -1, "Name:",wxDefaultPosition,[105,-1]);
-    my $name_field = $self->{name_field} = Wx::TextCtrl->new($self, -1, "",wxDefaultPosition, [230,-1]);
+    my $name_field = $self->{name_field} = Wx::TextCtrl->new($self, -1, "",wxDefaultPosition, [230,-1], wxTE_READONLY);
     
     my $library_text = $self->{library_text} = Wx::StaticText->new($self, -1, "Library:",wxDefaultPosition,[105,-1]);
-    my $library_field = $self->{library_field} = Wx::TextCtrl->new($self, -1, "",wxDefaultPosition,  [230,-1]);
+    my $library_field = $self->{library_field} = Wx::TextCtrl->new($self, -1, "",wxDefaultPosition,  [230,-1], wxTE_READONLY);
     
     my $deviceset_text = $self->{deviceset_text} = Wx::StaticText->new($self, -1, "Deviceset:",wxDefaultPosition,[105,-1]);
-    my $deviceset_field = $self->{deviceset_field} = Wx::TextCtrl->new($self, -1, "",wxDefaultPosition,  [230,-1]);
+    my $deviceset_field = $self->{deviceset_field} = Wx::TextCtrl->new($self, -1, "",wxDefaultPosition,  [230,-1], wxTE_READONLY);
     
     my $device_text = $self->{device_text} = Wx::StaticText->new($self, -1, "Device:",wxDefaultPosition,[105,-1]);
-    my $device_field = $self->{device_field} = Wx::TextCtrl->new($self, -1, "",wxDefaultPosition,  [230,-1]);
+    my $device_field = $self->{device_field} = Wx::TextCtrl->new($self, -1, "",wxDefaultPosition,  [230,-1], wxTE_READONLY);
     
     my $package_text = $self->{package_text} = Wx::StaticText->new($self, -1, "Package:",wxDefaultPosition,[105,-1]);
-    my $package_field = $self->{package_field} = Wx::TextCtrl->new($self, -1, "",wxDefaultPosition,  [230,-1]);
+    my $package_field = $self->{package_field} = Wx::TextCtrl->new($self, -1, "",wxDefaultPosition,  [230,-1], wxTE_READONLY);
     
     my $height_text = $self->{height_text} = Wx::StaticText->new($self, -1, "Layer height:",wxDefaultPosition,[100,-1]);
     my $height_field = $self->{height_field} = Wx::TextCtrl->new($self, -1, "",wxDefaultPosition,  [230,-1]);
@@ -422,13 +422,15 @@ sub sliderMoved {
     my $height =  $self->{layers_z}[$self->{slider}->GetValue];
     my $changed = 0;
     
-#    for my $part (@{$self->{schematic}->{partlist}}) {
-#        if (($part->{height} && 
-#            ($part->{shown} == 0 && $part->{position}[2]-$part->{height} <= $height) ||
-#            ($part->{shown} == 1 && $part->{position}[2]-$part->{height} > $height))) {
-#            $changed = 1;
-#        }
-#    }
+    my $partlist = $self->{schematic}->getPartlist();
+    for my $part (@{$partlist}) {
+    	if (($part->isPlaced && 
+            (!$part->isVisible && $part->getPosition()->z-$part->getFootprintHeight <= $height) ||
+            ($part->isVisible && $part->getPosition()->z-$part->getFootprintHeight > $height))) {
+            $changed = 1;
+        }
+    }
+    
     $self->set_z($height);
     if ($changed == 1) {
         $self->reload_print;
@@ -446,9 +448,11 @@ sub reload_print {
     $self->canvas->reset_objects;
     $self->_loaded(0);
     
-    print "\n\nRELOAD PRINT:\n";
     my $partlist = $self->{schematic}->getPartlist();
-    
+    for my $part (@{$partlist}) {
+    	$part->setVisibility(0);
+    }
+              
     $self->render_print;
 }
 
@@ -507,14 +511,18 @@ sub render_print {
         my $height =  $self->{layers_z}[$self->{slider}->GetValue];
         
         # Display SMD models
-        my $model_object = $self->{model_object};
-        for my $volume_idx (0..$#{$model_object->volumes}) {
-            my $volume = $model_object->volumes->[$volume_idx];
-            my $part = $self->findPartByVolume($volume);
-            if ($part && ($part->{position}[2]-$part->{height} <= $height || $self->{config}->{_}{show_parts_on_higher_layers})) {
-                $self->canvas->load_object($model_object,undef,[0],[$volume_idx]);
-                $part->{shown} = 1;
-            }
+        foreach my $part (@{$self->{schematic}->getPartlist()}) {
+        	if($part->isPlaced()) {
+        		# part visible?
+        		if ($part->getPosition()->z-$part->getFootprintHeight() <= $height || $self->{config}->{_}{show_parts_on_higher_layers}) {
+        			$part->setVisibility(1);
+        			my $mesh = $part->getMesh();
+        			$mesh->translate($self->{rootOffset}->x, $self->{rootOffset}->y, 0);
+        			$self->canvas->load_electronic_part($mesh);
+        		}else{
+        			$part->setVisibility(0);
+        		}
+        	}
         }
         
         # Display rubber-banding
@@ -529,7 +537,6 @@ sub render_print {
         if (!$self->{sliderconf}) {
             $self->canvas->zoom_to_volumes;
         }
-        
         $self->_loaded(1);
     }
 }
@@ -543,15 +550,10 @@ sub render_print {
 sub placePart {
     my $self = shift;
     my ($part, $x, $y, $z) = @_;
-    my @offset = 0;#@{$self->{schematic}->getRootOffset};
-    print "root offset: ";
-    print @offset;
-    print "\n";
-    $part->setPosition($x, $y, $z);
-    ($x,$y,$z) = $part->transformWorldtoObject(0,@offset);
-    $part->setPosition($x, $y, $z);
+    $part->setPosition($x-$self->{rootOffset}->x, $y-$self->{rootOffset}->y, $z);
+    $part->setPlaced(1);
     $self->displayPart($part);
-    $self->reload_tree($self->findVolumeId($part->{volume}));
+    $self->reload_tree($part->getPartID());
     
     # trigger slicing steps to update modifications;
     $self->{print}->objects->[$self->{obj_idx}]->invalidate_step(STEP_PERIMETERS);
@@ -569,55 +571,14 @@ sub placePart {
 sub displayPart {
     my $self = shift;
     my ($part) = @_;
-    if ((defined($part->{position}[0]) && !($part->{position}[0] eq "")) &&
-        (defined($part->{position}[1]) && !($part->{position}[1] eq "")) &&
-        (defined($part->{position}[2]) && !($part->{position}[2] eq ""))) {
-        if (!$part->{height}) {
-            $part->{height} = $self->get_layer_thickness($part->{position}[2]);
-        }
-        if ($part->{volume}) {
-            my ($x, $y, $z) = @{$part->{position}};
-            my ($xr, $yr, $zr) = @{$part->{rotation}};
-            $self->removePart($part);
-            @{$part->{position}} = ($x, $y, $z);
-            @{$part->{rotation}} = ($xr, $yr, $zr);
-        }
-        my $footprint_model = $part->getFootprintModel($self->{model_object}->instances->[0]->rotation);
-            
-        foreach my $object (@{$footprint_model->objects}) {
-            foreach my $volume (@{$object->volumes}) {
-                my $new_volume = $self->{model_object}->add_volume($volume);
-                $new_volume->set_modifier(0);
-                $new_volume->set_name($part->{name}."-Footprint");
-                $new_volume->set_material_id(0);
-                
-                # set a default extruder value, since user can't add it manually
-                $new_volume->config->set_ifndef('extruder', $self->{config}->{_}{footprint_extruder});
-                
-                $part->{volume} = $new_volume;
-            }
-        }
-        
-        my $chip_model = $part->getPartModel($self->{model_object}->instances->[0]->rotation);
-            
-        foreach my $object (@{$chip_model->objects}) {
-            foreach my $volume (@{$object->volumes}) {
-                my $new_volume = $self->{model_object}->add_volume($volume);
-                $new_volume->set_modifier(0);
-                $new_volume->set_name($part->{name}."-Component");
-                $new_volume->set_material_id(0);
-                
-                # set a default extruder value, since user can't add it manually
-                $new_volume->config->set_ifndef('extruder', $self->{config}->{_}{part_extruder});
-                
-                $part->{chipVolume} = $new_volume;
-            }
-        }
+    if ($part->isPlaced()) {
+    	my $position = $part->getPosition();
+        $part->setFootprintHeight($self->get_layer_thickness($position->z));
     }
 }
 
 #######################################################################
-# Purpose    : Removes a part and its footprint form canvas
+# Purpose    : Removes a part and its footprint from canvas
 # Parameters : part or volume_id
 # Returns    : none
 # Comment     : 
@@ -656,6 +617,7 @@ sub reload_tree {
     my ($self, $selected_volume_idx) = @_;
     
     $selected_volume_idx //= -1;
+    
     my $object  = $self->{model_object};
     my $tree    = $self->{tree};
     my $rootId  = $tree->GetRootItem;
@@ -671,16 +633,12 @@ sub reload_tree {
     $self->reload_print;
     
     my $selectedId = $rootId;
+    my $itemId;
     foreach my $volume_id (0..$#{$object->volumes}) {
         my $volume = $object->volumes->[$volume_id];
         
         my $icon = $volume->modifier ? ICON_MODIFIERMESH : ICON_SOLIDMESH;
-        my $part = $self->findPartByVolume($volume);
-        $icon = $part ? ICON_PCB : ICON_SOLIDMESH;
-        my $itemId = $tree->AppendItem($rootId, $volume->name || $volume_id, $icon);
-        if ($volume_id == $selected_volume_idx) {
-            $selectedId = $itemId;
-        }
+        $itemId = $tree->AppendItem($rootId, $volume->name || $volume_id, $icon);
         $tree->SetPlData($itemId, {
             type        => 'volume',
             volume_id   => $volume_id,
@@ -692,19 +650,43 @@ sub reload_tree {
     	my $partlist = $self->{schematic}->getPartlist();
         if ($#{$partlist} > 0) {
         	
+        	# placed SMDs
             my $eIcon = ICON_PCB;
-            my $eItemId = $tree->AppendItem($rootId, "unplaced");
+            my $eItemId = $tree->AppendItem($rootId, "placed");
+            $tree->SetPlData($eItemId, {
+                type        => 'placed',
+                volume_id   => 0,
+            });
+            foreach my $part (@{$partlist}) {
+            	if($part->isPlaced()) {
+                    $itemId = $tree->AppendItem($eItemId, $part->getName(), $eIcon);
+                    $tree->SetPlData($itemId, {
+                        type        => 'part',
+                        partID		=> $part->getPartID(),
+                        part        => $part,
+                    });
+                    if($part->getPartID() == $selected_volume_idx) {
+			            $selectedId = $itemId;
+			        }
+                }
+            }
+        
+	    	#unplaced SMDs
+            $eItemId = $tree->AppendItem($rootId, "unplaced");
             $tree->SetPlData($eItemId, {
                 type        => 'unplaced',
                 volume_id   => 0,
             });
             foreach my $part (@{$partlist}) {
             	if(!$part->isPlaced()) {
-                    my $ItemId = $tree->AppendItem($eItemId, $part->getName(), $eIcon);
-                    $tree->SetPlData($ItemId, {
+                    $itemId = $tree->AppendItem($eItemId, $part->getName(), $eIcon);
+                    $tree->SetPlData($itemId, {
                         type        => 'part',
                         part        => $part,
                     });
+                    if($part->getPartID() == $selected_volume_idx) {
+			            $selectedId = $itemId;
+			        }
                 }
             }
         }
@@ -882,8 +864,6 @@ sub savePartInfo {
     if (!($self->{xr_field}->GetValue eq "") && !($self->{yr_field}->GetValue eq "") && !($self->{zr_field}->GetValue eq "")) {
     	$part->setRotation($self->{xr_field}->GetValue, $self->{yr_field}->GetValue, $self->{zr_field}->GetValue);
     }
-
-    $self->displayPart($part);
 }
 
 #######################################################################
@@ -987,17 +967,18 @@ sub savePartButtonPressed {
         $part = $selection->{part};
     }
     if ($selection->{type} eq 'volume' && $selection->{volume}) {
-        my $volume = $selection->{volume};
-        $part = $self->findPartByVolume($volume);
+        #my $volume = $selection->{volume};
+        #$part = $self->findPartByVolume($volume);
     }
     if ($part) {
         $self->savePartInfo($part);
-        $self->reload_tree($self->findVolumeId($part->{volume}));
+        $self->displayPart($part);
+        $self->reload_tree($part->getPartID());
     }
     
     # trigger slicing steps to update modifications;
-    $self->{print}->objects->[$self->{obj_idx}]->invalidate_step(STEP_SLICE);
-    $self->{plater}->schedule_background_process;
+    #$self->{print}->objects->[$self->{obj_idx}]->invalidate_step(STEP_SLICE);
+    #$self->{plater}->schedule_background_process;
 }
 
 #######################################################################

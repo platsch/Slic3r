@@ -30,6 +30,7 @@ sub load_scene_volume {
 	my ($self) = @_;
 }
 
+# Inteded to draw lines for rubberbanding vizualisation
 sub draw_line {
 	my ($self, $a, $b, $width, $color) = @_;
 	
@@ -70,6 +71,24 @@ sub draw_line {
 
     push @{$self->volumes}, Slic3r::GUI::3DScene::Volume->new(
         bounding_box    => $bb,
+        color           => $color,
+        tverts			=> $tverts,
+    );
+}
+
+sub load_electronic_part {
+	my ($self, $mesh, $color) = @_;
+	
+	# default color is blue
+	if(!defined $color) {
+		$color = [0, 0, 0.9, 1.0];
+	}
+	
+	my $tverts = Slic3r::GUI::_3DScene::GLVertexArray->new;
+	$tverts->load_mesh($mesh);
+
+    push @{$self->volumes}, Slic3r::GUI::3DScene::Volume->new(
+        bounding_box    => $mesh->bounding_box,
         color           => $color,
         tverts			=> $tverts,
     );

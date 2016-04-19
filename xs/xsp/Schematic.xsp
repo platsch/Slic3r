@@ -1,0 +1,23 @@
+%module{Slic3r::XS};
+
+%{
+#include <xsinit.h>
+#include "libslic3r/Schematic.hpp"
+%}
+
+%name{Slic3r::Electronics::Schematic} class Schematic {
+    Schematic()
+    	%code{% RETVAL = new Schematic(); %};
+    ~Schematic();
+    Clone<Schematic> clone()
+        %code{% RETVAL = THIS; %};        
+    void addElectronicPart(ElectronicPart* part);
+    void addElectronicNet(ElectronicNet* net);
+    ElectronicParts* getPartlist()
+    	%code{% RETVAL = THIS->getPartlist(); %};
+    void setRootOffset(Pointf3* offset)
+    	%code{% THIS->setRootOffset(*offset); %};
+    Clone<Pointf3> getRootOffset()
+    	%code{% RETVAL = THIS->getRootOffset(); %};
+    void setFilename(std::string filename);
+};

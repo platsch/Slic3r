@@ -1,0 +1,38 @@
+%module{Slic3r::XS};
+
+%{
+#include <xsinit.h>
+#include "libslic3r/ElectronicPart.hpp"
+%}
+
+%name{Slic3r::Electronics::ElectronicPart} class ElectronicPart {
+    ElectronicPart(std::string name, std::string library, std::string deviceset, std::string device, std::string package);
+    //~ElectronicPart(); -- No destructor, perl garbage collector would destroy the object under certain circumstances
+    Clone<ElectronicPart> clone()
+        %code{% RETVAL = THIS; %};
+    int getPartID();
+    std::string getName();
+    std::string getLibrary();
+    std::string getDeviceset();
+    std::string getDevice();
+    std::string getPackage();
+    float getFootprintHeight();
+    void setFootprintHeight(float height);
+    void setSize(float x, float y, float z);
+    void setPosition(float x, float y, float z);
+    void setPartHeight(float height);
+    float getPartHeight();
+    Clone<Pointf3> getPosition();
+    void resetPosition();
+    void setRotation(float x, float y, float z);
+    Clone<Pointf3> getRotation();
+    void setPartOrigin(float x, float y, float z);
+    void addPad(std::string type, std::string pad, std::string pin, std::string gate, float x, float y, float rotation, float dx, float dy, float drill, std::string shape);
+    void setVisibility(bool visible);
+    bool isVisible();
+    bool isPlaced();
+    void setPlaced(bool placed);
+    Clone<TriangleMesh> getFootprintMesh();
+    Clone<TriangleMesh> getPartMesh();
+    Clone<TriangleMesh> getMesh();
+};

@@ -106,36 +106,36 @@ use Slic3r::Geometry::Clipper qw(diff diff_ex);
 # Comment    : when the dimensions are not set,
 #            : they are calculated by the footprint
 #######################################################################
-sub getPartsize {
-    my $self = shift;
-    if (!(defined($self->{componentsize}[0]) && defined($self->{componentsize}[1]) && defined($self->{componentsize}[2]))) {
-        my $xmin = 0;
-        my $ymin = 0;
-        my $xmax = 0;
-        my $ymax = 0;
-        for my $pad (@{$self->{padlist}}) {
-            if ($pad->{type} eq 'smd') {
-                $xmin = min($xmin, $pad->{position}[0]-$pad->{size}[0]/2);
-                $xmax = max($xmax, $pad->{position}[0]+$pad->{size}[0]/2);
-                $ymin = min($ymin, $pad->{position}[1]-$pad->{size}[1]/2);
-                $ymax = max($ymax, $pad->{position}[1]+$pad->{size}[1]/2);
-            }
-            if ($pad->{type} eq 'pad') {
-                $xmin = min($xmin, $pad->{position}[0]-($pad->{drill}/2+0.25));
-                $xmax = max($xmax, $pad->{position}[0]+($pad->{drill}/2+0.25));
-                $ymin = min($ymin, $pad->{position}[1]-($pad->{drill}/2+0.25));
-                $ymax = max($ymax, $pad->{position}[1]+($pad->{drill}/2+0.25));
-            }
-        }
-        my $x = $xmax-$xmin;
-        my $y = $ymax-$ymin;
-        my $z = $self->getPartheight;
-        @{$self->{componentsize}} = ($x,$y,$z);
-        @{$self->{componentpos}} = (($xmax-abs($xmin))/2,($ymax-abs($ymin))/2,0);
-    }
-    
-    return ($self->{componentsize}[0], $self->{componentsize}[1], $self->{componentsize}[2]);
-}
+#sub getPartsize {
+#    my $self = shift;
+#    if (!(defined($self->{componentsize}[0]) && defined($self->{componentsize}[1]) && defined($self->{componentsize}[2]))) {
+#        my $xmin = 0;
+#        my $ymin = 0;
+#        my $xmax = 0;
+#        my $ymax = 0;
+#        for my $pad (@{$self->{padlist}}) {
+#            if ($pad->{type} eq 'smd') {
+#                $xmin = min($xmin, $pad->{position}[0]-$pad->{size}[0]/2);
+#                $xmax = max($xmax, $pad->{position}[0]+$pad->{size}[0]/2);
+#                $ymin = min($ymin, $pad->{position}[1]-$pad->{size}[1]/2);
+#                $ymax = max($ymax, $pad->{position}[1]+$pad->{size}[1]/2);
+#            }
+#            if ($pad->{type} eq 'pad') {
+#                $xmin = min($xmin, $pad->{position}[0]-($pad->{drill}/2+0.25));
+#                $xmax = max($xmax, $pad->{position}[0]+($pad->{drill}/2+0.25));
+#                $ymin = min($ymin, $pad->{position}[1]-($pad->{drill}/2+0.25));
+#                $ymax = max($ymax, $pad->{position}[1]+($pad->{drill}/2+0.25));
+#            }
+#        }
+#        my $x = $xmax-$xmin;
+#        my $y = $ymax-$ymin;
+#        my $z = $self->getPartheight;
+#        @{$self->{componentsize}} = ($x,$y,$z);
+#        @{$self->{componentpos}} = (($xmax-abs($xmin))/2,($ymax-abs($ymin))/2,0);
+#    }
+#    
+#    return ($self->{componentsize}[0], $self->{componentsize}[1], $self->{componentsize}[2]);
+#}
 
 #######################################################################
 # Purpose    : returns the height of the chip
@@ -182,21 +182,21 @@ sub getPartsize {
 # Returns    : Footprint model
 # Comment    : The model is translated and rotated
 #######################################################################
-sub getFootprintModel {
-    my $self = shift;
-    my ($rot) = @_;
-    my @triangles = ();
-    for my $pad (@{$self->{padlist}}) {
-        if ($pad->{type} eq 'smd') {
-            push @triangles, Slic3r::Electronics::Geometrics->getCube(@{$pad->{position}}, ($pad->{size}[0], $pad->{size}[1], $self->{height}*(-1)), $pad->{rotation}[2]);
-        }
-        if ($pad->{type} eq 'pad') {
-            push @triangles, Slic3r::Electronics::Geometrics->getCylinder(@{$pad->{position}}, $pad->{drill}/2+0.25, $self->{height}*(-1));
-        }
-    }
-    my $model = $self->getTriangleMesh($rot, @triangles);
-    return $model;
-}
+#sub getFootprintModel {
+#    my $self = shift;
+#    my ($rot) = @_;
+#    my @triangles = ();
+#    for my $pad (@{$self->{padlist}}) {
+#        if ($pad->{type} eq 'smd') {
+#            push @triangles, Slic3r::Electronics::Geometrics->getCube(@{$pad->{position}}, ($pad->{size}[0], $pad->{size}[1], $self->{height}*(-1)), $pad->{rotation}[2]);
+#        }
+#        if ($pad->{type} eq 'pad') {
+#            push @triangles, Slic3r::Electronics::Geometrics->getCylinder(@{$pad->{position}}, $pad->{drill}/2+0.25, $self->{height}*(-1));
+#        }
+#    }
+#    my $model = $self->getTriangleMesh($rot, @triangles);
+#    return $model;
+#}
 
 #######################################################################
 # Purpose    : Gives a model of the parts
@@ -204,14 +204,14 @@ sub getFootprintModel {
 # Returns    : Part model
 # Comment    : The model is translated and rotated
 #######################################################################
-sub getPartModel {
-    my $self = shift;
-    my ($rot) = @_;
-    my @triangles = ();
-    push @triangles, Slic3r::Electronics::Geometrics->getCube(@{$self->{componentpos}}, $self->getPartsize, 0);
-    my $model = $self->getTriangleMesh($rot, @triangles);
-    return $model;
-}
+#sub getPartModel {
+#    my $self = shift;
+#    my ($rot) = @_;
+#    my @triangles = ();
+#    push @triangles, Slic3r::Electronics::Geometrics->getCube(@{$self->{componentpos}}, $self->getPartsize, 0);
+#    my $model = $self->getTriangleMesh($rot, @triangles);
+#    return $model;
+#}
 
 #######################################################################
 # Purpose    : Converts triagles to a triaglesMesh
@@ -219,35 +219,35 @@ sub getPartModel {
 # Returns    : a Model
 # Comment    : Translates and rotates the model
 #######################################################################
-sub getTriangleMesh {
-    my $self = shift;
-    my ($rot, @triangles) = @_;
-    my $vertices = $self->{vertices} = [];
-    my $facets = $self->{facets} = [];
-    for my $triangle (@triangles) {
-        my @newTriangle = ();
-        for my $point (@$triangle) {
-            push @newTriangle, $self->getVertexID(@$point);
-        }
-        push @{$self->{facets}}, [@newTriangle];
-    }
-    
-    my $mesh = Slic3r::TriangleMesh->new;
-    $mesh->ReadFromPerl($self->{vertices}, $self->{facets});
-    $mesh->repair;
-    $mesh->rotate_x(deg2rad($self->{rotation}[0])) if ($self->{rotation}[0] != 0);
-    $mesh->rotate_y(deg2rad($self->{rotation}[1])) if ($self->{rotation}[1] != 0);
-    $mesh->rotate_z(deg2rad($self->{rotation}[2])+$rot);
-    $mesh->translate($self->transformWorldtoObject($rot,(0,0,0)));
-    
-    
-    my $model = Slic3r::Model->new;
-    
-    my $object = $model->add_object(name => $self->{name});
-    my $volume = $object->add_volume(mesh => $mesh, name => $self->{name});
-    
-    return $model;
-}
+#sub getTriangleMesh {
+#    my $self = shift;
+#    my ($rot, @triangles) = @_;
+#    my $vertices = $self->{vertices} = [];
+#    my $facets = $self->{facets} = [];
+#    for my $triangle (@triangles) {
+#        my @newTriangle = ();
+#        for my $point (@$triangle) {
+#            push @newTriangle, $self->getVertexID(@$point);
+#        }
+#        push @{$self->{facets}}, [@newTriangle];
+#    }
+#    
+#    my $mesh = Slic3r::TriangleMesh->new;
+#    $mesh->ReadFromPerl($self->{vertices}, $self->{facets});
+#    $mesh->repair;
+#    $mesh->rotate_x(deg2rad($self->{rotation}[0])) if ($self->{rotation}[0] != 0);
+#    $mesh->rotate_y(deg2rad($self->{rotation}[1])) if ($self->{rotation}[1] != 0);
+#    $mesh->rotate_z(deg2rad($self->{rotation}[2])+$rot);
+#    $mesh->translate($self->transformWorldtoObject($rot,(0,0,0)));
+#    
+#    
+#    my $model = Slic3r::Model->new;
+#    
+#    my $object = $model->add_object(name => $self->{name});
+#    my $volume = $object->add_volume(mesh => $mesh, name => $self->{name});
+#    
+#    return $model;
+#}
 
 #######################################################################
 # Purpose    : Returns the convex hull of the part, including pins and pads
@@ -325,19 +325,19 @@ sub getHullPolygon {
 # Returns    : An id
 # Comment    : If the vertex doesnt exists it will be created
 #######################################################################
-sub getVertexID {
-    my $self = shift;
-    my @vertex = @_;
-    my $id = 0;
-    while ($id < scalar @{$self->{vertices}}) {
-        if ( ${$self->{vertices}}[$id][0] == $vertex[0] && ${$self->{vertices}}[$id][1] == $vertex[1] && ${$self->{vertices}}[$id][2] == $vertex[2]) {;
-            return $id;
-        }
-        $id += 1;
-    }
-    push (@{$self->{vertices}}, [@vertex]);
-    return $id;
-}
+#sub getVertexID {
+#    my $self = shift;
+#    my @vertex = @_;
+#    my $id = 0;
+#    while ($id < scalar @{$self->{vertices}}) {
+#        if ( ${$self->{vertices}}[$id][0] == $vertex[0] && ${$self->{vertices}}[$id][1] == $vertex[1] && ${$self->{vertices}}[$id][2] == $vertex[2]) {;
+#            return $id;
+#        }
+#        $id += 1;
+#    }
+#    push (@{$self->{vertices}}, [@vertex]);
+#    return $id;
+#}
 
 #######################################################################
 # Purpose    : Transforms world coodrdinates to object coordinates
