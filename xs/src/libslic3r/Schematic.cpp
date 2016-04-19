@@ -16,7 +16,6 @@ Schematic::~Schematic()
 void Schematic::addElectronicPart(ElectronicPart* part)
 {
 	this->partlist.push_back(part);
-	std::cout << "is visible from c: " << part->isVisible() << std::endl;
 }
 
 ElectronicPart* Schematic::addElectronicPart(std::string name, std::string library, std::string deviceset, std::string device, std::string package)
