@@ -44,8 +44,6 @@ sub readFile {
                             $package,
                         );
                         
-                        print "reference count: ", SvREFCNT($newpart), "\n";
-                        
                         for my $packagelist ($xmldoc->findnodes("/eagle/drawing/schematic/libraries/library[\@name='$library']/packages/package[\@name='$package']/smd")) {
                             my $shape = $packagelist->getAttribute('shape');
                             my $rotation = $packagelist->getAttribute('rot');

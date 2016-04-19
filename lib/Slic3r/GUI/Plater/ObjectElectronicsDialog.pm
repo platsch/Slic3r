@@ -93,6 +93,8 @@ sub new {
     } else {
         $self->createDefaultConfig($configfile);
     }
+    # Lookup-table to match selected object ID from canvas to actual object
+    $self->{object_list} = ();
     
     # upper buttons
     my $btn_load_netlist = $self->{btn_load_netlist} = Wx::Button->new($self, -1, "Load netlist", wxDefaultPosition, wxDefaultSize, wxBU_LEFT);
@@ -302,9 +304,13 @@ sub new {
         
         $canvas->on_select(sub {
             my ($volume_idx) = @_;
-            
-            # convert scene volume to model object volume
-            $self->reload_tree($canvas->volume_idx($volume_idx));
+            if(defined $self->{object_list}) {
+	            my $partID = $self->{object_list}[$volume_idx];
+	            if(defined $partID) {
+	            	print "partID: " . $partID . "\n";
+	            	$self->reload_tree($partID);	
+	            }
+            }
         });
                 
         $canvas->load_object($self->{model_object}, undef, [0]);
@@ -498,6 +504,9 @@ sub render_print {
         $self->{sliderconf} = 1;
     }
     
+    # reset lookup array
+    my @lookup_table;
+    
     # load objects
     if ($self->IsShown) {
         # load skirt and brim
@@ -518,12 +527,15 @@ sub render_print {
         			$part->setVisibility(1);
         			my $mesh = $part->getMesh();
         			$mesh->translate($self->{rootOffset}->x, $self->{rootOffset}->y, 0);
-        			$self->canvas->load_electronic_part($mesh);
+        			my $object_id = $self->canvas->load_electronic_part($mesh);
+        			$lookup_table[$object_id] = $part->getPartID;
         		}else{
         			$part->setVisibility(0);
         		}
         	}
         }
+        
+        $self->{object_list} = \@lookup_table;
         
         # Display rubber-banding
 #        for my $part (@{$self->{schematic}->{partlist}}) {
@@ -584,27 +596,11 @@ sub displayPart {
 # Comment     : 
 #######################################################################
 sub removePart {
-    my $self = shift;
-    my ($reference) = @_;
-    my $part;
-    my $volumeId;
+    my ($self, $part) = @_;
     
-    if (blessed($reference) eq "Slic3r::Electronics::ElectronicPart") {
-        $volumeId = $self->findVolumeId($reference->{volume});
-        $part = $reference;
-    } else {
-        $volumeId = $reference;
-        $part = $self->findPartByVolume($self->{model_object}->volumes->[$reference]);
-    }
-    if (defined($volumeId)){
-        $self->{model_object}->delete_volume($volumeId);
-    }
-    my $chipVolumeId = $self->findVolumeId($part->{chipVolume});
-    if (defined($chipVolumeId)){
-        $self->{model_object}->delete_volume($chipVolumeId);
-    }
-    $part->removePart;
-    $self->reload_tree;
+    $part->setPlaced(0);
+    $part->resetPosition;
+    $self->reload_tree($part->getPartID);
 }
 
 #######################################################################
@@ -729,16 +725,8 @@ sub selection_changed {
     my $selection = $self->get_selection;
     my $part = ();
     if ($selection->{type} eq 'part') {
-        $part = $selection->{part};
-    }
-    if ($selection->{type} eq 'volume' && $selection->{volume}) {
-        my $volume = $selection->{volume};
-        $part = $self->findPartByVolume($volume);
-    }
-    if ($part) {
-        $self->showPartInfo($part);
-    }
-    else {
+        $self->showPartInfo($selection->{part});
+    }else {
         $self->clearPartInfo;
     }
 }
@@ -850,12 +838,7 @@ sub clearPartInfo {
 sub savePartInfo {
     my $self = shift;
     my ($part) = @_;
-    # Should the user be able to change this values??
-#    $part->{name} = $self->{name_field}->GetValue;
-#    $part->{library} = $self->{library_field}->GetValue;
-#    $part->{deviceset} = $self->{deviceset_field}->GetValue;
-#    $part->{device} = $self->{device_field}->GetValue;
-#    $part->{package} = $self->{package_field}->GetValue;
+    
 	$part->setPartHeight($self->{partheight_field}->GetValue);
 
     if (!($self->{x_field}->GetValue eq "") && !($self->{y_field}->GetValue eq "") && !($self->{z_field}->GetValue eq "")) {
@@ -888,15 +871,8 @@ sub loadButtonPressed {
         $file = Slic3r::decode_path($dlg->GetPaths);
         $dlg->Destroy;
     }
-    #for my $part (@{$self->{schematic}->{partlist}}) {
-    #    $self->removePart($part);
-    #}
-    print "REMOVE PART REMINDER\n";
+
     Slic3r::Electronics::Electronics->readFile($file,$self->{schematic}, $self->{config});
-    
-    #for my $part (@{$self->{schematic}->{partlist}}) {
-    #    $self->displayPart($part);
-    #}
     
     # register partlist for slicing modifications in Print->Object
     #$self->{print}->objects->[$self->{obj_idx}]->registerElectronicPartList($self->{schematic}->{partlist});
@@ -947,9 +923,8 @@ sub set_place {
 sub removeButtonPressed {
     my $self = shift;
     my $selection = $self->get_selection;
-    if ($selection->{type} eq 'volume') {
-        my $part = $self->findPartByVolume($selection->{volume});
-        $self->removePart($part) if defined($part);
+    if ($selection->{type} eq 'part') {
+    	$self->removePart($selection->{part});
     }
 }
 
@@ -962,15 +937,8 @@ sub removeButtonPressed {
 sub savePartButtonPressed {
     my $self = shift;
     my $selection = $self->get_selection;
-    my $part = ();
     if ($selection->{type} eq 'part') {
-        $part = $selection->{part};
-    }
-    if ($selection->{type} eq 'volume' && $selection->{volume}) {
-        #my $volume = $selection->{volume};
-        #$part = $self->findPartByVolume($volume);
-    }
-    if ($part) {
+        my $part = $selection->{part};
         $self->savePartInfo($part);
         $self->displayPart($part);
         $self->reload_tree($part->getPartID());
@@ -1006,60 +974,24 @@ sub saveButtonPressed {
 sub movePart {
     my $self = shift;
     my ($x,$y,$z) = @_;
-    my $selected = $self->get_selection;
-    my $part = $self->findPartByVolume($selected->{volume});
-    if ($part) {
-    	$self->{plater}->stop_background_process;
-        if ($z != 0) {
-            $part->{position}[2] += $self->get_layer_thickness($part->{position}[2])*$z;
-        }
-        $part->{position}[0] += $x;
-        $part->{position}[1] += $y;
+    
+    my $selection = $self->get_selection;
+    if ($selection->{type} eq 'part') {
+        my $part = $selection->{part};
+        
+        $self->{plater}->stop_background_process;
+        my $oldPos = $part->getPosition;
+        $part->setPosition($oldPos->x + $x, $oldPos->y + $y, $oldPos->z + $self->get_layer_thickness($oldPos->z)*$z);
+        
         $self->showPartInfo($part);
         $self->displayPart($part);
-        $self->reload_tree($self->findVolumeId($part->{volume}));
+        $self->reload_tree($part->getPartID);
                 
         # trigger slicing steps to update modifications;
 		$self->{print}->objects->[$self->{obj_idx}]->invalidate_step(STEP_SLICE);
 		$self->{plater}->start_background_process;
-    }
-}
 
-#######################################################################
-# Purpose    : Returns the part to a given volume
-# Parameters : volume to find
-# Returns    : part or undef
-# Comment     : compares volumes with Data::Dumper
-#######################################################################
-sub findPartByVolume {
-    my $self = shift;
-    my ($volume) = @_;
-    if (defined $self->{schematic}) {
-        #for my $part (@{$self->{schematic}->{partlist}}) {
-        #    if (Dumper($part->{volume}) eq Dumper($volume) || Dumper($part->{chipVolume}) eq Dumper($volume)) {
-        #        return $part;  
-        #    } 
-        #}
     }
-    return;
-}
-
-#######################################################################
-# Purpose    : Returns a volumeID to a given volume
-# Parameters : volume to find
-# Returns    : volumeid
-# Comment     : compares volumes with Data::Dumper
-#######################################################################
-sub findVolumeId {
-    my $self = shift;
-    my ($volume) = @_;
-    my $object  = $self->{model_object};
-    for my $volume_id (0..$#{$object->volumes}) {
-        if (Dumper($object->volumes->[$volume_id]) eq Dumper($volume)) {
-            return $volume_id;  
-        }            
-    }
-    return undef;
 }
 
 1;

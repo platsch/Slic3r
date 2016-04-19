@@ -92,6 +92,8 @@ sub load_electronic_part {
         color           => $color,
         tverts			=> $tverts,
     );
+    
+    return $#{$self->volumes};
 }
 
 #######################################################################
@@ -107,11 +109,7 @@ sub mouse_event_new {
         my $item = $self->{parent}->get_place;
         if ($item->{type} eq 'part') {
             $self->{parent}->placePart($item->{part}, @$cur_pos);
-        }
-        if ($item->{type} eq 'volume' && $item->{volume}) {
-            my $volume = $item->{volume};
-            $self->{parent}->placePart($self->{parent}->findPartByVolume($volume), @$cur_pos);
-        }        
+        }       
         $self->{parent}->set_place(0);
     }
     else {
