@@ -35,4 +35,5 @@
     Clone<TriangleMesh> getFootprintMesh();
     Clone<TriangleMesh> getPartMesh();
     Clone<TriangleMesh> getMesh();
+    Ref<Polygon> getHullPolygon(float z_lower, float z_upper);
 };

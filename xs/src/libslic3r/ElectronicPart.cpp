@@ -107,7 +107,7 @@ TriangleMesh ElectronicPart::getFootprintMesh()
 	stl_file stl;
 	stl_initialize(&stl);
 
-	for (std::vector<ElectronicPad>::const_iterator pad = this->padlist.begin(); pad != this->padlist.end(); ++pad) {
+	for (Padlist::const_iterator pad = this->padlist.begin(); pad != this->padlist.end(); ++pad) {
 		if(pad->type == "smd") {
 			stl_file pad_stl = this->generateCube(pad->position[0], pad->position[1], pad->position[2], pad->size[0], pad->size[1], this->getFootprintHeight());
 			merge_stl(&stl, &pad_stl);
@@ -121,9 +121,9 @@ TriangleMesh ElectronicPart::getFootprintMesh()
 	mesh.stl = stl;
 	mesh.repair();
 
-	mesh.rotate_z(this->rotation.z);
-	mesh.rotate_y(this->rotation.y);
-	mesh.rotate_x(this->rotation.x);
+	mesh.rotate_z(Geometry::deg2rad(this->rotation.z));
+	mesh.rotate_y(Geometry::deg2rad(this->rotation.y));
+	mesh.rotate_x(Geometry::deg2rad(this->rotation.x));
 	mesh.translate(this->position.x, this->position.y, this->position.z);
 	return mesh;
 }
@@ -134,9 +134,9 @@ TriangleMesh ElectronicPart::getPartMesh()
 	mesh.stl = this->generateCube(this->origin[0], this->origin[1], this->origin[2], this->size[0], this->size[1], this->size[2] - this->getFootprintHeight());
 	mesh.repair();
 
-	mesh.rotate_z(this->rotation.z);
-	mesh.rotate_y(this->rotation.y);
-	mesh.rotate_x(this->rotation.x);
+	mesh.rotate_z(Geometry::deg2rad(this->rotation.z));
+	mesh.rotate_y(Geometry::deg2rad(this->rotation.y));
+	mesh.rotate_x(Geometry::deg2rad(this->rotation.x));
 	mesh.translate(this->position.x, this->position.y, this->position.z + this->getFootprintHeight());
 	return mesh;
 }
@@ -147,6 +147,53 @@ TriangleMesh ElectronicPart::getMesh()
 	TriangleMesh footprintMesh = this->getFootprintMesh();
 	partMesh.merge(footprintMesh);
 	return partMesh;
+}
+
+Polygon* ElectronicPart::getHullPolygon(float z_lower, float z_upper)
+{
+	// part affected?
+	if(z_upper > this->position.z && z_lower < (this->position.z + this->size[2])) {
+		Points points;
+		// outline of smd (and TH) pads
+		for (Padlist::const_iterator pad = this->padlist.begin(); pad != this->padlist.end(); ++pad) {
+			if(pad->type == "smd") {
+				float dx = pad->size[0]/2;
+				float dy = pad->size[1]/2;
+				points.push_back(Point(scale_(pad->position[0]+dx), scale_(pad->position[1]+dy)));
+				points.push_back(Point(scale_(pad->position[0]+dx), scale_(pad->position[1]-dy)));
+				points.push_back(Point(scale_(pad->position[0]-dx), scale_(pad->position[1]-dy)));
+				points.push_back(Point(scale_(pad->position[0]-dx), scale_(pad->position[1]+dy)));
+			}
+			if(pad->type == "pad") {
+				// cylinder...
+			}
+		}
+
+		// outline of smd body
+		float dx = this->size[0]/2;
+		float dy = this->size[1]/2;
+		points.push_back(Point(scale_(this->origin[0]+dx), scale_(this->origin[1]+dy)));
+		points.push_back(Point(scale_(this->origin[0]+dx), scale_(this->origin[1]-dy)));
+		points.push_back(Point(scale_(this->origin[0]-dx), scale_(this->origin[1]-dy)));
+		points.push_back(Point(scale_(this->origin[0]-dx), scale_(this->origin[1]+dy)));
+
+		// generate polygon
+		this->hullPolygon = Slic3r::Geometry::convex_hull(points);
+
+		// apply margin to have some space between part an extruded plastic
+		// !!!!!! Offset must be imported from config!!!!
+		this->hullPolygon =  offset(Polygons(this->hullPolygon), scale_(0.5), 100000, ClipperLib::jtSquare).front();
+
+		// rotate polygon
+		this->hullPolygon.rotate(Geometry::deg2rad(this->rotation.z), Point(0,0));
+
+		// apply object translation
+		this->hullPolygon.translate(scale_(this->position.x), scale_(this->position.y));
+	}else{
+		this->hullPolygon = Polygon();
+	}
+
+	return &this->hullPolygon;
 }
 
 stl_file ElectronicPart::generateCube(float x, float y, float z, float dx, float dy, float dz)
@@ -194,7 +241,7 @@ stl_file ElectronicPart::generateCylinder(float x, float y, float z, float r, fl
 	stl_facet facet;
 
 	int steps = 16;
-	float stepsize = ((360/steps)/180)*3.1415926;
+	float stepsize = ((360/steps)/180)*PI;
 	for(int i = 0; i < steps; i++) {
 	    facet = generateFacet(x, y, z, x+r*cos((i-1)*stepsize), y+r*sin((i-1)*stepsize), z, x+r*cos(i*stepsize), y+r*sin(i*stepsize), z); //lower part
 	    stl_add_facet(&stl, &facet);

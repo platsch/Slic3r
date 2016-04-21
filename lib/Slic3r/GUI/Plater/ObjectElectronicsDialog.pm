@@ -307,7 +307,6 @@ sub new {
             if(defined $self->{object_list}) {
 	            my $partID = $self->{object_list}[$volume_idx];
 	            if(defined $partID) {
-	            	print "partID: " . $partID . "\n";
 	            	$self->reload_tree($partID);	
 	            }
             }
@@ -723,9 +722,12 @@ sub get_selection {
 sub selection_changed {
     my ($self) = @_;
     my $selection = $self->get_selection;
-    my $part = ();
     if ($selection->{type} eq 'part') {
-        $self->showPartInfo($selection->{part});
+    	# jump to corresponding layer
+    	if($selection->{part}->isPlaced) {
+	    	$self->set_z($selection->{part}->getPosition->z);
+    	}
+    	$self->showPartInfo($selection->{part});
     }else {
         $self->clearPartInfo;
     }
@@ -876,6 +878,7 @@ sub loadButtonPressed {
     
     # register partlist for slicing modifications in Print->Object
     #$self->{print}->objects->[$self->{obj_idx}]->registerElectronicPartList($self->{schematic}->{partlist});
+    $self->{print}->objects->[$self->{obj_idx}]->registerSchematic($self->{schematic});
 
     $self->reload_tree;
 }
@@ -945,8 +948,9 @@ sub savePartButtonPressed {
     }
     
     # trigger slicing steps to update modifications;
-    #$self->{print}->objects->[$self->{obj_idx}]->invalidate_step(STEP_SLICE);
-    #$self->{plater}->schedule_background_process;
+    $self->{print}->objects->[$self->{obj_idx}]->invalidate_step(STEP_SLICE);
+    # calls schedule to update the toolpath to give the user an opportunity for multiple position updates
+    $self->{plater}->schedule_background_process;
 }
 
 #######################################################################
@@ -989,7 +993,7 @@ sub movePart {
                 
         # trigger slicing steps to update modifications;
 		$self->{print}->objects->[$self->{obj_idx}]->invalidate_step(STEP_SLICE);
-		$self->{plater}->start_background_process;
+		$self->{plater}->start_background_process(1);
 
     }
 }

@@ -4,6 +4,9 @@
 #include "libslic3r.h"
 #include "Point.hpp"
 #include "TriangleMesh.hpp"
+#include "Polygon.hpp"
+#include "Geometry.hpp"
+#include "ClipperUtils.hpp"
 #include <vector>
 #include <admesh/stl.h>
 
@@ -24,6 +27,7 @@ struct ElectronicPad {
 
 class ElectronicPart;
 typedef std::vector<ElectronicPart*> ElectronicParts;
+typedef std::vector<ElectronicPad> Padlist;
 
 class ElectronicPart
 {
@@ -56,6 +60,7 @@ class ElectronicPart
     TriangleMesh getFootprintMesh();
     TriangleMesh getPartMesh();
     TriangleMesh getMesh();
+    Polygon* getHullPolygon(float z_lower, float z_upper);
 
 	private:
     static int s_idGenerator;
@@ -74,7 +79,8 @@ class ElectronicPart
 	float origin[3];
 	float footprintHeight; // should be set to the layer height of the object to match exactly one layer in the visualization
 
-	std::vector<ElectronicPad> padlist;
+	Padlist padlist;
+	Polygon hullPolygon;
 
 	// Internal methods to generate a mesh of the object and footprint
 	stl_file generateCube(float x, float y, float z, float dx, float dy, float dz);

@@ -12,14 +12,15 @@ use Slic3r::Surface ':types';
 use Slic3r::Polygon;
 
 our $electronicPartList;
+our $electronicSchematic;
 
-sub registerElectronicPartList {
-	 my ($class, $list) = @_;
-   	 $electronicPartList = $list;	
+sub registerSchematic {
+	my ($class, $schematic) = @_;
+   	 $electronicSchematic = $schematic;
 }
 
-sub electronicPartList {
-	return $electronicPartList;
+sub electronicSchematic {
+	return $electronicSchematic;
 }
 
 # TODO: lazy
@@ -490,7 +491,8 @@ sub process_electronic_parts {
 	my ($self) = @_;
 	
 	## Electronic parts extension
-    if($electronicPartList) {
+    if($electronicSchematic) {
+    	my $electronicPartList = $electronicSchematic->getPartlist();
     	# electronic parts are placed with respect to the objects bounding box center but the object
     	# uses the bounding box min point as origin, so we need to translate them.
 	    my $bb_offset = [$self->bounding_box->center->[0]-$self->bounding_box->min_point->[0], $self->bounding_box->center->[1]-$self->bounding_box->min_point->[1]];
@@ -510,14 +512,16 @@ sub process_electronic_parts {
             	my @polygons;
             	
             	foreach my $part (@{$electronicPartList}) {
-            		my $polygon = $part->getHullPolygon($layer->print_z - $layer->height, $layer->print_z);
+            		# only if this part is affected
+            		if($part->isPlaced) {
+            			my $polygon = $part->getHullPolygon($layer->print_z - $layer->height, $layer->print_z);
             		
-            		# only if this part is affected and returns a valid polygon
-            		if($polygon) {	
-            			$polygon->translate($bb_offset->[0], $bb_offset->[1]);
-            			push @polygons, $polygon;
+            			if($polygon->is_valid) {
+	            			$polygon->translate($bb_offset->[0], $bb_offset->[1]);
+	            			push @polygons, $polygon;
+            			}
 	                    
-	                    if (0) {	                    	
+	                    if (0) {
 							require "Slic3r/SVG.pm";
 							Slic3r::SVG::output(
 								"diff_op_post.svg",
