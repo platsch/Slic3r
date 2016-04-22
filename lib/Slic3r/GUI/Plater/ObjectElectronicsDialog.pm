@@ -723,11 +723,23 @@ sub selection_changed {
     my ($self) = @_;
     my $selection = $self->get_selection;
     if ($selection->{type} eq 'part') {
+    	my $part = $selection->{part};
     	# jump to corresponding layer
-    	if($selection->{part}->isPlaced) {
-	    	$self->set_z($selection->{part}->getPosition->z);
+    	if($part->isPlaced) {
+    		if($self->get_z < $part->getPosition->z || $self->get_z > $part->getPosition->z + $part->getPartHeight) {
+    			
+    			for my $i (0 .. $#{$self->{layers_z}}) {
+    				print "part position: " . $part->getPosition->z . " i: " . $i . "\n"; 
+    				if($self->{layers_z}[$i] >= $part->getPosition->z) {
+    					$self->{slider}->SetValue($i);
+    					print "after setting, getValue: " . $self->{slider}->GetValue . "\n";
+    					$self->sliderMoved;
+    					last;
+    				}
+    			}
+    		}
     	}
-    	$self->showPartInfo($selection->{part});
+    	$self->showPartInfo($part);
     }else {
         $self->clearPartInfo;
     }
