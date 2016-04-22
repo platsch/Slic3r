@@ -5,7 +5,6 @@ use utf8;
 
 use XML::LibXML;
 use File::Basename;
-use Slic3r::Electronics::ElectronicPart;
 
 #######################################################################
 # Purpose    : Reads file of the 3DElectronics type

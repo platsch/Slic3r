@@ -4,7 +4,6 @@ use warnings;
 use utf8;
 
 use XML::LibXML;
-use Slic3r::Electronics::ElectronicPart;
 use List::Util qw[min max];
 
 use Devel::Peek 'SvREFCNT';
