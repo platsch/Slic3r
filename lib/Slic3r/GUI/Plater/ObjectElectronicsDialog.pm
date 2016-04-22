@@ -561,6 +561,10 @@ sub render_print {
 sub placePart {
     my $self = shift;
     my ($part, $x, $y, $z) = @_;
+    # round values from canvas
+    $x = int($x*1000)/1000.0;
+    $y = int($y*1000)/1000.0;
+    $z = int($z*1000)/1000.0;
     $part->setPosition($x-$self->{rootOffset}->x, $y-$self->{rootOffset}->y, $z);
     $part->setPlaced(1);
     $self->displayPart($part);

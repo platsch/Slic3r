@@ -38,19 +38,19 @@ int ElectronicPart::s_idGenerator = 0;
 // Parts are currently represented only by a simple cube.
 // This redefines the size of this cube, which is
 // initially obtained from the input schematic file
-void ElectronicPart::setSize(float x, float y)
+void ElectronicPart::setSize(double x, double y)
 {
 	setSize(x, y, this->size[2]);
 }
 
-void ElectronicPart::setSize(float x, float y, float z)
+void ElectronicPart::setSize(double x, double y, double z)
 {
 	this->size[0] = x;
 	this->size[1] = y;
 	this->size[2] = z;
 }
 
-void ElectronicPart::setPosition(float x, float y, float z)
+void ElectronicPart::setPosition(double x, double y, double z)
 {
 	this->position.x = x;
 	this->position.y = y;
@@ -70,7 +70,7 @@ void ElectronicPart::resetPosition()
 }
 
 // Rotation angles in deg. Behavior of 2/3 axis rotation still undefined.
-void ElectronicPart::setRotation(float x, float y, float z)
+void ElectronicPart::setRotation(double x, double y, double z)
 {
 	this->rotation.x = x;
 	this->rotation.y = y;
@@ -78,14 +78,14 @@ void ElectronicPart::setRotation(float x, float y, float z)
 }
 
 // defines the origin of the part relative to it's body.
-void ElectronicPart::setPartOrigin(float x, float y, float z)
+void ElectronicPart::setPartOrigin(double x, double y, double z)
 {
 	this->origin[0] = x;
 	this->origin[1] = y;
 	this->origin[2] = z;
 }
 
-void ElectronicPart::addPad(std::string type, std::string pad, std::string pin, std::string gate, float x, float y, float rotation, float dx, float dy, float drill, std::string shape)
+void ElectronicPart::addPad(std::string type, std::string pad, std::string pin, std::string gate, double x, double y, double rotation, double dx, double dy, double drill, std::string shape)
 {
 	ElectronicPad newpad = {
 	type,
@@ -149,7 +149,7 @@ TriangleMesh ElectronicPart::getMesh()
 	return partMesh;
 }
 
-Polygon* ElectronicPart::getHullPolygon(float z_lower, float z_upper)
+Polygon* ElectronicPart::getHullPolygon(double z_lower, double z_upper)
 {
 	// part affected?
 	if(z_upper > this->position.z && z_lower < (this->position.z + this->size[2])) {
@@ -157,8 +157,8 @@ Polygon* ElectronicPart::getHullPolygon(float z_lower, float z_upper)
 		// outline of smd (and TH) pads
 		for (Padlist::const_iterator pad = this->padlist.begin(); pad != this->padlist.end(); ++pad) {
 			if(pad->type == "smd") {
-				float dx = pad->size[0]/2;
-				float dy = pad->size[1]/2;
+				double dx = pad->size[0]/2;
+				double dy = pad->size[1]/2;
 				points.push_back(Point(scale_(pad->position[0]+dx), scale_(pad->position[1]+dy)));
 				points.push_back(Point(scale_(pad->position[0]+dx), scale_(pad->position[1]-dy)));
 				points.push_back(Point(scale_(pad->position[0]-dx), scale_(pad->position[1]-dy)));
@@ -170,8 +170,8 @@ Polygon* ElectronicPart::getHullPolygon(float z_lower, float z_upper)
 		}
 
 		// outline of smd body
-		float dx = this->size[0]/2;
-		float dy = this->size[1]/2;
+		double dx = this->size[0]/2;
+		double dy = this->size[1]/2;
 		points.push_back(Point(scale_(this->origin[0]+dx), scale_(this->origin[1]+dy)));
 		points.push_back(Point(scale_(this->origin[0]+dx), scale_(this->origin[1]-dy)));
 		points.push_back(Point(scale_(this->origin[0]-dx), scale_(this->origin[1]-dy)));
@@ -196,7 +196,7 @@ Polygon* ElectronicPart::getHullPolygon(float z_lower, float z_upper)
 	return &this->hullPolygon;
 }
 
-stl_file ElectronicPart::generateCube(float x, float y, float z, float dx, float dy, float dz)
+stl_file ElectronicPart::generateCube(double x, double y, double z, double dx, double dy, double dz)
 {
 	stl_file stl;
 	stl_initialize(&stl);
@@ -234,14 +234,14 @@ stl_file ElectronicPart::generateCube(float x, float y, float z, float dx, float
 	return stl;
 }
 
-stl_file ElectronicPart::generateCylinder(float x, float y, float z, float r, float h)
+stl_file ElectronicPart::generateCylinder(double x, double y, double z, double r, double h)
 {
 	stl_file stl;
 	stl_initialize(&stl);
 	stl_facet facet;
 
 	int steps = 16;
-	float stepsize = ((360/steps)/180)*PI;
+	double stepsize = ((360/steps)/180)*PI;
 	for(int i = 0; i < steps; i++) {
 	    facet = generateFacet(x, y, z, x+r*cos((i-1)*stepsize), y+r*sin((i-1)*stepsize), z, x+r*cos(i*stepsize), y+r*sin(i*stepsize), z); //lower part
 	    stl_add_facet(&stl, &facet);
@@ -255,7 +255,7 @@ stl_file ElectronicPart::generateCylinder(float x, float y, float z, float r, fl
 	return stl;
 }
 
-stl_facet ElectronicPart::generateFacet(float v1x, float v1y, float v1z, float v2x, float v2y, float v2z, float v3x, float v3y, float v3z)
+stl_facet ElectronicPart::generateFacet(double v1x, double v1y, double v1z, double v2x, double v2y, double v2z, double v3x, double v3y, double v3z)
 {
 	stl_facet facet;
 	// initialize without normal

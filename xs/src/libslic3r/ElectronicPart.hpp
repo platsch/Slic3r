@@ -18,10 +18,10 @@ struct ElectronicPad {
 	std::string pad;
 	std::string pin;
 	std::string gate;
-	float position[3];
-	float rotation[3];
-	float size[3];
-	float drill;
+	double position[3];
+	double rotation[3];
+	double size[3];
+	double drill;
 	std::string shape;
 };
 
@@ -40,19 +40,19 @@ class ElectronicPart
     std::string getDeviceset(){return this->deviceset;};
     std::string getDevice(){return this->device;};
     std::string getPackage(){return this->package;};
-    float getFootprintHeight(){return this->footprintHeight;};
-    void setFootprintHeight(float height){this->footprintHeight = height;};
-    void setSize(float x, float y);
-    void setSize(float x, float y, float z);
-    void setPosition(float x, float y, float z);
-    void setPartHeight(float height) {this->size[2] = height;};
-    float getPartHeight() {return this->size[2];};
+    double getFootprintHeight(){return this->footprintHeight;};
+    void setFootprintHeight(double height){this->footprintHeight = height;};
+    void setSize(double x, double y);
+    void setSize(double x, double y, double z);
+    void setPosition(double x, double y, double z);
+    void setPartHeight(double height) {this->size[2] = height;};
+    double getPartHeight() {return this->size[2];};
     Pointf3 getPosition() {return this->position;};
     void resetPosition();
-    void setRotation(float x, float y, float z);
+    void setRotation(double x, double y, double z);
     Pointf3 getRotation() {return this->rotation;};
-    void setPartOrigin(float x, float y, float z);  //internal position of the part, defines origin
-    void addPad(std::string type, std::string pad, std::string pin, std::string gate, float x, float y, float rotation, float dx, float dy, float drill, std::string shape);
+    void setPartOrigin(double x, double y, double z);  //internal position of the part, defines origin
+    void addPad(std::string type, std::string pad, std::string pin, std::string gate, double x, double y, double rotation, double dx, double dy, double drill, std::string shape);
     void setVisibility(bool visible) {this->visible = visible;};
     bool isVisible() {return this->visible;};
     void setPlaced(bool placed) {this->placed = placed;};
@@ -60,7 +60,7 @@ class ElectronicPart
     TriangleMesh getFootprintMesh();
     TriangleMesh getPartMesh();
     TriangleMesh getMesh();
-    Polygon* getHullPolygon(float z_lower, float z_upper);
+    Polygon* getHullPolygon(double z_lower, double z_upper);
 
 	private:
     static int s_idGenerator;
@@ -73,19 +73,19 @@ class ElectronicPart
 	bool visible;
 	bool placed;
 
-	float size[3];
+	double size[3];
 	Pointf3 position;
 	Pointf3 rotation; // is it a good idea to use point as representation for a rotation?
-	float origin[3];
-	float footprintHeight; // should be set to the layer height of the object to match exactly one layer in the visualization
+	double origin[3];
+	double footprintHeight; // should be set to the layer height of the object to match exactly one layer in the visualization
 
 	Padlist padlist;
 	Polygon hullPolygon;
 
 	// Internal methods to generate a mesh of the object and footprint
-	stl_file generateCube(float x, float y, float z, float dx, float dy, float dz);
-	stl_file generateCylinder(float x, float y, float z, float r, float h);
-	stl_facet generateFacet(float v1x, float v1y, float v1z, float v2x, float v2y, float v2z, float v3x, float v3y, float v3z);
+	stl_file generateCube(double x, double y, double z, double dx, double dy, double dz);
+	stl_file generateCylinder(double x, double y, double z, double r, double h);
+	stl_facet generateFacet(double v1x, double v1y, double v1z, double v2x, double v2y, double v2z, double v3x, double v3y, double v3z);
 	void merge_stl(stl_file* stl1, stl_file* stl2);
 
 
