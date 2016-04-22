@@ -382,17 +382,17 @@ sub transformObjecttoWorld {
 # Returns    : G-code or ""
 # Comment    : If part should not be placed now, return ""
 #######################################################################
-sub getPlaceGcode {
-    my $self = shift;
-    my ($printz, $id) = @_;
-    my $gcode = "";
-    if ($self->{printed} == 0 && defined($self->{position}[2]) && $self->getPlacementLayer <= $printz){
-        $self->{printed} = 1;
-        $gcode .= ";pick part nr " . $id . "\n";
-        $gcode .= "M361 P" . $id . "\n";
-    }
-    return $gcode;
-}
+#sub getPlaceGcode {
+#    my $self = shift;
+#    my ($printz, $id) = @_;
+#    my $gcode = "";
+#    if ($self->{printed} == 0 && defined($self->{position}[2]) && $self->getPlacementLayer <= $printz){
+#        $self->{printed} = 1;
+#        $gcode .= ";pick part nr " . $id . "\n";
+#        $gcode .= "M361 P" . $id . "\n";
+#    }
+#    return $gcode;
+#}
 
 #######################################################################
 # Purpose    : Returns the description for the placement
@@ -400,32 +400,32 @@ sub getPlaceGcode {
 # Returns    : description 
 # Comment    : 
 #######################################################################
-sub getPlaceDescription {
-    my $self = shift;
-    my ($id,@offset) = @_;
-    my $gcode = "";
-    if ($self->{printed}){
-        my @newpos = $self->transformObjecttoWorld(0,@offset);
-        $gcode .= ';<part id="' . $id . '" name="' . $self->{name} . '">' . "\n";
-        $gcode .= ';  <position box="'.$id.'"/>' . "\n";
-        $gcode .= ';  <size height="'.$self->{componentsize}[2].'"/>' . "\n";
-        $gcode .= ';  <shape>' . "\n";
-        $gcode .= ';    <point x="' . ($self->{componentpos}[0]-$self->{componentsize}[0]/2) . '" y="' . ($self->{componentpos}[1]-$self->{componentsize}[1]/2) . '"/>' . "\n";
-        $gcode .= ';    <point x="' . ($self->{componentpos}[0]-$self->{componentsize}[0]/2) . '" y="' . ($self->{componentpos}[1]+$self->{componentsize}[1]/2) . '"/>' . "\n";
-        $gcode .= ';    <point x="' . ($self->{componentpos}[0]+$self->{componentsize}[0]/2) . '" y="' . ($self->{componentpos}[1]+$self->{componentsize}[1]/2) . '"/>' . "\n";
-        $gcode .= ';    <point x="' . ($self->{componentpos}[0]+$self->{componentsize}[0]/2) . '" y="' . ($self->{componentpos}[1]-$self->{componentsize}[1]/2) . '"/>' . "\n";
-        $gcode .= ';  </shape>' . "\n";
-        $gcode .= ';  <pads>' . "\n";
-        for my $pad (@{$self->{padlist}}){
-            $gcode .= ';    <pad x1="' . ($pad->{position}[0]-$pad->{size}[0]/2) . '" y1="' . ($pad->{position}[1]-$pad->{size}[1]/2) . '" x2="' . ($pad->{position}[0]+$pad->{size}[0]/2) . '" y2="' . ($pad->{position}[1]+$pad->{size}[1]/2) . '"/>' . "\n";
-        }
-        $gcode .= ';  </pads>' . "\n";
-        $gcode .= ';  <destination x="' . $newpos[0] . '" y="' . $newpos[1] . '" z="' . $newpos[2] . '" orientation="' . $self->{rotation}[2] . '"/>' . "\n";
-        $gcode .= ';</part>' . "\n";
-        $gcode .= ';' . "\n";
-    }
-    return $gcode;
-}
+#sub getPlaceDescription {
+#    my $self = shift;
+#    my ($id,@offset) = @_;
+#    my $gcode = "";
+#    if ($self->{printed}){
+#        my @newpos = $self->transformObjecttoWorld(0,@offset);
+#        $gcode .= ';<part id="' . $id . '" name="' . $self->{name} . '">' . "\n";
+#        $gcode .= ';  <position box="'.$id.'"/>' . "\n";
+#        $gcode .= ';  <size height="'.$self->{componentsize}[2].'"/>' . "\n";
+#        $gcode .= ';  <shape>' . "\n";
+#        $gcode .= ';    <point x="' . ($self->{componentpos}[0]-$self->{componentsize}[0]/2) . '" y="' . ($self->{componentpos}[1]-$self->{componentsize}[1]/2) . '"/>' . "\n";
+#        $gcode .= ';    <point x="' . ($self->{componentpos}[0]-$self->{componentsize}[0]/2) . '" y="' . ($self->{componentpos}[1]+$self->{componentsize}[1]/2) . '"/>' . "\n";
+#        $gcode .= ';    <point x="' . ($self->{componentpos}[0]+$self->{componentsize}[0]/2) . '" y="' . ($self->{componentpos}[1]+$self->{componentsize}[1]/2) . '"/>' . "\n";
+#        $gcode .= ';    <point x="' . ($self->{componentpos}[0]+$self->{componentsize}[0]/2) . '" y="' . ($self->{componentpos}[1]-$self->{componentsize}[1]/2) . '"/>' . "\n";
+#        $gcode .= ';  </shape>' . "\n";
+#        $gcode .= ';  <pads>' . "\n";
+#        for my $pad (@{$self->{padlist}}){
+#            $gcode .= ';    <pad x1="' . ($pad->{position}[0]-$pad->{size}[0]/2) . '" y1="' . ($pad->{position}[1]-$pad->{size}[1]/2) . '" x2="' . ($pad->{position}[0]+$pad->{size}[0]/2) . '" y2="' . ($pad->{position}[1]+$pad->{size}[1]/2) . '"/>' . "\n";
+#        }
+#        $gcode .= ';  </pads>' . "\n";
+#        $gcode .= ';  <destination x="' . $newpos[0] . '" y="' . $newpos[1] . '" z="' . $newpos[2] . '" orientation="' . $self->{rotation}[2] . '"/>' . "\n";
+#        $gcode .= ';</part>' . "\n";
+#        $gcode .= ';' . "\n";
+#    }
+#    return $gcode;
+#}
 
 #######################################################################
 # Purpose    : Returns the layer where the component is placed on

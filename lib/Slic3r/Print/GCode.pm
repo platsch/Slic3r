@@ -297,10 +297,9 @@ sub export {
         $self->flush_filters;
     }
     
-    my $id = 1;
-    foreach my $part (@{$schematic->{partlist}}) {
-        print $fh $part->getPlaceGcode(~0, $id);
-        $id += 1;
+    foreach my $part (@{$schematic->getPartlist}) {
+    	# bit of a workaround. Call the function with a very high print_z to ensure every remaining part will be placed.
+        print $fh $part->getPlaceGcode(99999999);
     }
     
     # write end commands to file
@@ -326,13 +325,17 @@ sub export {
         $self->print->total_extruded_volume($self->print->total_extruded_volume + $extruded_volume);
     }
     
-    my $length = @{$schematic->{partlist}};
+    my $partlist = $schematic->getPartlist;
+    my $length = @{$partlist};
     if ($length > 0){
+    	my $bb = $self->objects->[0]->bounding_box;
+    	# Currently only works for a single object on the plater!!!!!!!!!!!
+    	my $copy = $self->objects->[0]->_shifted_copies->[0];
+    	my $bb_offset = Slic3r::Pointf->new(unscale($bb->center->[0]+$copy->x), unscale($bb->center->[1]+$copy->y));
         print $fh "\n" . ';<object name="none">' . "\n";
-        my $id = 1;
-        foreach my $part (@{$schematic->{partlist}}) {
-            print $fh $part->getPlaceDescription($id, @{$schematic->{root_offset}});
-            $id += 1;
+        foreach my $part (@{$partlist}) {
+            print $fh $part->getPlaceDescription($bb_offset);
+            $part->resetPrintedStatus;
         }
         print $fh ";</object>\n\n";
     }
@@ -581,10 +584,8 @@ sub process_layer {
                 }
             }
         }
-        my $id = 1;
-        foreach my $part (@{$schematic->{partlist}}) {
-            $gcode .= $part->getPlaceGcode($layer->print_z, $id);
-            $id += 1;
+        foreach my $part (@{$schematic->getPartlist}) {
+            $gcode .= $part->getPlaceGcode($layer->print_z);
         }
         
     }

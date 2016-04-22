@@ -26,6 +26,7 @@ ElectronicPart::ElectronicPart(std::string name, std::string library, std::strin
 
 	this->visible = false;
 	this->placed = false;
+	this->printed = false;
 }
 
 ElectronicPart::~ElectronicPart()
@@ -33,7 +34,7 @@ ElectronicPart::~ElectronicPart()
 }
 
 // Initialization of static ID generator variable
-int ElectronicPart::s_idGenerator = 0;
+int ElectronicPart::s_idGenerator = 1;
 
 // Parts are currently represented only by a simple cube.
 // This redefines the size of this cube, which is
@@ -194,6 +195,51 @@ Polygon* ElectronicPart::getHullPolygon(double z_lower, double z_upper)
 	}
 
 	return &this->hullPolygon;
+}
+
+/* Returns the GCode to place this part and remembers this part as already "printed".
+ * print_z is the current print layer, a part will only be printed if it's upper surface
+ * will be below the current print layer after placing.
+ */
+std::string ElectronicPart::getPlaceGcode(double print_z)
+{
+	std::ostringstream gcode;
+    if(this->placed && !this->printed && this->position.z + this->size[2] <= print_z) {
+        this->printed = true;
+        gcode << ";pick part nr " << this->partID << "\n";
+        gcode << "M361 P" << this->partID << "\n";
+    }
+    return gcode.str();
+}
+
+/* Returns a description of this part in GCode format.
+ * print_z parameter as in getPlaceGcode.
+ */
+std::string ElectronicPart::getPlaceDescription(Pointf offset)
+{
+	std::ostringstream gcode;
+    if (this->printed) {
+        gcode << ";<part id=\"" << this->partID << "\" name=\"" << this->name << "\">\n";
+        gcode << ";  <position box=\"" << this->partID << "\"/>\n";
+        gcode << ";  <size height=\"" << this->size[2] << "\"/>\n";
+        gcode << ";  <shape>\n";
+        gcode << ";    <point x=\"" <<  (this->origin[0]-this->size[0]/2) << "\" y=\"" << (this->origin[1]-this->size[1]/2) << "\"/>\n";
+        gcode << ";    <point x=\"" <<  (this->origin[0]-this->size[0]/2) << "\" y=\"" << (this->origin[1]+this->size[1]/2) << "\"/>\n";
+        gcode << ";    <point x=\"" <<  (this->origin[0]+this->size[0]/2) << "\" y=\"" << (this->origin[1]+this->size[1]/2) << "\"/>\n";
+        gcode << ";    <point x=\"" <<  (this->origin[0]+this->size[0]/2) << "\" y=\"" << (this->origin[1]-this->size[1]/2) << "\"/>\n";
+        gcode << ";  </shape>\n";
+        gcode << ";  <pads>\n";
+        for (Padlist::const_iterator pad = this->padlist.begin(); pad != this->padlist.end(); ++pad) {
+        	gcode << ";    <pad x1=\"" << (pad->position[0]-pad->size[0]/2) << \
+        			"\" y1=\"" << (pad->position[1]-pad->size[1]/2) << \
+					"\" x2=\"" << (pad->position[0]+pad->size[0]/2) << \
+					"\" y2=\"" << (pad->position[1]+pad->size[1]/2) << "\"/>\n";
+        }
+        gcode << ";  </pads>\n";
+        gcode << ";  <destination x=\"" << this->position.x + offset.x << "\" y=\"" << this->position.y + offset.y << "\" z=\"" << this->position.z << "\" orientation=\"" << this->rotation.z << "\"/>\n";
+        gcode << ";</part>\n\n";
+    }
+    return gcode.str();
 }
 
 stl_file ElectronicPart::generateCube(double x, double y, double z, double dx, double dy, double dz)

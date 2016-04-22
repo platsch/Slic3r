@@ -86,6 +86,7 @@ sub new {
     my $place = $self->{place} = 0;
     $self->{model_object}->update_bounding_box;
     $self->{rootOffset} = $self->{model_object}->_bounding_box->center;
+    print "rootOffset: " . $self->{rootOffset}->x . ", " . $self->{rootOffset}->y . "\n";
     my $configfile ||= Slic3r::decode_path(Wx::StandardPaths::Get->GetUserDataDir . "/electronics/electronics.ini");
     my $config = $self->{config};
     if (-f $configfile) {

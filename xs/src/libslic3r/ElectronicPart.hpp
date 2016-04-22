@@ -8,6 +8,7 @@
 #include "Geometry.hpp"
 #include "ClipperUtils.hpp"
 #include <vector>
+#include <sstream>
 #include <admesh/stl.h>
 
 
@@ -61,6 +62,9 @@ class ElectronicPart
     TriangleMesh getPartMesh();
     TriangleMesh getMesh();
     Polygon* getHullPolygon(double z_lower, double z_upper);
+    std::string getPlaceGcode(double print_z);
+    std::string getPlaceDescription(Pointf offset);
+    void resetPrintedStatus(){this->printed = false;};
 
 	private:
     static int s_idGenerator;
@@ -72,6 +76,7 @@ class ElectronicPart
 	std::string package;
 	bool visible;
 	bool placed;
+	bool printed; // indicates that this part is already included in the GCode
 
 	double size[3];
 	Pointf3 position;
