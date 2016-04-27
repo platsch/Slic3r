@@ -15,18 +15,22 @@ class Schematic
     public:
     Schematic();
     ~Schematic();
+    void setRootOffset(Pointf3 offset);
+	Pointf3 getRootOffset();
+	void setFilename(std::string filename);
     void addElectronicPart(ElectronicPart* part);
     ElectronicPart* addElectronicPart(std::string name, std::string library, std::string deviceset, std::string device, std::string package);
     void addElectronicNet(ElectronicNet* net);
     ElectronicParts* getPartlist();
-    void setRootOffset(Pointf3 offset);
-    Pointf3 getRootOffset();
-    void setFilename(std::string filename);
+    RubberBandPtrs* getRubberBands();
+
+
 	private:
-    std::vector<ElectronicNet*> netlist;
+    ElectronicNets netlist;
     ElectronicParts partlist;
     std::string filename;
     Pointf3* rootOffset;
+    RubberBandPtrs rubberBands;
 
 };
 

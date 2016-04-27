@@ -8,8 +8,17 @@
 
 namespace Slic3r {
 
+struct ElectronicNetPin {
+	std::string part;
+	std::string pin;
+	std::string gate;
+};
+
 class ElectronicNet;
-class ElectronicNetPin;
+class RubberBand;
+typedef std::vector<ElectronicNet*> ElectronicNets;
+typedef std::vector<RubberBand*> RubberBandPtrs;
+typedef std::vector<ElectronicNetPin> Pinlist;
 
 class ElectronicNet
 {
@@ -17,22 +26,28 @@ class ElectronicNet
     //ElectronicNet(std::string name);
     ElectronicNet(std::string name);
     ~ElectronicNet();
+    std::string getName();
     void addPin(std::string part, std::string pin, std::string gate);
+    Pinlist* getPinList();
+
 	private:
     std::string name;
-    std::vector<ElectronicNetPin*> pinlist;
+    Pinlist pinlist;
 
 };
 
-class ElectronicNetPin
+
+class RubberBand
 {
 	public:
-	ElectronicNetPin(std::string part, std::string pin, std::string gate);
-	~ElectronicNetPin();
+	RubberBand();
+	~RubberBand();
+
+	Pointf3 a;
+	Pointf3 b;
+
 	private:
-	std::string part;
-	std::string pin;
-	std::string gate;
+
 };
 
 }

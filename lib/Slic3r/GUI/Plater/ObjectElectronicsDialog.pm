@@ -538,11 +538,10 @@ sub render_print {
         $self->{object_list} = \@lookup_table;
         
         # Display rubber-banding
-#        for my $part (@{$self->{schematic}->{partlist}}) {
-#	        if ($part->{shown}) {
-#	        	
-#	        }
-#	    }
+        my $rubberBands = $self->{schematic}->getRubberBands;
+	    foreach my $rubberBand (@{$rubberBands}) {
+	    	$self->canvas->draw_line($rubberBand->a, $rubberBand->b, 0.3, [0.2, 0.2, 0.2, 0.9]);
+	    }
         
         $self->set_z($height) if $self->enabled;
         
@@ -694,12 +693,6 @@ sub reload_tree {
     $tree->ExpandAll;
     
     $self->{tree}->SelectItem($selectedId);
-    
-    my $a = Slic3r::Pointf3->new(0, 0, 0);
-    my $b = Slic3r::Pointf3->new(50, 40, 10);
-    
-    $self->canvas->draw_line($b, $a, 0.5, [0, 1, 0, 0.9]);
-    $self->canvas->draw_line(Slic3r::Pointf3->new(0, 0, 20), Slic3r::Pointf3->new(50, 20, 20), 0.5);
 }
 
 #######################################################################
@@ -734,10 +727,8 @@ sub selection_changed {
     		if($self->get_z < $part->getPosition->z || $self->get_z > $part->getPosition->z + $part->getPartHeight) {
     			
     			for my $i (0 .. $#{$self->{layers_z}}) {
-    				print "part position: " . $part->getPosition->z . " i: " . $i . "\n"; 
     				if($self->{layers_z}[$i] >= $part->getPosition->z) {
     					$self->{slider}->SetValue($i);
-    					print "after setting, getValue: " . $self->{slider}->GetValue . "\n";
     					$self->sliderMoved;
     					last;
     				}

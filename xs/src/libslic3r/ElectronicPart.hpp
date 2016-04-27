@@ -54,6 +54,8 @@ class ElectronicPart
     Pointf3 getRotation() {return this->rotation;};
     void setPartOrigin(double x, double y, double z);  //internal position of the part, defines origin
     void addPad(std::string type, std::string pad, std::string pin, std::string gate, double x, double y, double rotation, double dx, double dy, double drill, std::string shape);
+    bool hasPad(std::string padName);
+    Pointf3 getAbsPadPosition(std::string padName);
     void setVisibility(bool visible) {this->visible = visible;};
     bool isVisible() {return this->visible;};
     void setPlaced(bool placed) {this->placed = placed;};
@@ -93,6 +95,7 @@ class ElectronicPart
 	stl_facet generateFacet(double v1x, double v1y, double v1z, double v2x, double v2y, double v2z, double v3x, double v3y, double v3z);
 	void merge_stl(stl_file* stl1, stl_file* stl2);
 
+	friend class Schematic;
 
 };
 

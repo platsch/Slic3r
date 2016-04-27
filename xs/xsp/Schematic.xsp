@@ -17,7 +17,7 @@
     	%code{% RETVAL = THIS->getPartlist(); %};
     void setRootOffset(Pointf3* offset)
     	%code{% THIS->setRootOffset(*offset); %};
-    Clone<Pointf3> getRootOffset()
-    	%code{% RETVAL = THIS->getRootOffset(); %};
+    Clone<Pointf3> getRootOffset();
+    RubberBandPtrs* getRubberBands();
     void setFilename(std::string filename);
 };

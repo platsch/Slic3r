@@ -224,6 +224,7 @@ sub thread_cleanup {
     *Slic3r::Electronics::Schematic::DESTROY = sub {};
     *Slic3r::Electronics::ElectronicPart::DESTROY = sub {};
     *Slic3r::Electronics::ElectronicNet::DESTROY = sub {};
+    *Slic3r::Electronics::RubberBand::DESTROY = sub {};
     return undef;  # this prevents a "Scalars leaked" warning
 }
 

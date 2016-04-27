@@ -102,6 +102,37 @@ void ElectronicPart::addPad(std::string type, std::string pad, std::string pin, 
 	this->padlist.push_back(newpad);
 }
 
+/* Check whether this part has a pad whith the name given.
+ * Intended to be used before calling getAbsPadPosition to ensure a valid result.
+ */
+bool ElectronicPart::hasPad(std::string padName)
+{
+	bool result = false;
+	for (Padlist::const_iterator pad = this->padlist.begin(); pad != this->padlist.end(); ++pad) {
+		if(pad->pad == padName) {
+			result = true;
+		}
+	}
+	return result;
+}
+
+Pointf3 ElectronicPart::getAbsPadPosition(std::string padName)
+{
+	Pointf3 pos;
+	for (Padlist::const_iterator pad = this->padlist.begin(); pad != this->padlist.end(); ++pad) {
+		if(pad->pad == padName) {
+			pos.x = pad->position[0];
+			pos.y = pad->position[1];
+			pos.z = pad->position[2];
+
+			pos.rotate(Geometry::deg2rad(this->rotation.z), Pointf(0, 0));
+			// rotation around y and z is missing!!!
+			pos.translate(this->position);
+		}
+	}
+	return pos;
+}
+
 TriangleMesh ElectronicPart::getFootprintMesh()
 {
 	TriangleMesh mesh;

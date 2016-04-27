@@ -68,7 +68,7 @@ sub readFile {
                                     $packagelist->getAttribute('dy'),
                                     0,
                                     $shape,
-                                );
+                                ); 
                             }
                         }
                         for my $packagelist ($xmldoc->findnodes("/eagle/drawing/schematic/libraries/library[\@name='$library']/packages/package[\@name='$package']/pad")) {
@@ -157,8 +157,8 @@ sub readFile {
                 for my $pinref ($segment->findnodes('./pinref')) {
                     $newnet->addPin(
                         $pinref->getAttribute('part'),
-                        $pinref->getAttribute('gate'),
                         $pinref->getAttribute('pin'),
+                        $pinref->getAttribute('gate')
                     );
                 }
             }

@@ -20,7 +20,8 @@ src/libslic3r/Config.cpp
 src/libslic3r/Config.hpp
 src/libslic3r/ElectronicNet.hpp
 src/libslic3r/ElectronicNet.cpp
-src/libslic3r/ElectronicNetPin.cpp
+src/libslic3r/ElectronicPart.hpp
+src/libslic3r/ElectronicPart.cpp
 src/libslic3r/ExPolygon.cpp
 src/libslic3r/ExPolygon.hpp
 src/libslic3r/ExPolygonCollection.cpp
@@ -71,6 +72,9 @@ src/libslic3r/PrintConfig.cpp
 src/libslic3r/PrintConfig.hpp
 src/libslic3r/PrintObject.cpp
 src/libslic3r/PrintRegion.cpp
+src/libslic3r/RubberBand.cpp
+src/libslic3r/Schematic.hpp
+src/libslic3r/Schematic.cpp
 src/libslic3r/SupportMaterial.hpp
 src/libslic3r/Surface.cpp
 src/libslic3r/Surface.hpp
@@ -127,6 +131,7 @@ xsp/BridgeDetector.xsp
 xsp/Clipper.xsp
 xsp/Config.xsp
 xsp/ElectronicNet.xsp
+xsp/ElectronicPart.xsp
 xsp/ExPolygon.xsp
 xsp/ExPolygonCollection.xsp
 xsp/Extruder.xsp
@@ -153,6 +158,7 @@ xsp/Polygon.xsp
 xsp/Polyline.xsp
 xsp/PolylineCollection.xsp
 xsp/Print.xsp
+xsp/Schematic.xsp
 xsp/SupportMaterial.xsp
 xsp/Surface.xsp
 xsp/SurfaceCollection.xsp

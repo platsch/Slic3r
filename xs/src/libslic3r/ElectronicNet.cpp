@@ -12,10 +12,23 @@ ElectronicNet::~ElectronicNet()
 {
 }
 
-void
-ElectronicNet::addPin(std::string part, std::string pin, std::string gate)
+std::string ElectronicNet::getName()
 {
-	this->pinlist.push_back(new ElectronicNetPin(part, pin, gate));
+	return this->name;
+}
+
+void ElectronicNet::addPin(std::string part, std::string pin, std::string gate)
+{
+	ElectronicNetPin netPin;
+	netPin.part = part;
+	netPin.pin = pin;
+	netPin.gate = gate;
+	this->pinlist.push_back(netPin);
+}
+
+Pinlist* ElectronicNet::getPinList()
+{
+	return &this->pinlist;
 }
 
 }

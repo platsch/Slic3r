@@ -221,6 +221,10 @@ ElectronicNet*                 O_OBJECT_SLIC3R
 Ref<ElectronicNet>             O_OBJECT_SLIC3R_T
 Clone<ElectronicNet>           O_OBJECT_SLIC3R_T
 
+RubberBand*                 O_OBJECT_SLIC3R
+Ref<RubberBand>             O_OBJECT_SLIC3R_T
+Clone<RubberBand>           O_OBJECT_SLIC3R_T
+
 GLVertexArray*             O_OBJECT_SLIC3R
 
 Axis                  T_UV
@@ -255,7 +259,7 @@ PrintObjectPtrs*    T_PTR_ARRAYREF_PTR
 LayerPtrs*          T_PTR_ARRAYREF_PTR
 SupportLayerPtrs*   T_PTR_ARRAYREF_PTR
 ElectronicParts*	T_PTR_ARRAYREF_PTR
-
+RubberBandPtrs*     T_PTR_ARRAYREF_PTR
 
 # we return these types whenever we want the items to be returned
 # by reference and not marked ::Ref because they're newly allocated

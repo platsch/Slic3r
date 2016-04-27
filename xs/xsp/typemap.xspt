@@ -165,6 +165,10 @@
 %typemap{Ref<ElectronicNet>}{simple};
 %typemap{Clone<ElectronicNet>}{simple};
 
+%typemap{RubberBand*};
+%typemap{Ref<RubberBand>}{simple};
+%typemap{Clone<RubberBand>}{simple};
+%typemap{RubberBandPtrs*};
 
 %typemap{Points};
 %typemap{Pointfs};
