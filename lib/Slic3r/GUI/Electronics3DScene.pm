@@ -7,6 +7,8 @@ use OpenGL qw(:glconstants :glfunctions :glufunctions :gluconstants);
 use Wx::Event qw(EVT_MOUSE_EVENTS);
 use base qw(Slic3r::GUI::3DScene);
 
+__PACKAGE__->mk_accessors( qw(on_rubberband_split) );
+
 use Data::Dumper;
 
 #######################################################################
@@ -21,8 +23,12 @@ sub new {
     bless ($self, $class);
     $self->{parent} = $parent;
     
-    EVT_MOUSE_EVENTS($self, \&mouse_event_new);
+    $self->{current_z} = 0;
     
+    $self->{activity}->{rubberband_splitting} = undef;
+    
+    EVT_MOUSE_EVENTS($self, \&mouse_event_new);
+
     return $self;
 }
 
@@ -31,12 +37,21 @@ sub load_scene_volume {
 }
 
 # Inteded to draw lines for rubberbanding vizualisation
-sub draw_line {
+# Points a and b are relative to the center of object
+sub add_rubberband {
 	my ($self, $a, $b, $width, $color) = @_;
+	
+	$a = $a->clone;
+	$b = $b->clone;
 	
 	# default color is black
 	if(!defined $color) {
 		$color = [0, 0, 0, 0.8];
+	}
+	
+	# default width
+	if(!defined $width) {
+		$width = 0.3;
 	}
 	
 	my $tverts = Slic3r::GUI::_3DScene::GLVertexArray->new;	
@@ -74,6 +89,8 @@ sub draw_line {
         color           => $color,
         tverts			=> $tverts,
     );
+    
+    return $#{$self->volumes};
 }
 
 sub load_electronic_part {
@@ -96,25 +113,167 @@ sub load_electronic_part {
     return $#{$self->volumes};
 }
 
+sub add_wire_point {
+	my ($self, $point, $color) = @_;
+	
+	my $radius = 0.7;
+	
+	# default color is red
+	if(!defined $color) {
+		$color = [0.9, 0, 0, 0.9];
+	}
+	
+	my $tverts = Slic3r::GUI::_3DScene::GLVertexArray->new;	
+	
+	#my $dx = $point->x+radius;
+    #my $dy = $b->y-$a->y;
+    #my $vector_l = sqrt($dx**2+$dy**2);
+    #my $x_off = ($dy*$width/2)/$vector_l;
+    #my $y_off = ($dx*$width/2)/$vector_l;
+    
+    # Translate points to origin
+    $point->translate($self->origin->x, $self->origin->y, 0);
+    
+    # generate polyhedron as simple sphere. Should be replaced by a true sphere...
+    # upper part
+	$tverts->push_vert($point->x, $point->y, $point->z+$radius);
+	$tverts->push_vert($point->x+$radius, $point->y+$radius, $point->z);
+	$tverts->push_vert($point->x-$radius, $point->y+$radius, $point->z);
+	
+	$tverts->push_vert($point->x, $point->y, $point->z+$radius);
+	$tverts->push_vert($point->x+$radius, $point->y-$radius, $point->z);
+	$tverts->push_vert($point->x+$radius, $point->y+$radius, $point->z);
+	
+	$tverts->push_vert($point->x, $point->y, $point->z+$radius);
+	$tverts->push_vert($point->x-$radius, $point->y+$radius, $point->z);
+	$tverts->push_vert($point->x-$radius, $point->y-$radius, $point->z);
+	
+	$tverts->push_vert($point->x, $point->y, $point->z+$radius);
+	$tverts->push_vert($point->x-$radius, $point->y-$radius, $point->z);
+	$tverts->push_vert($point->x+$radius, $point->y-$radius, $point->z);
+	
+	# lower part
+	$tverts->push_vert($point->x, $point->y, $point->z-$radius);
+	$tverts->push_vert($point->x-$radius, $point->y+$radius, $point->z);
+	$tverts->push_vert($point->x+$radius, $point->y+$radius, $point->z);
+	
+	$tverts->push_vert($point->x, $point->y, $point->z-$radius);
+	$tverts->push_vert($point->x+$radius, $point->y+$radius, $point->z);
+	$tverts->push_vert($point->x+$radius, $point->y-$radius, $point->z);
+	
+	$tverts->push_vert($point->x, $point->y, $point->z-$radius);
+	$tverts->push_vert($point->x-$radius, $point->y-$radius, $point->z);
+	$tverts->push_vert($point->x-$radius, $point->y+$radius, $point->z);
+	
+	$tverts->push_vert($point->x, $point->y, $point->z-$radius);
+	$tverts->push_vert($point->x+$radius, $point->y-$radius, $point->z);
+	$tverts->push_vert($point->x-$radius, $point->y-$radius, $point->z);
+	
+	foreach my $i (0..23) {
+		$tverts->push_norm(0, 0, 1);
+	}
+	
+	my $bb = Slic3r::Geometry::BoundingBoxf3->new;
+    $bb->merge_point($point);
+
+    push @{$self->volumes}, Slic3r::GUI::3DScene::Volume->new(
+        bounding_box    => $bb,
+        color           => $color,
+        tverts			=> $tverts,
+    );
+    
+    return $#{$self->volumes};
+}
+
+sub get_selected_volumes {
+	my $self = shift;
+	my @volume_ids;
+	
+	for my $volume_idx (0 .. $#{$self->volumes}) {
+		push @volume_ids, $volume_idx if $self->volumes->[$volume_idx]->selected;
+	}
+	
+	return @volume_ids;
+}
+
+# starts a selection of a 3rd point with lines rendered to the endpoint of the rubberband
+sub rubberband_splitting {
+	my ($self, $rubberband) = @_;
+	
+	# add lines
+	$self->add_rubberband($rubberband->a, $self->get_mouse_pos_3d_obj);
+	$self->add_rubberband($rubberband->b, $self->get_mouse_pos_3d_obj);
+	
+	# set activity until next mouse click
+	$self->{activity}->{rubberband_splitting} = $rubberband;
+	
+	print "splitting ausgeloest\n";
+}
+
+# set current z height, must be updated every time the slider is moved!
+sub set_z {
+	my ($self, $z) = @_;
+	$self->{current_z} = $z;
+	
+	# update parent z info
+	$self->set_toolpaths_range(0, $z);
+}
+
 #######################################################################
 # Purpose    : Processes mouse events
-# Parameters : An mouse event
+# Parameters : A mouse event
 # Returns    : none
 # Comment     : Overloads the method mouse_event_new of Slic3r::GUI::3DScene
 #######################################################################
 sub mouse_event_new {
     my ($self, $e) = @_;
     if ($e->LeftUp && $self->{parent}->get_place) {
-        my $cur_pos = $self->mouse_ray($e->GetX, $e->GetY)->intersect_plane($self->{parent}->get_z);
+        my $cur_pos = $self->mouse_ray($e->GetX, $e->GetY)->intersect_plane($self->{current_z});
         my $item = $self->{parent}->get_place;
         if ($item->{type} eq 'part') {
             $self->{parent}->placePart($item->{part}, @$cur_pos);
         }       
         $self->{parent}->set_place(0);
     }
+    elsif ($e->Moving && $self->{activity}->{rubberband_splitting}) {
+    	# refresh mouse position
+    	$self->mouse_event($e);
+    	
+    	# remove old lines
+        pop @{$self->volumes};
+        pop @{$self->volumes};
+        
+        # add new lines
+        $self->add_rubberband($self->{activity}->{rubberband_splitting}->a, $self->get_mouse_pos_3d_obj);
+		$self->add_rubberband($self->{activity}->{rubberband_splitting}->b, $self->get_mouse_pos_3d_obj);
+        
+        # refresh canvas
+        $self->Refresh;
+    }
+    elsif ($e->LeftDown && $self->{activity}->{rubberband_splitting}) {
+    	# callback
+    	$self->on_rubberband_split->($self->{activity}->{rubberband_splitting}, $self->get_mouse_pos_3d_obj)
+            if $self->on_rubberband_split;
+        
+        $self->{activity}->{rubberband_splitting} = undef;
+    }
     else {
         $self->mouse_event($e);
     }
+}
+
+# Get 3D mouse position in scene coordinates
+sub get_mouse_pos_3d {
+	my $self = shift;
+	return $self->mouse_ray($self->_mouse_pos->x, $self->_mouse_pos->y)->intersect_plane($self->{current_z});
+}
+
+# Get 3D mouse position in object coordinates
+sub get_mouse_pos_3d_obj {
+	my $self = shift;
+	my $mouseP = $self->get_mouse_pos_3d;
+    $mouseP->translate(-$self->origin->x, -$self->origin->y, 0);
+	return $mouseP;
 }
 
 1;

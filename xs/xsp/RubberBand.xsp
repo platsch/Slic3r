@@ -1,0 +1,21 @@
+%module{Slic3r::XS};
+
+%{
+#include <xsinit.h>
+#include "libslic3r/RubberBand.hpp"
+%}
+
+%name{Slic3r::Electronics::RubberBand} class RubberBand {
+    RubberBand(std::string net, unsigned int partA);
+    ~RubberBand();
+    unsigned int getID();
+    Clone<RubberBand> clone()
+        %code{% RETVAL = THIS; %};
+    Ref<Pointf3> a()
+        %code{% RETVAL = &THIS->a; %};
+    Ref<Pointf3> b()
+        %code{% RETVAL = &THIS->b; %};
+        
+    Ref<Pointf3> selectNearest(Pointf3* p)
+    	%code{% RETVAL = THIS->selectNearest(*p); %};
+};

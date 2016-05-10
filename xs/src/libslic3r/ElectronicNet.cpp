@@ -6,6 +6,7 @@ namespace Slic3r {
 ElectronicNet::ElectronicNet(std::string name)
 {
 	this->name = name;
+	this->currentNetPoint = 0;
 }
 
 ElectronicNet::~ElectronicNet()

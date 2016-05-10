@@ -94,8 +94,12 @@ sub new {
     } else {
         $self->createDefaultConfig($configfile);
     }
-    # Lookup-table to match selected object ID from canvas to actual object
-    $self->{object_list} = ();
+    
+    # Lookup-tables to match selected object IDs from canvas to actual object
+	$self->{rubberband_lookup} = ();
+	$self->{part_lookup} = ();
+	$self->{wirepoint_lookup} = ();
+	
     
     # upper buttons
     my $btn_load_netlist = $self->{btn_load_netlist} = Wx::Button->new($self, -1, "Load netlist", wxDefaultPosition, wxDefaultSize, wxBU_LEFT);
@@ -305,12 +309,42 @@ sub new {
         
         $canvas->on_select(sub {
             my ($volume_idx) = @_;
-            if(defined $self->{object_list}) {
-	            my $partID = $self->{object_list}[$volume_idx];
-	            if(defined $partID) {
-	            	$self->reload_tree($partID);	
-	            }
+            
+            # object is a part
+            my $partID = $self->{part_lookup}[$volume_idx];
+            if(defined $partID) {
+            	$self->reload_tree($partID);	
             }
+            
+            # object is a rubberband
+            my $rubberband = $self->{rubberband_lookup}[$volume_idx];
+            if(defined $rubberband) {
+            	print "Rubberband selected\n";	
+            }
+            
+            # object is a point
+        });
+        
+        $canvas->on_double_click(sub {
+            my ($volume_idx) = @_;
+            
+            # object is a part
+            
+            # object is a rubberband
+            my $rubberband = $self->{rubberband_lookup}[$volume_idx];
+            if(defined $rubberband) {
+            	print "Rubberband dblclicked\n";
+            	my $mousepoint = $self->{canvas}->get_mouse_pos_3d;
+            	$rubberband->selectNearest($mousepoint);
+            	$canvas->rubberband_splitting($rubberband);
+            }
+            
+            # object is a point
+        });
+        
+        $canvas->on_rubberband_split(sub {
+            my ($rubberband, $pos) = @_;
+			$canvas->add_wire_point($pos);
         });
                 
         $canvas->load_object($self->{model_object}, undef, [0]);
@@ -505,7 +539,7 @@ sub render_print {
     }
     
     # reset lookup array
-    my @lookup_table;
+    $self->{part_lookup} = ();
     
     # load objects
     if ($self->IsShown) {
@@ -528,20 +562,24 @@ sub render_print {
         			my $mesh = $part->getMesh();
         			$mesh->translate($self->{rootOffset}->x, $self->{rootOffset}->y, 0);
         			my $object_id = $self->canvas->load_electronic_part($mesh);
-        			$lookup_table[$object_id] = $part->getPartID;
+        			$self->{part_lookup}[$object_id] = $part->getPartID;
         		}else{
         			$part->setVisibility(0);
         		}
         	}
         }
         
-        $self->{object_list} = \@lookup_table;
-        
         # Display rubber-banding
         my $rubberBands = $self->{schematic}->getRubberBands;
 	    foreach my $rubberBand (@{$rubberBands}) {
-	    	$self->canvas->draw_line($rubberBand->a, $rubberBand->b, 0.3, [0.2, 0.2, 0.2, 0.9]);
+	    	my $object_id = $self->canvas->add_rubberband($rubberBand->a, $rubberBand->b, 0.3, [0.2, 0.2, 0.2, 0.9]);
+	    	# lookup table
+	    	$self->{rubberband_lookup}[$object_id] = $rubberBand;
 	    }
+	    
+	    # Display wire points
+	    $self->canvas->add_wire_point(Slic3r::Pointf3->new(0, 0, 0), [0.8, 0.1, 0.1, 0.9]);
+	    #lookup table!
         
         $self->set_z($height) if $self->enabled;
         
@@ -763,7 +801,7 @@ sub set_z {
     
     return if !$self->enabled;
     $self->{z_label}->SetLabel(sprintf '%.2f', $z);
-    $self->canvas->set_toolpaths_range(0, $z);
+    $self->canvas->set_z($z);
     $self->canvas->Refresh if $self->IsShown;
 }
 

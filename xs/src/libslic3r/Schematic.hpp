@@ -4,6 +4,7 @@
 #include "libslic3r.h"
 #include "ElectronicPart.hpp"
 #include "ElectronicNet.hpp"
+#include "RubberBand.hpp"
 #include "Point.hpp"
 #include <vector>
 

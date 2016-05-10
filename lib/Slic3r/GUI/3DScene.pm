@@ -125,7 +125,8 @@ sub mouse_event {
         # wxMSW needs focus in order to catch mouse wheel events
         $self->SetFocus;
     } elsif ($e->LeftDClick) {
-        $self->on_double_click->()
+    	my $volume_idx = $self->_hover_volume_idx // -1;
+        $self->on_double_click->($volume_idx)
             if $self->on_double_click;
     } elsif ($e->LeftDown || $e->RightDown) {
         # If user pressed left or right button we first check whether this happened

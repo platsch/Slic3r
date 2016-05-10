@@ -13,14 +13,3 @@
         %code{% RETVAL = THIS; %};
     void addPin(std::string part, std::string pin, std::string gate);
 };
-
-%name{Slic3r::Electronics::RubberBand} class RubberBand {
-    RubberBand();
-    ~RubberBand();
-    Clone<RubberBand> clone()
-        %code{% RETVAL = THIS; %};
-    Ref<Pointf3> a()
-        %code{% RETVAL = &THIS->a; %};
-    Ref<Pointf3> b()
-        %code{% RETVAL = &THIS->b; %};
-};

@@ -35,7 +35,7 @@ class ElectronicPart
     public:
     ElectronicPart(std::string name, std::string library, std::string deviceset, std::string device, std::string package);
     ~ElectronicPart();
-    int getPartID() {return this->partID;};
+    unsigned int getPartID() {return this->partID;};
     std::string getName(){return this->name;};
     std::string getLibrary(){return this->library;};
     std::string getDeviceset(){return this->deviceset;};
@@ -69,8 +69,8 @@ class ElectronicPart
     void resetPrintedStatus(){this->printed = false;};
 
 	private:
-    static int s_idGenerator;
-    int partID;
+    static unsigned int s_idGenerator;
+    unsigned int partID;
 	std::string name;
 	std::string library;
 	std::string deviceset;

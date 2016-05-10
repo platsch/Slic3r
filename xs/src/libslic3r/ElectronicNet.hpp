@@ -3,27 +3,36 @@
 
 #include "libslic3r.h"
 #include <vector>
+#include <map>
+#include <list>
 #include "Point.hpp"
 
 
 namespace Slic3r {
 
+// stores data from the schematic
 struct ElectronicNetPin {
 	std::string part;
 	std::string pin;
 	std::string gate;
 };
 
+// stores internal routing information. Endpoints can be points or pins, invalid endpoints must be -1.
+struct Wire {
+	long pointA;
+	long pinA;
+	long pointB;
+	long pinB;
+	// potential additional information e.g. min trace width.
+};
+
 class ElectronicNet;
-class RubberBand;
 typedef std::vector<ElectronicNet*> ElectronicNets;
-typedef std::vector<RubberBand*> RubberBandPtrs;
 typedef std::vector<ElectronicNetPin> Pinlist;
 
 class ElectronicNet
 {
     public:
-    //ElectronicNet(std::string name);
     ElectronicNet(std::string name);
     ~ElectronicNet();
     std::string getName();
@@ -33,21 +42,9 @@ class ElectronicNet
 	private:
     std::string name;
     Pinlist pinlist;
-
-};
-
-
-class RubberBand
-{
-	public:
-	RubberBand();
-	~RubberBand();
-
-	Pointf3 a;
-	Pointf3 b;
-
-	private:
-
+    std::map<int, Pointf3> netPoints;
+    unsigned int currentNetPoint; //pointer to last element
+    std::list<Wire> netWires;
 };
 
 }

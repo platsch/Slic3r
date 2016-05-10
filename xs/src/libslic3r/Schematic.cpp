@@ -72,9 +72,10 @@ RubberBandPtrs* Schematic::getRubberBands()
 								if((*partA)->hasPad(netPinA->pin) && (*partB)->hasPad(netPinB->pin)) {
 									// at least one part must be visible
 									if((*partA)->isVisible() || (*partB)->isVisible()) {
-										RubberBand* rb = new RubberBand();
+										RubberBand* rb = new RubberBand((*net)->getName(), (*partA)->getPartID());
 										rb->a = (*partA)->getAbsPadPosition(netPinA->pin);
 										rb->b = (*partB)->getAbsPadPosition(netPinB->pin);
+										rb->addPartB((*partB)->getPartID());
 										this->rubberBands.push_back(rb);
 									}
 								}else{

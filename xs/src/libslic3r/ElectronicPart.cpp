@@ -34,7 +34,7 @@ ElectronicPart::~ElectronicPart()
 }
 
 // Initialization of static ID generator variable
-int ElectronicPart::s_idGenerator = 1;
+unsigned int ElectronicPart::s_idGenerator = 1;
 
 // Parts are currently represented only by a simple cube.
 // This redefines the size of this cube, which is
