@@ -158,7 +158,7 @@ sub readFile {
                     $newnet->addPin(
                         $pinref->getAttribute('part'),
                         $pinref->getAttribute('pin'),
-                        $pinref->getAttribute('gate')
+                        $pinref->getAttribute('gate'),                        
                     );
                 }
             }

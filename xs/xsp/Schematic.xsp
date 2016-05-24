@@ -11,6 +11,7 @@
     ~Schematic();
     Clone<Schematic> clone()
         %code{% RETVAL = THIS; %};        
+    void setFilename(std::string filename);
     void addElectronicPart(ElectronicPart* part);
     void addElectronicNet(ElectronicNet* net);
     ElectronicParts* getPartlist()
@@ -19,5 +20,6 @@
     	%code{% THIS->setRootOffset(*offset); %};
     Clone<Pointf3> getRootOffset();
     RubberBandPtrs* getRubberBands();
-    void setFilename(std::string filename);
+    void splitWire(RubberBand* rubberband, Pointf3* p)
+    	%code{% THIS->splitWire(rubberband, *p); %};
 };

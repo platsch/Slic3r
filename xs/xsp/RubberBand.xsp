@@ -6,8 +6,8 @@
 %}
 
 %name{Slic3r::Electronics::RubberBand} class RubberBand {
-    RubberBand(std::string net, unsigned int partA);
-    ~RubberBand();
+    //RubberBand(std::string net, unsigned int partA);
+    //~RubberBand();
     unsigned int getID();
     Clone<RubberBand> clone()
         %code{% RETVAL = THIS; %};

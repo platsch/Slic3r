@@ -225,6 +225,10 @@ RubberBand*                 O_OBJECT_SLIC3R
 Ref<RubberBand>             O_OBJECT_SLIC3R_T
 Clone<RubberBand>           O_OBJECT_SLIC3R_T
 
+NetPoint*                 O_OBJECT_SLIC3R
+Ref<NetPoint>             O_OBJECT_SLIC3R_T
+Clone<NetPoint>           O_OBJECT_SLIC3R_T
+
 GLVertexArray*             O_OBJECT_SLIC3R
 
 Axis                  T_UV

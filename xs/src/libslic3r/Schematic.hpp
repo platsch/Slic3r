@@ -21,12 +21,18 @@ class Schematic
 	void setFilename(std::string filename);
     void addElectronicPart(ElectronicPart* part);
     ElectronicPart* addElectronicPart(std::string name, std::string library, std::string deviceset, std::string device, std::string package);
+    ElectronicPart* getElectronicPart(unsigned int partID);
     void addElectronicNet(ElectronicNet* net);
     ElectronicParts* getPartlist();
     RubberBandPtrs* getRubberBands();
+    void splitWire(const RubberBand* rubberband, const Pointf3& p);
 
 
 	private:
+    bool _checkRubberBandVisibility(const RubberBand* rb, const double z);
+    void _updateUnwiredRubberbands();
+    void _updateUnwiredRubberbands(ElectronicNet* net);
+
     ElectronicNets netlist;
     ElectronicParts partlist;
     std::string filename;

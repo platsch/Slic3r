@@ -345,6 +345,8 @@ sub new {
         $canvas->on_rubberband_split(sub {
             my ($rubberband, $pos) = @_;
 			$canvas->add_wire_point($pos);
+			$self->{schematic}->splitWire($rubberband, $pos);
+			$self->reload_print;
         });
                 
         $canvas->load_object($self->{model_object}, undef, [0]);

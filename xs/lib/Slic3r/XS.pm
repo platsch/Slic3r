@@ -252,6 +252,7 @@ for my $class (qw(
         Slic3r::TriangleMesh
         Slic3r::Electronics::ElectronicPart
         Slic3r::Electronics::RubberBand
+        Slic3r::Electronics::NetPoint
     ))
 {
     no strict 'refs';

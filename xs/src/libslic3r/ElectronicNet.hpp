@@ -6,6 +6,8 @@
 #include <map>
 #include <list>
 #include "Point.hpp"
+#include "NetPoint.hpp"
+#include "RubberBand.hpp"
 
 
 namespace Slic3r {
@@ -15,6 +17,7 @@ struct ElectronicNetPin {
 	std::string part;
 	std::string pin;
 	std::string gate;
+	unsigned int partID;
 };
 
 // stores internal routing information. Endpoints can be points or pins, invalid endpoints must be -1.
@@ -38,13 +41,24 @@ class ElectronicNet
     std::string getName();
     void addPin(std::string part, std::string pin, std::string gate);
     Pinlist* getPinList();
+    long findNetPin(const std::string partName, const std::string pinName);
+    unsigned int addNetPoint(Pointf3 p);
+    void removeNetPoint(unsigned int netPointID);
+    //bool addNetWire(Wire& wire);
+    bool addWiredRubberBand(RubberBand* rb);
+    bool removeWiredRubberBand(const unsigned int ID);
+    unsigned int findNearestNetPoint(const Pointf3& p) const;
 
 	private:
     std::string name;
-    Pinlist pinlist;
-    std::map<int, Pointf3> netPoints;
+    Pinlist netPins;
+    std::map<unsigned int, NetPoint> netPoints;
     unsigned int currentNetPoint; //pointer to last element
-    std::list<Wire> netWires;
+    //std::list<Wire> netWires;
+    RubberBandPtrs wiredRubberBands;
+    RubberBandPtrs unwiredRubberBands;
+
+    friend class Schematic;
 };
 
 }

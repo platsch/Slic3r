@@ -132,6 +132,7 @@ sub add_wire_point {
     #my $y_off = ($dx*$width/2)/$vector_l;
     
     # Translate points to origin
+    $point = $point->clone;
     $point->translate($self->origin->x, $self->origin->y, 0);
     
     # generate polyhedron as simple sphere. Should be replaced by a true sphere...

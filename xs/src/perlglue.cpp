@@ -59,6 +59,7 @@ REGISTER_CLASS(Schematic, "Electronics::Schematic");
 REGISTER_CLASS(ElectronicPart, "Electronics::ElectronicPart");
 REGISTER_CLASS(ElectronicNet, "Electronics::ElectronicNet");
 REGISTER_CLASS(RubberBand, "Electronics::RubberBand");
+REGISTER_CLASS(NetPoint, "Electronics::NetPoint");
 
 SV*
 ConfigBase__as_hash(ConfigBase* THIS) {
