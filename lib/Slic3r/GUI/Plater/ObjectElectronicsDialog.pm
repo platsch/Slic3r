@@ -335,7 +335,7 @@ sub new {
             if(defined $rubberband) {
             	print "Rubberband dblclicked\n";
             	my $mousepoint = $self->{canvas}->get_mouse_pos_3d;
-            	$rubberband->selectNearest($mousepoint);
+            	#$rubberband->selectNearest($mousepoint);
             	$canvas->rubberband_splitting($rubberband);
             }
             
@@ -344,7 +344,6 @@ sub new {
         
         $canvas->on_rubberband_split(sub {
             my ($rubberband, $pos) = @_;
-			$canvas->add_wire_point($pos);
 			$self->{schematic}->splitWire($rubberband, $pos);
 			$self->reload_print;
         });
@@ -564,6 +563,7 @@ sub render_print {
         			my $mesh = $part->getMesh();
         			$mesh->translate($self->{rootOffset}->x, $self->{rootOffset}->y, 0);
         			my $object_id = $self->canvas->load_electronic_part($mesh);
+        			# lookup table
         			$self->{part_lookup}[$object_id] = $part->getPartID;
         		}else{
         			$part->setVisibility(0);
@@ -580,8 +580,13 @@ sub render_print {
 	    }
 	    
 	    # Display wire points
-	    $self->canvas->add_wire_point(Slic3r::Pointf3->new(0, 0, 0), [0.8, 0.1, 0.1, 0.9]);
-	    #lookup table!
+	    my $netPoints = $self->{schematic}->getNetPoints;
+	    foreach my $netPoint (@{$netPoints}) {
+	    	my $object_id = $self->canvas->add_wire_point($netPoint->getPoint, [0.8, 0.1, 0.1, 0.9]);
+	    	# lookup table
+	    	$self->{netpoint_lookup}[$object_id] = $netPoint;
+	    }
+	    #$self->canvas->add_wire_point(Slic3r::Pointf3->new(0, 0, 0), [0.8, 0.1, 0.1, 0.9]);
         
         $self->set_z($height) if $self->enabled;
         

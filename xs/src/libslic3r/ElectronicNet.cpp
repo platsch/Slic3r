@@ -48,13 +48,15 @@ long ElectronicNet::findNetPin(const std::string partName, const std::string pin
 unsigned int ElectronicNet::addNetPoint(Pointf3 p)
 {
 	this->currentNetPoint++;
-	this->netPoints[this->currentNetPoint] = NetPoint(this->name, p);
+	this->netPoints[this->currentNetPoint] = NetPoint(this->currentNetPoint, this->name, p);
 	return this->currentNetPoint;
 }
 
 void ElectronicNet::removeNetPoint(unsigned int netPointID)
 {
 	this->netPoints.erase(netPointID);
+
+	// should this also remove all rubberbands connected to this netPoint?
 }
 
 bool ElectronicNet::addWiredRubberBand(RubberBand* rb)

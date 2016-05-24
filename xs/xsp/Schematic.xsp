@@ -20,6 +20,7 @@
     	%code{% THIS->setRootOffset(*offset); %};
     Clone<Pointf3> getRootOffset();
     RubberBandPtrs* getRubberBands();
+    NetPointPtrs* getNetPoints();
     void splitWire(RubberBand* rubberband, Pointf3* p)
     	%code{% THIS->splitWire(rubberband, *p); %};
 };

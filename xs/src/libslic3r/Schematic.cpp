@@ -97,23 +97,17 @@ RubberBandPtrs* Schematic::getRubberBands()
 	return &this->rubberBands;
 }
 
-bool Schematic::_checkRubberBandVisibility(const RubberBand* rb, const double z)
-{
-	bool display = false;
-	if(rb->hasPartA()) {
-		if(this->getElectronicPart(rb->getPartAiD())->isVisible()) {
-			display = true;
-		}
-	}if(rb->hasPartB()) {
-		if(this->getElectronicPart(rb->getPartBiD())->isVisible()) {
-			display = true;
+NetPointPtrs* Schematic::getNetPoints(){
+	this->netPoints.clear();
+
+	for (ElectronicNets::const_iterator net = this->netlist.begin(); net != this->netlist.end(); ++net) {
+		for (std::map<unsigned int, NetPoint>::iterator netPoint = (*net)->netPoints.begin(); netPoint != (*net)->netPoints.end(); ++netPoint) {
+			this->netPoints.push_back(&netPoint->second);
 		}
 	}
-
-	// wires not connected to a part?? by height?
-
-	return display;
+	return &this->netPoints;
 }
+
 
 void Schematic::splitWire(const RubberBand* rubberband, const Pointf3& p)
 {
@@ -160,6 +154,26 @@ void Schematic::splitWire(const RubberBand* rubberband, const Pointf3& p)
 		}
 	}
 }
+
+
+bool Schematic::_checkRubberBandVisibility(const RubberBand* rb, const double z)
+{
+	bool display = false;
+	if(rb->hasPartA()) {
+		if(this->getElectronicPart(rb->getPartAiD())->isVisible()) {
+			display = true;
+		}
+	}if(rb->hasPartB()) {
+		if(this->getElectronicPart(rb->getPartBiD())->isVisible()) {
+			display = true;
+		}
+	}
+
+	// wires not connected to a part?? by height?
+
+	return display;
+}
+
 
 // update all nets
 void Schematic::_updateUnwiredRubberbands()

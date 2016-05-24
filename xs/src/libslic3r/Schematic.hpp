@@ -5,6 +5,7 @@
 #include "ElectronicPart.hpp"
 #include "ElectronicNet.hpp"
 #include "RubberBand.hpp"
+#include "NetPoint.hpp"
 #include "Point.hpp"
 #include <vector>
 
@@ -25,6 +26,7 @@ class Schematic
     void addElectronicNet(ElectronicNet* net);
     ElectronicParts* getPartlist();
     RubberBandPtrs* getRubberBands();
+    NetPointPtrs* getNetPoints();
     void splitWire(const RubberBand* rubberband, const Pointf3& p);
 
 
@@ -38,6 +40,7 @@ class Schematic
     std::string filename;
     Pointf3* rootOffset;
     RubberBandPtrs rubberBands;
+    NetPointPtrs netPoints;
 
 };
 

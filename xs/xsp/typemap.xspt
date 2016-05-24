@@ -170,6 +170,11 @@
 %typemap{Clone<RubberBand>}{simple};
 %typemap{RubberBandPtrs*};
 
+%typemap{NetPoint*};
+%typemap{Ref<NetPoint>}{simple};
+%typemap{Clone<NetPoint>}{simple};
+%typemap{NetPointPtrs*};
+
 %typemap{Points};
 %typemap{Pointfs};
 %typemap{Lines};
