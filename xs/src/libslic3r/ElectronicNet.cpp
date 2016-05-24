@@ -57,21 +57,6 @@ void ElectronicNet::removeNetPoint(unsigned int netPointID)
 	this->netPoints.erase(netPointID);
 }
 
-/*
-bool ElectronicNet::addNetWire(Wire& wire)
-{
-	bool result = false;
-
-	// check if given points exist and exactly one A and one B are defined
-	if((wire.pointA == -1 && wire.pinA >= 0) || (wire.pinA == -1 && wire.pointA >= 0)) {
-		if((wire.pointB == -1 && wire.pinB >= 0) || (wire.pinB == -1 && wire.pointB >= 0)) {
-			this->netWires.push_back(wire);
-			result = true;
-		}
-	}
-	return result;
-}
-*/
 bool ElectronicNet::addWiredRubberBand(RubberBand* rb)
 {
 	bool result = false;
@@ -82,11 +67,7 @@ bool ElectronicNet::addWiredRubberBand(RubberBand* rb)
 			rb->setWired(true);
 			this->wiredRubberBands.push_back(rb);
 			result = true;
-		}else{
-			std::cout << "no part / point B" << std::endl;
 		}
-	}else{
-		std::cout << "no part / point A" << std::endl;
 	}
 
 	return result;
