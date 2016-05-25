@@ -574,7 +574,7 @@ sub render_print {
         }
         
         # Display rubber-banding
-        my $rubberBands = $self->{schematic}->getRubberBands($height+2);
+        my $rubberBands = $self->{schematic}->getRubberBands();
 	    foreach my $rubberBand (@{$rubberBands}) {
 	    	my $object_id = $self->canvas->add_rubberband($rubberBand->a, $rubberBand->b, 0.3, [0.2, 0.2, 0.2, 0.9]);
 	    	# lookup table
