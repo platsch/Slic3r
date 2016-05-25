@@ -22,7 +22,7 @@ typedef std::vector<RubberBand*> RubberBandPtrs;
 class RubberBand
 {
 	public:
-	RubberBand(const std::string net, const Pointf3& a, const Pointf3& b);
+	RubberBand(const std::string net, Pointf3 a, Pointf3 b);
 	~RubberBand();
 	const unsigned int getID() const {return this->ID;};
 	const std::string getNetName() const {return this->netName;};
@@ -45,8 +45,8 @@ class RubberBand
 	bool connectsNetPin(const unsigned int netPinID) const;
 	const Pointf3* selectNearest(const Pointf3& p);
 
-	const Pointf3 a;
-	const Pointf3 b;
+	Pointf3 a;
+	Pointf3 b;
 
 	private:
 	const std::string netName;

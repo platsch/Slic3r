@@ -34,6 +34,8 @@ class Schematic
     bool _checkRubberBandVisibility(const RubberBand* rb, const double z);
     void _updateUnwiredRubberbands();
     void _updateUnwiredRubberbands(ElectronicNet* net);
+    void _updateWiredRubberbands();
+    void _updateWiredRubberbands(ElectronicNet* net);
 
     ElectronicNets netlist;
     ElectronicParts partlist;

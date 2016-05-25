@@ -3,12 +3,11 @@
 namespace Slic3r {
 
 
-RubberBand::RubberBand(const std::string net, const Pointf3& a, const Pointf3& b):netName(net), a(a), b(b)
+RubberBand::RubberBand(const std::string net, Pointf3 a, Pointf3 b):netName(net)
 {
 	this->ID = this->s_idGenerator++;
-	//this->a = a;
-	//this->b = b;
-	//this->netName = net;
+	this->a = a;
+	this->b = b;
 	this->_hasPartA = false;
 	this->_hasPartB = false;
 	this->_hasNetPointA = false;

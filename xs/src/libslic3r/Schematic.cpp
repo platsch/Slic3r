@@ -80,6 +80,7 @@ RubberBandPtrs* Schematic::getRubberBands()
 {
 	this->rubberBands.clear();
 	this->_updateUnwiredRubberbands();
+	this->_updateWiredRubberbands();
 
 	RubberBandPtrs::iterator it;
 	for (ElectronicNets::const_iterator net = this->netlist.begin(); net != this->netlist.end(); ++net) {
@@ -251,6 +252,30 @@ void Schematic::_updateUnwiredRubberbands(ElectronicNet* net)
 	}
 
 	//connections between two separate net segments
+}
+
+// update all nets
+void Schematic::_updateWiredRubberbands()
+{
+	for (ElectronicNets::const_iterator net = this->netlist.begin(); net != this->netlist.end(); ++net) {
+		this->_updateWiredRubberbands((*net));
+	}
+}
+
+// update given net
+void Schematic::_updateWiredRubberbands(ElectronicNet* net)
+{
+	// update positions of rubberbands connected to parts
+	for (RubberBandPtrs::const_iterator rubberband = net->wiredRubberBands.begin(); rubberband != net->wiredRubberBands.end(); ++rubberband) {
+		if((*rubberband)->hasPartA()) {
+			ElectronicPart* partA = this->getElectronicPart((*rubberband)->getPartAiD());
+			(*rubberband)->a = partA->getAbsPadPosition(net->netPins[(*rubberband)->getNetPinAiD()].pin);
+		}
+		if((*rubberband)->hasPartB()) {
+			ElectronicPart* partB = this->getElectronicPart((*rubberband)->getPartBiD());
+			(*rubberband)->b = partB->getAbsPadPosition(net->netPins[(*rubberband)->getNetPinBiD()].pin);
+		}
+	}
 }
 
 }
