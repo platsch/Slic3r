@@ -4,6 +4,7 @@ use warnings;
 use utf8;
 
 use OpenGL qw(:glconstants :glfunctions :glufunctions :gluconstants);
+use List::Util qw(min max);
 use Wx::Event qw(EVT_MOUSE_EVENTS);
 use base qw(Slic3r::GUI::3DScene);
 
@@ -24,6 +25,7 @@ sub new {
     $self->{parent} = $parent;
     
     $self->{current_z} = 0;
+    $self->{visibility_offset} = 1; # Indicates how far electronic parts should be visible above the extrusion object
     
     $self->{activity}->{rubberband_splitting} = undef;
     
@@ -84,10 +86,16 @@ sub add_rubberband {
     $bb->merge_point($a);
     $bb->merge_point($b);
 
+	my %offsets = (); # [ z => [ qverts_idx, tverts_idx ] ]    
+    $offsets{0} = [0, 0];
+    my $h = min($a->z, $b->z);
+    $offsets{$h-$self->{visibility_offset}} = [0, 0];
+
     push @{$self->volumes}, Slic3r::GUI::3DScene::Volume->new(
         bounding_box    => $bb,
         color           => $color,
         tverts			=> $tverts,
+        offsets         => { %offsets },
     );
     
     return $#{$self->volumes};
@@ -104,10 +112,15 @@ sub load_electronic_part {
 	my $tverts = Slic3r::GUI::_3DScene::GLVertexArray->new;
 	$tverts->load_mesh($mesh);
 
+	my %offsets = (); # [ z => [ qverts_idx, tverts_idx ] ]    
+    $offsets{0} = [0, 0];
+    $offsets{$mesh->bounding_box->z_min-$self->{visibility_offset}} = [0, 0];
+
     push @{$self->volumes}, Slic3r::GUI::3DScene::Volume->new(
         bounding_box    => $mesh->bounding_box,
         color           => $color,
         tverts			=> $tverts,
+        offsets         => { %offsets },
     );
     
     return $#{$self->volumes};
@@ -124,12 +137,6 @@ sub add_wire_point {
 	}
 	
 	my $tverts = Slic3r::GUI::_3DScene::GLVertexArray->new;	
-	
-	#my $dx = $point->x+radius;
-    #my $dy = $b->y-$a->y;
-    #my $vector_l = sqrt($dx**2+$dy**2);
-    #my $x_off = ($dy*$width/2)/$vector_l;
-    #my $y_off = ($dx*$width/2)/$vector_l;
     
     # Translate points to origin
     $point = $point->clone;
@@ -176,11 +183,16 @@ sub add_wire_point {
 	
 	my $bb = Slic3r::Geometry::BoundingBoxf3->new;
     $bb->merge_point($point);
+    
+    my %offsets = (); # [ z => [ qverts_idx, tverts_idx ] ]    
+    $offsets{0} = [0, 0];
+    $offsets{$point->z-$self->{visibility_offset}} = [0, 0];
 
     push @{$self->volumes}, Slic3r::GUI::3DScene::Volume->new(
         bounding_box    => $bb,
         color           => $color,
         tverts			=> $tverts,
+        offsets         => { %offsets },
     );
     
     return $#{$self->volumes};

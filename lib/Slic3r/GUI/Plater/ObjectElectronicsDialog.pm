@@ -463,14 +463,14 @@ sub sliderMoved {
     my $height =  $self->{layers_z}[$self->{slider}->GetValue];
     my $changed = 0;
     
-    my $partlist = $self->{schematic}->getPartlist();
-    for my $part (@{$partlist}) {
-    	if (($part->isPlaced && 
-            (!$part->isVisible && $part->getPosition()->z-$part->getFootprintHeight <= $height) ||
-            ($part->isVisible && $part->getPosition()->z-$part->getFootprintHeight > $height))) {
-            $changed = 1;
-        }
-    }
+#    my $partlist = $self->{schematic}->getPartlist();
+#    for my $part (@{$partlist}) {
+#    	if (($part->isPlaced && 
+#            (!$part->isVisible && $part->getPosition()->z-$part->getFootprintHeight <= $height) ||
+#            ($part->isVisible && $part->getPosition()->z-$part->getFootprintHeight > $height))) {
+#            $changed = 1;
+#        }
+#    }
     
     $self->set_z($height);
     if ($changed == 1) {
@@ -489,10 +489,10 @@ sub reload_print {
     $self->canvas->reset_objects;
     $self->_loaded(0);
     
-    my $partlist = $self->{schematic}->getPartlist();
-    for my $part (@{$partlist}) {
-    	$part->setVisibility(0);
-    }
+    #my $partlist = $self->{schematic}->getPartlist();
+    #for my $part (@{$partlist}) {
+    #	$part->setVisibility(0);
+    #}
               
     $self->render_print;
 }
@@ -541,6 +541,8 @@ sub render_print {
     
     # reset lookup array
     $self->{part_lookup} = ();
+    $self->{rubberband_lookup} = ();
+    $self->{netpoint_lookup} = ();
     
     # load objects
     if ($self->IsShown) {
@@ -558,21 +560,21 @@ sub render_print {
         foreach my $part (@{$self->{schematic}->getPartlist()}) {
         	if($part->isPlaced()) {
         		# part visible?
-        		if ($part->getPosition()->z-$part->getFootprintHeight() <= $height || $self->{config}->{_}{show_parts_on_higher_layers}) {
-        			$part->setVisibility(1);
+        		#if ($part->getPosition()->z-$part->getFootprintHeight() <= $height || $self->{config}->{_}{show_parts_on_higher_layers}) {
+        		#	$part->setVisibility(1);
         			my $mesh = $part->getMesh();
         			$mesh->translate($self->{rootOffset}->x, $self->{rootOffset}->y, 0);
         			my $object_id = $self->canvas->load_electronic_part($mesh);
         			# lookup table
         			$self->{part_lookup}[$object_id] = $part->getPartID;
-        		}else{
-        			$part->setVisibility(0);
-        		}
+        		#}else{
+        		#	$part->setVisibility(0);
+        		#}
         	}
         }
         
         # Display rubber-banding
-        my $rubberBands = $self->{schematic}->getRubberBands;
+        my $rubberBands = $self->{schematic}->getRubberBands($height+2);
 	    foreach my $rubberBand (@{$rubberBands}) {
 	    	my $object_id = $self->canvas->add_rubberband($rubberBand->a, $rubberBand->b, 0.3, [0.2, 0.2, 0.2, 0.9]);
 	    	# lookup table
@@ -611,8 +613,9 @@ sub placePart {
     $y = int($y*1000)/1000.0;
     $z = int($z*1000)/1000.0;
     $part->setPosition($x-$self->{rootOffset}->x, $y-$self->{rootOffset}->y, $z);
+    $part->setFootprintHeight($self->get_layer_thickness($z));
     $part->setPlaced(1);
-    $self->displayPart($part);
+    $part->setVisibility(1);
     $self->reload_tree($part->getPartID());
     
     # trigger slicing steps to update modifications;
@@ -620,21 +623,6 @@ sub placePart {
     $self->{plater}->stop_background_process;
     $self->{plater}->start_background_process(1);
     
-}
-
-#######################################################################
-# Purpose    : Displays a Part and its footprint on the canvas
-# Parameters : part to display
-# Returns    : none
-# Comment     : When the part already exists on canvas it will be deleted
-#######################################################################
-sub displayPart {
-    my $self = shift;
-    my ($part) = @_;
-    if ($part->isPlaced()) {
-    	my $position = $part->getPosition();
-        $part->setFootprintHeight($self->get_layer_thickness($position->z));
-    }
 }
 
 #######################################################################
@@ -996,7 +984,6 @@ sub savePartButtonPressed {
     if ($selection->{type} eq 'part') {
         my $part = $selection->{part};
         $self->savePartInfo($part);
-        $self->displayPart($part);
         $self->reload_tree($part->getPartID());
     }
     
@@ -1041,7 +1028,6 @@ sub movePart {
         $part->setPosition($oldPos->x + $x, $oldPos->y + $y, $oldPos->z + $self->get_layer_thickness($oldPos->z)*$z);
         
         $self->showPartInfo($part);
-        $self->displayPart($part);
         $self->reload_tree($part->getPartID);
                 
         # trigger slicing steps to update modifications;

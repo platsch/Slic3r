@@ -84,14 +84,14 @@ RubberBandPtrs* Schematic::getRubberBands()
 	RubberBandPtrs::iterator it;
 	for (ElectronicNets::const_iterator net = this->netlist.begin(); net != this->netlist.end(); ++net) {
 		for (RubberBandPtrs::const_iterator rb = (*net)->unwiredRubberBands.begin(); rb != (*net)->unwiredRubberBands.end(); ++rb) {
-			if(this->_checkRubberBandVisibility((*rb), 0)) {
+			//if(this->_checkRubberBandVisibility((*rb), z)) {
 				this->rubberBands.push_back((*rb));
-			}
+			//}
 		}
 		for (RubberBandPtrs::const_iterator wrb = (*net)->wiredRubberBands.begin(); wrb != (*net)->wiredRubberBands.end(); ++wrb) {
-			if(this->_checkRubberBandVisibility((*wrb), 0)) {
+			//if(this->_checkRubberBandVisibility((*wrb), z)) {
 				this->rubberBands.push_back((*wrb));
-			}
+			//}
 		}
 	}
 	return &this->rubberBands;
@@ -163,13 +163,16 @@ bool Schematic::_checkRubberBandVisibility(const RubberBand* rb, const double z)
 		if(this->getElectronicPart(rb->getPartAiD())->isVisible()) {
 			display = true;
 		}
-	}if(rb->hasPartB()) {
+	}
+	if(rb->hasPartB()) {
 		if(this->getElectronicPart(rb->getPartBiD())->isVisible()) {
 			display = true;
 		}
 	}
 
-	// wires not connected to a part?? by height?
+	if(rb->a.z <= z || rb->b.z <= z) {
+		display = true;
+	}
 
 	return display;
 }
