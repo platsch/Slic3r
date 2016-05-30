@@ -156,7 +156,7 @@ void Schematic::splitWire(const RubberBand* rubberband, const Pointf3& p)
 	}
 }
 
-
+/*
 bool Schematic::_checkRubberBandVisibility(const RubberBand* rb, const double z)
 {
 	bool display = false;
@@ -177,7 +177,7 @@ bool Schematic::_checkRubberBandVisibility(const RubberBand* rb, const double z)
 
 	return display;
 }
-
+*/
 
 // update all nets
 void Schematic::_updateUnwiredRubberbands()
