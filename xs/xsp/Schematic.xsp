@@ -6,9 +6,6 @@
 %}
 
 %name{Slic3r::Electronics::Schematic} class Schematic {
-    Schematic()
-    	%code{% RETVAL = new Schematic(); %};
-    ~Schematic();
     Clone<Schematic> clone()
         %code{% RETVAL = THIS; %};        
     void setFilename(std::string filename);

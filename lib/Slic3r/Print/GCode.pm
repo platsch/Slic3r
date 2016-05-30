@@ -117,7 +117,6 @@ sub BUILD {
 
 sub export {
     my $self = shift;
-    my ($schematic) = @_;
     
     my $fh          = $self->fh;
     my $gcodegen    = $self->_gcodegen;
@@ -265,7 +264,7 @@ sub export {
                             if $self->config->first_layer_bed_temperature;
                         $self->_print_first_layer_temperature(0);
                     }
-                    $self->process_layer($layer, [$copy], $schematic);
+                    $self->process_layer($layer, [$copy]);
                 }
                 $self->flush_filters;
                 $finished_objects++;
@@ -290,17 +289,20 @@ sub export {
         foreach my $print_z (sort { $a <=> $b } keys %layers) {
             foreach my $obj_idx (@obj_idx) {
                 foreach my $layer (@{ $layers{$print_z}[$obj_idx] // [] }) {
-                    $self->process_layer($layer, $layer->object->_shifted_copies, $schematic);
+                    $self->process_layer($layer, $layer->object->_shifted_copies);
                 }
             }
         }
         $self->flush_filters;
     }
     
-    foreach my $part (@{$schematic->getPartlist}) {
-    	# bit of a workaround. Call the function with a very high print_z to ensure every remaining part will be placed.
-        print $fh $part->getPlaceGcode(99999999);
-    }
+    
+	# bit of a workaround. Call the function with a very high print_z to ensure every remaining part will be placed.    
+    foreach my $object (@{$self->objects}) { # TODO: Shifted copies???
+	    foreach my $part (@{$object->schematic->getPartlist}) {
+	        print $fh $part->getPlaceGcode(99999999);
+	    }
+	}
     
     # write end commands to file
     print $fh $gcodegen->retract;   # TODO: process this retract through PressureRegulator in order to discharge fully
@@ -325,20 +327,27 @@ sub export {
         $self->print->total_extruded_volume($self->print->total_extruded_volume + $extruded_volume);
     }
     
-    my $partlist = $schematic->getPartlist;
-    my $length = @{$partlist};
-    if ($length > 0){
-    	my $bb = $self->objects->[0]->bounding_box;
-    	# Currently only works for a single object on the plater!!!!!!!!!!!
-    	my $copy = $self->objects->[0]->_shifted_copies->[0];
-    	my $bb_offset = Slic3r::Pointf->new(unscale($bb->center->[0]+$copy->x), unscale($bb->center->[1]+$copy->y));
-        print $fh "\n" . ';<object name="none">' . "\n";
-        foreach my $part (@{$partlist}) {
-            print $fh $part->getPlaceDescription($bb_offset);
-            $part->resetPrintedStatus;
-        }
-        print $fh ";</object>\n\n";
-    }
+    
+    
+    # Export descriptions and box positions for electronic parts
+    foreach my $object (@{$self->objects}) { # TODO: Shifted copies???
+	    my $partlist = $object->schematic->getPartlist;
+		my $length = @{$partlist};
+		if ($length > 0){
+	    	my $bb = $self->objects->[0]->bounding_box;
+	    	# Currently only works for a single object on the plater!!!!!!!!!!!
+	    	my $copy = $self->objects->[0]->_shifted_copies->[0];
+	    	my $bb_offset = Slic3r::Pointf->new(unscale($bb->center->[0]+$copy->x), unscale($bb->center->[1]+$copy->y));
+	        print $fh "\n" . ';<object name="' . $object->model_object->name . '">' . "\n";
+	        foreach my $part (@{$partlist}) {
+	            print $fh $part->getPlaceDescription($bb_offset);
+	            $part->resetPrintedStatus;
+	        }
+	        print $fh ";</object>\n\n";
+	    }
+	}
+    
+
     
     # append full config
     print $fh "\n";
@@ -363,7 +372,7 @@ sub _print_first_layer_temperature {
 
 sub process_layer {
     my $self = shift;
-    my ($layer, $object_copies, $schematic) = @_;
+    my ($layer, $object_copies) = @_;
     my $gcode = "";
     
     my $object = $layer->object;
@@ -584,7 +593,7 @@ sub process_layer {
                 }
             }
         }
-        foreach my $part (@{$schematic->getPartlist}) {
+        foreach my $part (@{$layer->object->schematic->getPartlist}) {
             $gcode .= $part->getPlaceGcode($layer->print_z);
         }
         

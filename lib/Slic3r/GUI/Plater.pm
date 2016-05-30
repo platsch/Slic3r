@@ -54,8 +54,6 @@ sub new {
     $self->{print} = Slic3r::Print->new;
     $self->{objects} = [];
     
-    $self->{schematic} = Slic3r::Electronics::Schematic->new;
-    
     $self->{print}->set_status_cb(sub {
         my ($percent, $message) = @_;
         
@@ -1168,7 +1166,7 @@ sub export_gcode {
     } else {
         eval {
             $self->{print}->process;
-            $self->{print}->export_gcode(output_file => $self->{export_gcode_output_file}, schematic => $self->{schematic});
+            $self->{print}->export_gcode(output_file => $self->{export_gcode_output_file});
         };
         my $result = !Slic3r::GUI::catch_error($self);
         $self->on_export_completed($result);
@@ -1201,7 +1199,9 @@ sub on_process_completed {
     return if $error;
     $self->{toolpaths2D}->reload_print if $self->{toolpaths2D};
     $self->{preview3D}->reload_print if $self->{preview3D};
-    $self->{electronicPartsDlg}->reload_print if $self->{electronicPartsDlg};
+    if($self->{electronicPartsDlg}) {
+    	$self->{electronicPartsDlg}->reload_print if $self->{electronicPartsDlg}->IsShown;
+    }
     
     # if we have an export filename, start a new thread for exporting G-code
     if ($self->{export_gcode_output_file}) {
@@ -1212,7 +1212,7 @@ sub on_process_completed {
         
         $self->{export_thread} = Slic3r::spawn_thread(sub {
             eval {
-                $_thread_self->{print}->export_gcode(output_file => $_thread_self->{export_gcode_output_file}, schematic => $self->{schematic});
+                $_thread_self->{print}->export_gcode(output_file => $_thread_self->{export_gcode_output_file});
             };
             if ($@) {
                 Wx::PostEvent($_thread_self, Wx::PlThreadEvent->new(-1, $ERROR_EVENT, shared_clone([ $@ ])));
@@ -1622,13 +1622,20 @@ sub object_electronics_dialog {
     # can't fix any error which is outside that dialog
     return unless $self->validate_config;
     
-    $self->{electronicPartsDlg} = Slic3r::GUI::Plater::ObjectElectronicsDialog->new($self,
-        $self->{print},
-        obj_idx			=> $obj_idx,
-        object          => $self->{objects}[$obj_idx],
-        model_object    => $model_object,
-        schematic       => $self->{schematic},
-    );
+    if($self->{electronicPartsDlg} && ($self->{electronicPartsDlg}->{obj_idx} != $obj_idx)) {
+    	print $self->{electronicPartsDlg}->{obj_idx};
+    	$self->{electronicPartsDlg}->Destroy;
+    	$self->{electronicPartsDlg} = undef;
+    }
+    
+    if(!$self->{electronicPartsDlg}) {
+	    $self->{electronicPartsDlg} = Slic3r::GUI::Plater::ObjectElectronicsDialog->new($self,
+	        $self->{print},
+	        obj_idx			=> $obj_idx,
+	        object          => $self->{objects}[$obj_idx],
+	        model_object    => $model_object,
+	    );
+    }
     
     # Why is the background process paused?
     $self->pause_background_process;    

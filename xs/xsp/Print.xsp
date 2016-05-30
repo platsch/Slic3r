@@ -53,6 +53,7 @@ _constant()
 
     Ref<Print> print();
     Ref<ModelObject> model_object();
+    Ref<Schematic> schematic();
     Ref<StaticPrintConfig> config()
         %code%{ RETVAL = &THIS->config; %};
     Points copies();

@@ -12,6 +12,7 @@
 #include "Layer.hpp"
 #include "Model.hpp"
 #include "PlaceholderParser.hpp"
+#include "Schematic.hpp"
 
 
 namespace Slic3r {
@@ -104,6 +105,7 @@ class PrintObject
     
     Print* print();
     ModelObject* model_object();
+    Schematic* schematic();
     
     Points copies() const;
     bool add_copy(const Pointf &point);
@@ -141,6 +143,7 @@ class PrintObject
     private:
     Print* _print;
     ModelObject* _model_object;
+    Schematic _schematic;  // stores electronic parts and routing
     Points _copies;      // Slic3r::Point objects in scaled G-code coordinates
 
     // TODO: call model_object->get_bounding_box() instead of accepting

@@ -4,12 +4,12 @@ use warnings;
 use utf8;
 
 use Wx qw(:dialog :id :misc :sizer :systemsettings :notebook wxTAB_TRAVERSAL);
-use Wx::Event qw(EVT_BUTTON);
+use Wx::Event qw(EVT_BUTTON EVT_CLOSE);
 use base 'Wx::Frame';
 
 #######################################################################
 # Purpose    : Creates a new Frame for 3DElectronics
-# Parameters : name, object model, schematic and source filename
+# Parameters : name, object model, and source filename
 # Returns    : A new Frame
 # Comment     :
 #######################################################################
@@ -25,8 +25,7 @@ sub new {
     	$parent,
     	$print,
     	obj_idx => $params{obj_idx},
-    	model_object => $params{model_object},
-    	schematic => $params{schematic}),
+    	model_object => $params{model_object}),
     "Electronics");
 
     my $sizer = Wx::BoxSizer->new(wxVERTICAL);
@@ -34,6 +33,10 @@ sub new {
     
     $self->SetSizer($sizer);
     $self->SetMinSize($self->GetSize);
+    
+    EVT_CLOSE($self, sub { 
+        $self->Hide();
+    });
     
     return $self;
 }
@@ -71,7 +74,7 @@ use constant ICON_PCB           => 3;
 
 #######################################################################
 # Purpose    : Creates a Panel for 3DElectronics
-# Parameters : model_object, schematic and source filename to edit
+# Parameters : model_object and source filename to edit
 # Returns    : A Panel
 # Comment     : Main Panel for 3D Electronics
 #######################################################################
@@ -82,7 +85,7 @@ sub new {
     $self->{plater} = $plater;
     $self->{obj_idx} = $params{obj_idx};
     my $object = $self->{model_object} = $params{model_object};
-    $self->{schematic} = $params{schematic};
+    $self->{schematic} = $print->objects->[$self->{obj_idx}]->schematic;
     my $place = $self->{place} = 0;
     $self->{model_object}->update_bounding_box;
     $self->{rootOffset} = $self->{model_object}->_bounding_box->center;
@@ -493,7 +496,7 @@ sub reload_print {
     #for my $part (@{$partlist}) {
     #	$part->setVisibility(0);
     #}
-              
+    
     $self->render_print;
 }
 
@@ -543,7 +546,6 @@ sub render_print {
     $self->{part_lookup} = ();
     $self->{rubberband_lookup} = ();
     $self->{netpoint_lookup} = ();
-    
     # load objects
     if ($self->IsShown) {
         # load skirt and brim
@@ -553,7 +555,6 @@ sub render_print {
             $self->canvas->load_print_object_toolpaths($object);
             
         }
-        
         my $height =  $self->{layers_z}[$self->{slider}->GetValue];
         
         # Display SMD models
@@ -572,7 +573,6 @@ sub render_print {
         		#}
         	}
         }
-        
         # Display rubber-banding
         my $rubberBands = $self->{schematic}->getRubberBands();
 	    foreach my $rubberBand (@{$rubberBands}) {
@@ -580,7 +580,6 @@ sub render_print {
 	    	# lookup table
 	    	$self->{rubberband_lookup}[$object_id] = $rubberBand;
 	    }
-	    
 	    # Display wire points
 	    my $netPoints = $self->{schematic}->getNetPoints;
 	    foreach my $netPoint (@{$netPoints}) {
@@ -589,7 +588,6 @@ sub render_print {
 	    	$self->{netpoint_lookup}[$object_id] = $netPoint;
 	    }
 	    #$self->canvas->add_wire_point(Slic3r::Pointf3->new(0, 0, 0), [0.8, 0.1, 0.1, 0.9]);
-        
         $self->set_z($height) if $self->enabled;
         
         if (!$self->{sliderconf}) {
@@ -916,10 +914,6 @@ sub loadButtonPressed {
     }
 
     Slic3r::Electronics::Electronics->readFile($file,$self->{schematic}, $self->{config});
-    
-    # register partlist for slicing modifications in Print->Object
-    #$self->{print}->objects->[$self->{obj_idx}]->registerElectronicPartList($self->{schematic}->{partlist});
-    $self->{print}->objects->[$self->{obj_idx}]->registerSchematic($self->{schematic});
 
     $self->reload_tree;
 }

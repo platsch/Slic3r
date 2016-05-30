@@ -11,18 +11,6 @@ use Slic3r::Print::State ':steps';
 use Slic3r::Surface ':types';
 use Slic3r::Polygon;
 
-our $electronicPartList;
-our $electronicSchematic;
-
-sub registerSchematic {
-	my ($class, $schematic) = @_;
-   	 $electronicSchematic = $schematic;
-}
-
-sub electronicSchematic {
-	return $electronicSchematic;
-}
-
 # TODO: lazy
 sub fill_maker {
     my $self = shift;
@@ -491,8 +479,8 @@ sub process_electronic_parts {
 	my ($self) = @_;
 	
 	## Electronic parts extension
-    if($electronicSchematic) {
-    	my $electronicPartList = $electronicSchematic->getPartlist();
+	my $electronicPartList = $self->schematic->getPartlist();
+    if(@{$electronicPartList} > 0) {
     	# electronic parts are placed with respect to the objects bounding box center but the object
     	# uses the bounding box min point as origin, so we need to translate them.
 	    my $bb_offset = [$self->bounding_box->center->[0]-$self->bounding_box->min_point->[0], $self->bounding_box->center->[1]-$self->bounding_box->min_point->[1]];

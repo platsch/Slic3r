@@ -250,6 +250,7 @@ for my $class (qw(
         Slic3r::Surface
         Slic3r::Surface::Collection
         Slic3r::TriangleMesh
+        Slic3r::Electronics::Schematic
         Slic3r::Electronics::ElectronicPart
         Slic3r::Electronics::RubberBand
         Slic3r::Electronics::NetPoint

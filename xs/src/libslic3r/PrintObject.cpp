@@ -46,6 +46,12 @@ PrintObject::model_object()
     return this->_model_object;
 }
 
+Schematic*
+PrintObject::schematic()
+{
+	return &this->_schematic;
+}
+
 Points
 PrintObject::copies() const
 {

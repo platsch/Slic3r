@@ -100,7 +100,7 @@ sub export_gcode {
     # output everything to a G-code file
     my $output_file = $self->expanded_output_filepath($params{output_file});
     $self->status_cb->(90, "Exporting G-code" . ($output_file ? " to $output_file" : ""));
-    $self->write_gcode($params{output_fh} || $output_file, $params{schematic});
+    $self->write_gcode($params{output_fh} || $output_file);
     
     # run post-processing scripts
     if (@{$self->config->post_process}) {
@@ -412,7 +412,7 @@ sub make_brim {
 
 sub write_gcode {
     my $self = shift;
-    my ($file,$schematic) = @_;
+    my ($file) = @_;
     
     # open output gcode file if we weren't supplied a file-handle
     my $fh;
@@ -430,7 +430,7 @@ sub write_gcode {
         print      => $self,
         fh         => $fh,
     );
-    $exporter->export($schematic);
+    $exporter->export;
     
     # close our gcode file
     close $fh;
