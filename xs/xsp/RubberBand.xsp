@@ -15,7 +15,7 @@
         %code{% RETVAL = &THIS->a; %};
     Ref<Pointf3> b()
         %code{% RETVAL = &THIS->b; %};
-        
+    bool isWired();        
     Ref<Pointf3> selectNearest(Pointf3* p)
     	%code{% RETVAL = THIS->selectNearest(*p); %};
 };

@@ -576,9 +576,15 @@ sub render_print {
         # Display rubber-banding
         my $rubberBands = $self->{schematic}->getRubberBands();
 	    foreach my $rubberBand (@{$rubberBands}) {
-	    	my $object_id = $self->canvas->add_rubberband($rubberBand->a, $rubberBand->b, 0.3, [0.2, 0.2, 0.2, 0.9]);
-	    	# lookup table
-	    	$self->{rubberband_lookup}[$object_id] = $rubberBand;
+	    	if($rubberBand->isWired()) {
+	    		my $object_id = $self->canvas->add_rubberband($rubberBand->a, $rubberBand->b, 0.3, [0.58, 0.83, 1.0, 0.9]);
+	    		# lookup table
+	    		$self->{rubberband_lookup}[$object_id] = $rubberBand;
+	    	}else{
+	    		my $object_id = $self->canvas->add_rubberband($rubberBand->a, $rubberBand->b, 0.3, [0.2, 0.2, 0.2, 0.9]);
+	    		# lookup table
+	    		$self->{rubberband_lookup}[$object_id] = $rubberBand;
+	    	}
 	    }
 	    # Display wire points
 	    my $netPoints = $self->{schematic}->getNetPoints;
@@ -1023,6 +1029,8 @@ sub movePart {
         
         $self->showPartInfo($part);
         $self->reload_tree($part->getPartID);
+        # reload_tree implicitly triggeres the _updateWiredRubberbands method in schematic.cpp
+        # which is nessecary to have correct wiring!
                 
         # trigger slicing steps to update modifications;
 		$self->{print}->objects->[$self->{obj_idx}]->invalidate_step(STEP_SLICE);
