@@ -109,7 +109,9 @@ NetPointPtrs* Schematic::getNetPoints(){
 	return &this->netPoints;
 }
 
-
+/*
+ * Splits a rubberband into two wired parts. Can be used to wire connections.
+ */
 void Schematic::splitWire(const RubberBand* rubberband, const Pointf3& p)
 {
 	// find corresponding net
@@ -154,6 +156,36 @@ void Schematic::splitWire(const RubberBand* rubberband, const Pointf3& p)
 			break;
 		}
 	}
+}
+
+bool Schematic::removeWire(const unsigned int rubberBandID)
+{
+	bool result = false;
+	// find corresponding net(s)
+	for (ElectronicNets::const_iterator net = this->netlist.begin(); net != this->netlist.end(); ++net) {
+		result |= (*net)->removeWiredRubberBand(rubberBandID);
+		if(result) break;
+	}
+	if(!result) {
+		std::cout << "Warning! failed to remove wire " << rubberBandID << std::endl;
+	}
+	return result;
+}
+
+bool Schematic::removeNetPoint(const NetPoint* netPoint)
+{
+	bool result = false;
+	// find corresponding net(s)
+	for (ElectronicNets::const_iterator net = this->netlist.begin(); net != this->netlist.end(); ++net) {
+		if(netPoint->getNetName() == (*net)->getName()) {
+			result = (*net)->removeNetPoint(netPoint->getKey());
+			break;
+		}
+	}
+	if(!result) {
+		std::cout << "Warning! failed to remove netPoint " << netPoint->getKey() << std::endl;
+	}
+	return result;
 }
 
 /*
@@ -213,8 +245,13 @@ void Schematic::_updateUnwiredRubberbands(ElectronicNet* net)
 		if(!connected) {
 			//find nearest point
 			if(net->wiredRubberBands.size() > 0) {
-				net->findNearestNetPoint(pointA);
-				//create and store rubberband here
+				unsigned int netPointBiD = net->findNearestNetPoint(pointA);
+				//create and store rubberband
+				Pointf3 pointB = *net->netPoints[netPointBiD].getPoint();
+				RubberBand* rb = new RubberBand(net->getName(), pointA, pointB);
+				rb->addPartA(partA->getPartID(), netPinA);
+				rb->addNetPointB(netPointBiD);
+				net->unwiredRubberBands.push_back(rb);
 			}else{ // find nearest part
 				if(netPinA < net->netPins.size()) {
 					// iterate over remaining netPins

@@ -52,11 +52,32 @@ unsigned int ElectronicNet::addNetPoint(Pointf3 p)
 	return this->currentNetPoint;
 }
 
-void ElectronicNet::removeNetPoint(unsigned int netPointID)
+bool ElectronicNet::removeNetPoint(unsigned int netPointID)
 {
-	this->netPoints.erase(netPointID);
+	bool result = false;
+	if(this->netPoints.erase(netPointID) > 0) {
+		result = true;
+	}
 
-	// should this also remove all rubberbands connected to this netPoint?
+	// remove all wired rubberbands connected to this netPoint
+	for (RubberBandPtrs::const_reverse_iterator rubberband = this->wiredRubberBands.rbegin(); rubberband != this->wiredRubberBands.rend(); ++rubberband) {
+		bool remove = false;
+		if((*rubberband)->hasNetPointA()) {
+			if((*rubberband)->getNetPointAiD() == netPointID) {
+				remove = true;
+			}
+		}
+		if((*rubberband)->hasNetPointB()) {
+			if((*rubberband)->getNetPointBiD() == netPointID) {
+				remove = true;
+			}
+		}
+		if(remove) {
+			this->removeWiredRubberBand((*rubberband)->getID());
+		}
+	}
+
+	return result;
 }
 
 bool ElectronicNet::addWiredRubberBand(RubberBand* rb)
@@ -81,7 +102,24 @@ bool ElectronicNet::removeWiredRubberBand(const unsigned int ID)
 	bool result = false;
 	for(int i = 0; i < this->wiredRubberBands.size(); i++) {
 		if(this->wiredRubberBands[i]->getID() == ID) {
+			unsigned int netPointA = 0, netPointB = 0;
+			if(this->wiredRubberBands[i]->hasNetPointA()) netPointA = this->wiredRubberBands[i]->getNetPointAiD();
+			if(this->wiredRubberBands[i]->hasNetPointB()) netPointB = this->wiredRubberBands[i]->getNetPointBiD();
+
 			this->wiredRubberBands.erase(this->wiredRubberBands.begin() + i);
+
+			// check for abandoned netPoints
+			if(netPointA > 0) {
+				if(!_pointIsConnected(netPointA)) {
+					this->netPoints.erase(netPointA);
+				}
+			}
+			if(netPointB > 0) {
+				if(!_pointIsConnected(netPointB)) {
+					this->netPoints.erase(netPointB);
+				}
+			}
+
 			result = true;
 			break;
 		}
@@ -91,12 +129,33 @@ bool ElectronicNet::removeWiredRubberBand(const unsigned int ID)
 
 unsigned int ElectronicNet::findNearestNetPoint(const Pointf3& p) const
 {
-	std::cout << "called findNearestNetPoint" << std::endl;
 	unsigned int result = 0;
 	double min_dist = 999999999999999.0;
 	for (std::map<unsigned int, NetPoint>::const_iterator netPoint = this->netPoints.begin(); netPoint != this->netPoints.end(); ++netPoint) {
-	    std::cout << netPoint->first << ", " << netPoint->second.getNetName() << '\n';
+		NetPoint np = netPoint->second;
+		Pointf3 point = *np.getPoint();
+		double dist = point.distance_to(p);
+		if(dist < min_dist) {
+			min_dist = dist;
+			result = netPoint->first;
+		}
 	}
+	return result;
+}
+
+bool ElectronicNet::_pointIsConnected(unsigned int netPointID)
+{
+	bool result = false;
+	for (RubberBandPtrs::const_iterator rubberband = this->wiredRubberBands.begin(); rubberband != this->wiredRubberBands.end(); ++rubberband) {
+		if((*rubberband)->hasNetPointA()) {
+			result |= ((*rubberband)->getNetPointAiD() == netPointID);
+		}
+		if((*rubberband)->hasNetPointB()) {
+			result |= ((*rubberband)->getNetPointBiD() == netPointID);
+		}
+		if(result) break;
+	}
+	return result;
 }
 
 }

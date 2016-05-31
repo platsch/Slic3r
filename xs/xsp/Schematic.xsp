@@ -20,4 +20,8 @@
     NetPointPtrs* getNetPoints();
     void splitWire(RubberBand* rubberband, Pointf3* p)
     	%code{% THIS->splitWire(rubberband, *p); %};
+    bool removeWire(unsigned int rubberBandID)
+    	%code{% RETVAL = THIS->removeWire(rubberBandID); %};
+    bool removeNetPoint(NetPoint* netPoint)
+    	%code{% RETVAL = THIS->removeNetPoint(netPoint); %};
 };

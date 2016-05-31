@@ -8,7 +8,7 @@ use List::Util qw(min max);
 use Wx::Event qw(EVT_MOUSE_EVENTS);
 use base qw(Slic3r::GUI::3DScene);
 
-__PACKAGE__->mk_accessors( qw(on_rubberband_split) );
+__PACKAGE__->mk_accessors( qw(on_rubberband_split on_right_double_click) );
 
 use Data::Dumper;
 
@@ -270,7 +270,13 @@ sub mouse_event_new {
         
         $self->{activity}->{rubberband_splitting} = undef;
     }
-    else {
+    elsif($e->RightDClick) {
+    	my $volume_idx = $self->_hover_volume_idx // -1;
+    	$self->on_right_double_click->($volume_idx)
+    		if $self->on_right_double_click;
+    		
+    	#$self->mouse_event($e);
+    }else {
         $self->mouse_event($e);
     }
 }

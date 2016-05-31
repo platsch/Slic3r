@@ -28,6 +28,8 @@ class Schematic
     RubberBandPtrs* getRubberBands();
     NetPointPtrs* getNetPoints();
     void splitWire(const RubberBand* rubberband, const Pointf3& p);
+    bool removeWire(const unsigned int rubberBandID);
+    bool removeNetPoint(const NetPoint* netPoint);
 
 
 	private:

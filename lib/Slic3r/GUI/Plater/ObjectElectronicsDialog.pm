@@ -101,7 +101,7 @@ sub new {
     # Lookup-tables to match selected object IDs from canvas to actual object
 	$self->{rubberband_lookup} = ();
 	$self->{part_lookup} = ();
-	$self->{wirepoint_lookup} = ();
+	$self->{netPoint_lookup} = ();
 	
     
     # upper buttons
@@ -345,6 +345,26 @@ sub new {
             # object is a point
         });
         
+        $canvas->on_right_double_click(sub {
+            my ($volume_idx) = @_;
+            
+            # object is a rubberband -> delete this wire
+            my $rubberband = $self->{rubberband_lookup}[$volume_idx];
+            if(defined $rubberband) {
+            	if($self->{schematic}->removeWire($rubberband->getID)) {
+            		$self->reload_print;
+            	}
+            }
+            
+            # object is a netPoint -> delete this point
+            my $netPoint = $self->{netPoint_lookup}[$volume_idx];
+            if(defined $netPoint) {
+            	if($self->{schematic}->removeNetPoint($netPoint)) {
+            		$self->reload_print;
+            	}
+            }
+        });
+        
         $canvas->on_rubberband_split(sub {
             my ($rubberband, $pos) = @_;
 			$self->{schematic}->splitWire($rubberband, $pos);
@@ -545,7 +565,7 @@ sub render_print {
     # reset lookup array
     $self->{part_lookup} = ();
     $self->{rubberband_lookup} = ();
-    $self->{netpoint_lookup} = ();
+    $self->{netPoint_lookup} = ();
     # load objects
     if ($self->IsShown) {
         # load skirt and brim
@@ -591,7 +611,7 @@ sub render_print {
 	    foreach my $netPoint (@{$netPoints}) {
 	    	my $object_id = $self->canvas->add_wire_point($netPoint->getPoint, [0.8, 0.1, 0.1, 0.9]);
 	    	# lookup table
-	    	$self->{netpoint_lookup}[$object_id] = $netPoint;
+	    	$self->{netPoint_lookup}[$object_id] = $netPoint;
 	    }
 	    #$self->canvas->add_wire_point(Slic3r::Pointf3->new(0, 0, 0), [0.8, 0.1, 0.1, 0.9]);
         $self->set_z($height) if $self->enabled;

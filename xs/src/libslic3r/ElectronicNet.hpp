@@ -43,13 +43,15 @@ class ElectronicNet
     Pinlist* getPinList();
     long findNetPin(const std::string partName, const std::string pinName);
     unsigned int addNetPoint(Pointf3 p);
-    void removeNetPoint(unsigned int netPointID);
+    bool removeNetPoint(unsigned int netPointID);
     //bool addNetWire(Wire& wire);
     bool addWiredRubberBand(RubberBand* rb);
     bool removeWiredRubberBand(const unsigned int ID);
     unsigned int findNearestNetPoint(const Pointf3& p) const;
 
 	private:
+    bool _pointIsConnected(unsigned int netPointID);
+
     std::string name;
     Pinlist netPins;
     std::map<unsigned int, NetPoint> netPoints;
