@@ -1204,6 +1204,9 @@ sub on_process_completed {
     return if $error;
     $self->{toolpaths2D}->reload_print if $self->{toolpaths2D};
     $self->{preview3D}->reload_print if $self->{preview3D};
+    if($self->{electronicPartsDlg}) {
+    	$self->{electronicPartsDlg}->reload_print if $self->{electronicPartsDlg}->IsShown;
+    }
     
     # if we have an export filename, start a new thread for exporting G-code
     if ($self->{export_gcode_output_file}) {
@@ -1602,6 +1605,47 @@ sub object_settings_dialog {
     } else {
         $self->resume_background_process;
     }
+}
+
+#######################################################################
+# Purpose    : Opens the 3D electronics window
+# Parameters : object to integrate electronics
+# Returns    : undef if config is not valid
+# Commet     : 
+#######################################################################
+sub object_electronics_dialog {
+    my $self = shift;
+    my ($obj_idx) = @_;
+    
+    if (!defined $obj_idx) {
+        ($obj_idx, undef) = $self->selected_object;
+    }
+    my $model_object = $self->{model}->objects->[$obj_idx];
+    
+    # validate config before opening the settings dialog because
+    # that dialog can't be closed if validation fails, but user
+    # can't fix any error which is outside that dialog
+    return unless $self->validate_config;
+    
+    if($self->{electronicPartsDlg} && ($self->{electronicPartsDlg}->{obj_idx} != $obj_idx)) {
+    	print $self->{electronicPartsDlg}->{obj_idx};
+    	$self->{electronicPartsDlg}->Destroy;
+    	$self->{electronicPartsDlg} = undef;
+    }
+    
+    if(!$self->{electronicPartsDlg}) {
+	    $self->{electronicPartsDlg} = Slic3r::GUI::Plater::ObjectElectronicsDialog->new($self,
+	        $self->{print},
+	        obj_idx			=> $obj_idx,
+	        object          => $self->{objects}[$obj_idx],
+	        model_object    => $model_object,
+	    );
+    }
+    
+    # Why is the background process paused?
+    $self->pause_background_process;    
+    $self->{electronicPartsDlg}->Show;
+    $self->resume_background_process;
 }
 
 sub object_list_changed {

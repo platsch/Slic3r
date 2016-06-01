@@ -120,10 +120,10 @@ sub new {
     {
         $self->{tree_icons} = Wx::ImageList->new(16, 16, 1);
         $tree->AssignImageList($self->{tree_icons});
-        $self->{tree_icons}->Add(Wx::Bitmap->new("$Slic3r::var/brick.png", wxBITMAP_TYPE_PNG));     # ICON_OBJECT
-        $self->{tree_icons}->Add(Wx::Bitmap->new("$Slic3r::var/package.png", wxBITMAP_TYPE_PNG));   # ICON_SOLIDMESH
-        $self->{tree_icons}->Add(Wx::Bitmap->new("$Slic3r::var/plugin.png", wxBITMAP_TYPE_PNG));    # ICON_MODIFIERMESH
-        $self->{tree_icons}->Add(Wx::Bitmap->new("$Slic3r::var/PCB-icon.png", wxBITMAP_TYPE_PNG));  # ICON_PCB
+        $self->{tree_icons}->Add(Wx::Bitmap->new($Slic3r::var->("brick.png"), wxBITMAP_TYPE_PNG));     # ICON_OBJECT
+        $self->{tree_icons}->Add(Wx::Bitmap->new($Slic3r::var->("package.png"), wxBITMAP_TYPE_PNG));   # ICON_SOLIDMESH
+        $self->{tree_icons}->Add(Wx::Bitmap->new($Slic3r::var->("plugin.png"), wxBITMAP_TYPE_PNG));    # ICON_MODIFIERMESH
+        $self->{tree_icons}->Add(Wx::Bitmap->new($Slic3r::var->("PCB-icon.png"), wxBITMAP_TYPE_PNG));  # ICON_PCB
         
         my $rootId = $tree->AddRoot("Object", ICON_OBJECT);
         $tree->SetPlData($rootId, { type => 'object' });
