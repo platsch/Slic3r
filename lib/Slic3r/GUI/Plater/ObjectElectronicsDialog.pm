@@ -336,7 +336,6 @@ sub new {
             # object is a rubberband
             my $rubberband = $self->{rubberband_lookup}[$volume_idx];
             if(defined $rubberband) {
-            	print "Rubberband dblclicked\n";
             	my $mousepoint = $self->{canvas}->get_mouse_pos_3d;
             	#$rubberband->selectNearest($mousepoint);
             	$canvas->rubberband_splitting($rubberband);
