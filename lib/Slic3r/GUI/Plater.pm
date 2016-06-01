@@ -136,22 +136,22 @@ sub new {
     if (!&Wx::wxMSW) {
         Wx::ToolTip::Enable(1);
         $self->{htoolbar} = Wx::ToolBar->new($self, -1, wxDefaultPosition, wxDefaultSize, wxTB_HORIZONTAL | wxTB_TEXT | wxBORDER_SIMPLE | wxTAB_TRAVERSAL);
-        $self->{htoolbar}->AddTool(TB_ADD, "Add…", Wx::Bitmap->new("$Slic3r::var/brick_add.png", wxBITMAP_TYPE_PNG), '');
-        $self->{htoolbar}->AddTool(TB_REMOVE, "Delete", Wx::Bitmap->new("$Slic3r::var/brick_delete.png", wxBITMAP_TYPE_PNG), '');
-        $self->{htoolbar}->AddTool(TB_RESET, "Delete All", Wx::Bitmap->new("$Slic3r::var/cross.png", wxBITMAP_TYPE_PNG), '');
-        $self->{htoolbar}->AddTool(TB_ARRANGE, "Arrange", Wx::Bitmap->new("$Slic3r::var/bricks.png", wxBITMAP_TYPE_PNG), '');
+        $self->{htoolbar}->AddTool(TB_ADD, "Add…", Wx::Bitmap->new($Slic3r::var->("brick_add.png"), wxBITMAP_TYPE_PNG), '');
+        $self->{htoolbar}->AddTool(TB_REMOVE, "Delete", Wx::Bitmap->new($Slic3r::var->("brick_delete.png"), wxBITMAP_TYPE_PNG), '');
+        $self->{htoolbar}->AddTool(TB_RESET, "Delete All", Wx::Bitmap->new($Slic3r::var->("cross.png"), wxBITMAP_TYPE_PNG), '');
+        $self->{htoolbar}->AddTool(TB_ARRANGE, "Arrange", Wx::Bitmap->new($Slic3r::var->("bricks.png"), wxBITMAP_TYPE_PNG), '');
         $self->{htoolbar}->AddSeparator;
-        $self->{htoolbar}->AddTool(TB_MORE, "More", Wx::Bitmap->new("$Slic3r::var/add.png", wxBITMAP_TYPE_PNG), '');
-        $self->{htoolbar}->AddTool(TB_FEWER, "Fewer", Wx::Bitmap->new("$Slic3r::var/delete.png", wxBITMAP_TYPE_PNG), '');
+        $self->{htoolbar}->AddTool(TB_MORE, "More", Wx::Bitmap->new($Slic3r::var->("add.png"), wxBITMAP_TYPE_PNG), '');
+        $self->{htoolbar}->AddTool(TB_FEWER, "Fewer", Wx::Bitmap->new($Slic3r::var->("delete.png"), wxBITMAP_TYPE_PNG), '');
         $self->{htoolbar}->AddSeparator;
-        $self->{htoolbar}->AddTool(TB_45CCW, "45° ccw", Wx::Bitmap->new("$Slic3r::var/arrow_rotate_anticlockwise.png", wxBITMAP_TYPE_PNG), '');
-        $self->{htoolbar}->AddTool(TB_45CW, "45° cw", Wx::Bitmap->new("$Slic3r::var/arrow_rotate_clockwise.png", wxBITMAP_TYPE_PNG), '');
-        $self->{htoolbar}->AddTool(TB_SCALE, "Scale…", Wx::Bitmap->new("$Slic3r::var/arrow_out.png", wxBITMAP_TYPE_PNG), '');
-        $self->{htoolbar}->AddTool(TB_SPLIT, "Split", Wx::Bitmap->new("$Slic3r::var/shape_ungroup.png", wxBITMAP_TYPE_PNG), '');
-        $self->{htoolbar}->AddTool(TB_CUT, "Cut…", Wx::Bitmap->new("$Slic3r::var/package.png", wxBITMAP_TYPE_PNG), '');
+        $self->{htoolbar}->AddTool(TB_45CCW, "45° ccw", Wx::Bitmap->new($Slic3r::var->("arrow_rotate_anticlockwise.png"), wxBITMAP_TYPE_PNG), '');
+        $self->{htoolbar}->AddTool(TB_45CW, "45° cw", Wx::Bitmap->new($Slic3r::var->("arrow_rotate_clockwise.png"), wxBITMAP_TYPE_PNG), '');
+        $self->{htoolbar}->AddTool(TB_SCALE, "Scale…", Wx::Bitmap->new($Slic3r::var->("arrow_out.png"), wxBITMAP_TYPE_PNG), '');
+        $self->{htoolbar}->AddTool(TB_SPLIT, "Split", Wx::Bitmap->new($Slic3r::var->("shape_ungroup.png"), wxBITMAP_TYPE_PNG), '');
+        $self->{htoolbar}->AddTool(TB_CUT, "Cut…", Wx::Bitmap->new($Slic3r::var->("package.png"), wxBITMAP_TYPE_PNG), '');
         $self->{htoolbar}->AddSeparator;
-        $self->{htoolbar}->AddTool(TB_SETTINGS, "Settings…", Wx::Bitmap->new("$Slic3r::var/cog.png", wxBITMAP_TYPE_PNG), '');
-        $self->{htoolbar}->AddTool(TB_ELECTRONICS, "3D Electronics", Wx::Bitmap->new("$Slic3r::var/cog.png", wxBITMAP_TYPE_PNG), '');
+        $self->{htoolbar}->AddTool(TB_SETTINGS, "Settings…", Wx::Bitmap->new($Slic3r::var->("cog.png"), wxBITMAP_TYPE_PNG), '');
+        $self->{htoolbar}->AddTool(TB_ELECTRONICS, "3D Electronics", Wx::Bitmap->new($Slic3r::var->("cog.png"), wxBITMAP_TYPE_PNG), '');
     } else {
         my %tbar_buttons = (
             add             => "Add…",
@@ -224,7 +224,7 @@ sub new {
             electronics     cog.png
         );
         for (grep $self->{"btn_$_"}, keys %icons) {
-            $self->{"btn_$_"}->SetBitmap(Wx::Bitmap->new("$Slic3r::var/$icons{$_}", wxBITMAP_TYPE_PNG));
+            $self->{"btn_$_"}->SetBitmap(Wx::Bitmap->new($Slic3r::var->($icons{$_}), wxBITMAP_TYPE_PNG));
         }
     }
     $self->selection_changed(0);
@@ -378,7 +378,7 @@ sub new {
                 $self->{"object_info_$field"} = Wx::StaticText->new($self, -1, "", wxDefaultPosition, wxDefaultSize, wxALIGN_LEFT);
                 $self->{"object_info_$field"}->SetFont($Slic3r::GUI::small_font);
                 if ($field eq 'manifold') {
-                    $self->{object_info_manifold_warning_icon} = Wx::StaticBitmap->new($self, -1, Wx::Bitmap->new("$Slic3r::var/error.png", wxBITMAP_TYPE_PNG));
+                    $self->{object_info_manifold_warning_icon} = Wx::StaticBitmap->new($self, -1, Wx::Bitmap->new($Slic3r::var->("error.png"), wxBITMAP_TYPE_PNG));
                     $self->{object_info_manifold_warning_icon}->Hide;
                     
                     my $h_sizer = Wx::BoxSizer->new(wxHORIZONTAL);
@@ -472,7 +472,7 @@ sub update_presets {
                 my $config = $preset->config(['filament_colour']);
                 my $rgb_hex = $config->filament_colour->[0];
                 if ($preset->default) {
-                    $bitmap = Wx::Bitmap->new("$Slic3r::var/spool.png", wxBITMAP_TYPE_PNG);
+                    $bitmap = Wx::Bitmap->new($Slic3r::var->("spool.png"), wxBITMAP_TYPE_PNG);
                 } else {
                     $rgb_hex =~ s/^#//;
                     my @rgb = unpack 'C*', pack 'H*', $rgb_hex;
@@ -481,9 +481,9 @@ sub update_presets {
                     $bitmap = Wx::Bitmap->new($image);
                 }
             } elsif ($group eq 'print') {
-                $bitmap = Wx::Bitmap->new("$Slic3r::var/cog.png", wxBITMAP_TYPE_PNG);
+                $bitmap = Wx::Bitmap->new($Slic3r::var->("cog.png"), wxBITMAP_TYPE_PNG);
             } elsif ($group eq 'printer') {
-                $bitmap = Wx::Bitmap->new("$Slic3r::var/printer_empty.png", wxBITMAP_TYPE_PNG);
+                $bitmap = Wx::Bitmap->new($Slic3r::var->("printer_empty.png"), wxBITMAP_TYPE_PNG);
             }
             $choice->AppendString($preset->name, $bitmap);
         }
@@ -529,6 +529,16 @@ sub load_file {
     Slic3r::GUI::show_error($self, $@) if $@;
     
     if (defined $model) {
+        if ($model->looks_like_multipart_object) {
+            my $dialog = Wx::MessageDialog->new($self,
+                "This file contains several objects positioned at multiple heights. "
+                . "Instead of considering them as multiple objects, should I consider\n"
+                . "this file as a single object having multiple parts?\n",
+                'Multi-part object detected', wxICON_WARNING | wxYES | wxNO);
+            if ($dialog->ShowModal() == wxID_YES) {
+                $model->convert_multipart_object;
+            }
+        }
         $self->load_model_objects(@{$model->objects});
         $self->statusbar->SetStatusText("Loaded " . basename($input_file));
     }
@@ -1000,7 +1010,7 @@ sub async_apply_config {
 }
 
 sub start_background_process {
-    my ($self, $by_layer) = @_;
+    my ($self) = @_;
     
     return if !$Slic3r::have_threads;
     return if !@{$self->{objects}};
@@ -1031,12 +1041,7 @@ sub start_background_process {
     @_ = ();
     $self->{process_thread} = Slic3r::spawn_thread(sub {
         eval {
-        	if(defined $by_layer) {
-        		$self->{print}->process_by_layer;
-        	}else{
-        		$self->{print}->process;
-        	}
-            
+            $self->{print}->process;
         };
         if ($@) {
             Slic3r::debugf "Background process error: $@\n";
@@ -1199,9 +1204,6 @@ sub on_process_completed {
     return if $error;
     $self->{toolpaths2D}->reload_print if $self->{toolpaths2D};
     $self->{preview3D}->reload_print if $self->{preview3D};
-    if($self->{electronicPartsDlg}) {
-    	$self->{electronicPartsDlg}->reload_print if $self->{electronicPartsDlg}->IsShown;
-    }
     
     # if we have an export filename, start a new thread for exporting G-code
     if ($self->{export_gcode_output_file}) {
@@ -1602,47 +1604,6 @@ sub object_settings_dialog {
     }
 }
 
-#######################################################################
-# Purpose    : Opens the 3D electronics window
-# Parameters : object to integrate electronics
-# Returns    : undef if config is not valid
-# Commet     : 
-#######################################################################
-sub object_electronics_dialog {
-    my $self = shift;
-    my ($obj_idx) = @_;
-    
-    if (!defined $obj_idx) {
-        ($obj_idx, undef) = $self->selected_object;
-    }
-    my $model_object = $self->{model}->objects->[$obj_idx];
-    
-    # validate config before opening the settings dialog because
-    # that dialog can't be closed if validation fails, but user
-    # can't fix any error which is outside that dialog
-    return unless $self->validate_config;
-    
-    if($self->{electronicPartsDlg} && ($self->{electronicPartsDlg}->{obj_idx} != $obj_idx)) {
-    	print $self->{electronicPartsDlg}->{obj_idx};
-    	$self->{electronicPartsDlg}->Destroy;
-    	$self->{electronicPartsDlg} = undef;
-    }
-    
-    if(!$self->{electronicPartsDlg}) {
-	    $self->{electronicPartsDlg} = Slic3r::GUI::Plater::ObjectElectronicsDialog->new($self,
-	        $self->{print},
-	        obj_idx			=> $obj_idx,
-	        object          => $self->{objects}[$obj_idx],
-	        model_object    => $model_object,
-	    );
-    }
-    
-    # Why is the background process paused?
-    $self->pause_background_process;    
-    $self->{electronicPartsDlg}->Show;
-    $self->resume_background_process;
-}
-
 sub object_list_changed {
     my $self = shift;
     
@@ -1671,11 +1632,11 @@ sub selection_changed {
     
     my $method = $have_sel ? 'Enable' : 'Disable';
     $self->{"btn_$_"}->$method
-        for grep $self->{"btn_$_"}, qw(remove increase decrease rotate45cw rotate45ccw changescale split cut settings electronics);
+        for grep $self->{"btn_$_"}, qw(remove increase decrease rotate45cw rotate45ccw changescale split cut settings);
     
     if ($self->{htoolbar}) {
         $self->{htoolbar}->EnableTool($_, $have_sel)
-            for (TB_REMOVE, TB_MORE, TB_FEWER, TB_45CW, TB_45CCW, TB_SCALE, TB_SPLIT, TB_CUT, TB_SETTINGS, TB_ELECTRONICS);
+            for (TB_REMOVE, TB_MORE, TB_FEWER, TB_45CW, TB_45CCW, TB_SCALE, TB_SPLIT, TB_CUT, TB_SETTINGS);
     }
     
     if ($self->{object_info_size}) { # have we already loaded the info pane?
@@ -1858,10 +1819,6 @@ sub object_menu {
     $menu->AppendSeparator();
     $frame->_append_menu_item($menu, "Settings…", 'Open the object editor dialog', sub {
         $self->object_settings_dialog;
-    }, undef, 'cog.png');
-    $menu->AppendSeparator();
-    $frame->_append_menu_item($menu, "3D Electronics", 'Open the 3D electronics editor', sub {
-        $self->object_electronics_dialog;
     }, undef, 'cog.png');
     $menu->AppendSeparator();
     $frame->_append_menu_item($menu, "Export object as STL…", 'Export this single object as STL file', sub {

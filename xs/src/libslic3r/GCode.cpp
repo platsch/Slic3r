@@ -2,6 +2,7 @@
 #include "ExtrusionEntity.hpp"
 #include <algorithm>
 #include <cstdlib>
+#include <math.h>
 
 namespace Slic3r {
 
@@ -177,11 +178,11 @@ Wipe::wipe(GCode &gcodegen, bool toolchange)
             /*  Reduce retraction length a bit to avoid effective retraction speed to be greater than the configured one
                 due to rounding (TODO: test and/or better math for this)  */
             double dE = length * (segment_length / wipe_dist) * 0.95;
-            gcode += gcodegen.writer.set_speed(wipe_speed*60);
+            gcode += gcodegen.writer.set_speed(wipe_speed*60, "", gcodegen.enable_cooling_markers ? ";_WIPE" : "");
             gcode += gcodegen.writer.extrude_to_xy(
                 gcodegen.point_to_gcode(line->b),
                 -dE,
-                (std::string)"wipe and retract" + (gcodegen.enable_cooling_markers ? ";_WIPE" : "")
+                "wipe and retract"
             );
             retracted += dE;
         }
@@ -198,7 +199,7 @@ Wipe::wipe(GCode &gcodegen, bool toolchange)
 
 GCode::GCode()
     : placeholder_parser(NULL), enable_loop_clipping(true), enable_cooling_markers(false), layer_count(0),
-        layer_index(-1), layer(NULL), first_layer(false), elapsed_time(0), volumetric_speed(0),
+        layer_index(-1), layer(NULL), first_layer(false), elapsed_time(0.0), volumetric_speed(0),
         _last_pos_defined(false)
 {
 }
@@ -390,7 +391,7 @@ GCode::extrude(ExtrusionLoop loop, std::string description, double speed)
             Polygon polygon = loop.polygon();
             Point centroid = polygon.centroid();
             last_pos = Point(polygon.bounding_box().max.x, centroid.y);
-            last_pos.rotate(rand() % 2*PI, centroid);
+            last_pos.rotate(fmod((float)rand()/16.0, 2.0*PI), centroid);
         }
         loop.split_at(last_pos);
     }
@@ -562,7 +563,7 @@ GCode::_extrude(ExtrusionPath path, std::string description, double speed)
     // extrude arc or line
     if (path.is_bridge() && this->enable_cooling_markers)
         gcode += ";_BRIDGE_FAN_START\n";
-    gcode += this->writer.set_speed(F);
+    gcode += this->writer.set_speed(F, "", this->enable_cooling_markers ? ";_EXTRUDE_SET_SPEED" : "");
     double path_length = 0;
     {
         std::string comment = this->config.gcode_comments ? description : "";
@@ -629,9 +630,17 @@ GCode::travel_to(const Point &point, ExtrusionRole role, std::string comment)
     
     // use G1 because we rely on paths being straight (G0 may make round paths)
     Lines lines = travel.lines();
-    for (Lines::const_iterator line = lines.begin(); line != lines.end(); ++line)
-        gcode += this->writer.travel_to_xy(this->point_to_gcode(line->b), comment);
-    
+    double path_length = 0;
+    for (Lines::const_iterator line = lines.begin(); line != lines.end(); ++line) {
+	    const double line_length = line->length() * SCALING_FACTOR;
+	    path_length += line_length;
+
+	    gcode += this->writer.travel_to_xy(this->point_to_gcode(line->b), comment);
+    }
+
+    if (this->config.cooling)
+        this->elapsed_time += path_length / this->config.get_abs_value("travel_speed");
+
     return gcode;
 }
 
