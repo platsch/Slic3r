@@ -1,0 +1,16 @@
+%module{Slic3r::XS};
+
+%{
+#include <xsinit.h>
+#include "libslic3r/NetPoint.hpp"
+%}
+
+%name{Slic3r::Electronics::NetPoint} class NetPoint {
+    //NetPoint();
+    //~NetPoint();
+    unsigned int getKey();
+	std::string getNetName()
+		%code{% RETVAL = THIS->getNetName(); %};
+	Ref<Pointf3> getPoint()
+		%code{% RETVAL = THIS->getPoint(); %};
+};
