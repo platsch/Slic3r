@@ -89,6 +89,59 @@ const Pointf3* RubberBand::selectNearest(const Pointf3& p)
 	return result;
 }
 
+
+/* Computes the segment of this rubberband crossing the given layer interval.
+ * Endpoints are extended by extension_length if they lie outside of the layer
+ * to ensure inter-layer connectivity. extension_length and result in scaled coordinates.
+ */
+bool RubberBand::getLayerSegment(const double z_bottom, const double z_top, coord_t layer_overlap, Line* segment)
+{
+	bool result = false;
+
+	// does this rubberband intersect the given layer?
+	if((this->a.z >= z_bottom && this->b.z <= z_top) || (this->a.z <= z_bottom && this->b.z >= z_top)) {
+		result = true;
+		bool extend_a = true;
+
+		// point a
+		if(this->a.z < z_bottom) {
+			Pointf3 i = this->intersect_plane(z_bottom);
+			segment->a.x = scale_(i.x);
+			segment->a.y = scale_(i.y);
+		}else if(this->a.z > z_top) {
+			Pointf3 i = this->intersect_plane(z_top);
+			segment->a.x = scale_(i.x);
+			segment->a.y = scale_(i.y);
+		}else{
+			segment->a.x = scale_(this->a.x);
+			segment->a.y = scale_(this->a.y);
+			extend_a = false;
+		}
+
+		// point b
+		if(this->b.z < z_bottom) {
+			Pointf3 i = this->intersect_plane(z_bottom);
+			segment->b.x = scale_(i.x);
+			segment->b.y = scale_(i.y);
+			segment->extend_end(layer_overlap);
+		}else if(this->b.z > z_top) {
+			Pointf3 i = this->intersect_plane(z_top);
+			segment->b.x = scale_(i.x);
+			segment->b.y = scale_(i.y);
+			segment->extend_end(layer_overlap);
+		}else{
+			segment->b.x = scale_(this->b.x);
+			segment->b.y = scale_(this->b.y);
+		}
+
+		if(extend_a) {
+			segment->extend_start(layer_overlap);
+		}
+	}
+
+	return result;
+}
+
 // Initialization of static ID generator variable
 unsigned int RubberBand::s_idGenerator = 1;
 

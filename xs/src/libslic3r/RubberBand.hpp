@@ -7,6 +7,7 @@
 #include <map>
 #include <list>
 #include "Point.hpp"
+#include "Line.hpp"
 
 
 namespace Slic3r {
@@ -19,7 +20,7 @@ typedef std::vector<RubberBand*> RubberBandPtrs;
  * multiple layers or non-straight geometry.
  */
 
-class RubberBand
+class RubberBand : public Linef3
 {
 	public:
 	RubberBand(const std::string net, Pointf3 a, Pointf3 b);
@@ -44,9 +45,9 @@ class RubberBand
 	const bool isWired() const {return this->wiredFlag;};
 	bool connectsNetPin(const unsigned int netPinID) const;
 	const Pointf3* selectNearest(const Pointf3& p);
+	bool getLayerSegment(const double z_bottom, const double z_top, coord_t layer_overlap, Line* segment);
 
-	Pointf3 a;
-	Pointf3 b;
+	// Rubberband inherits from Linef3 and uses points a and b.
 
 	private:
 	const std::string netName;

@@ -3,9 +3,10 @@
 namespace Slic3r {
 
 
-Schematic::Schematic()
+// electronic parts are placed with respect to the objects bounding box center but the object
+// uses the bounding box min point as origin, so we need to translate them.
+Schematic::Schematic(const Point objectCenter) : objectCenter(objectCenter)
 {
-	this->rootOffset = new Pointf3(0, 0, 0);
 	this->filename = "Default file";
 }
 
@@ -58,17 +59,6 @@ void Schematic::addElectronicNet(ElectronicNet* net)
 ElectronicParts* Schematic::getPartlist()
 {
 	return &this->partlist;
-}
-
-void Schematic::setRootOffset(Pointf3 offset)
-{
-	delete this->rootOffset;
-	this->rootOffset = new Pointf3(offset.x, offset.y, offset.z);
-}
-
-Pointf3 Schematic::getRootOffset()
-{
-	return *(this->rootOffset);
 }
 
 void Schematic::setFilename(std::string filename)
@@ -186,6 +176,27 @@ bool Schematic::removeNetPoint(const NetPoint* netPoint)
 		std::cout << "Warning! failed to remove netPoint " << netPoint->getKey() << std::endl;
 	}
 	return result;
+}
+
+Polylines Schematic::getChannels(const double z_bottom, const double z_top, coord_t layer_overlap)
+{
+	Polylines pls;
+
+	for (ElectronicNets::const_iterator net = this->netlist.begin(); net != this->netlist.end(); ++net) {
+		for (RubberBandPtrs::const_iterator rb = (*net)->wiredRubberBands.begin(); rb != (*net)->wiredRubberBands.end(); ++rb) {
+			Line l;
+			if((*rb)->getLayerSegment(z_bottom, z_top, layer_overlap, &l)) {
+				pls.push_back(l);
+			}
+		}
+	}
+
+	// translate to objects origin
+	for (Polylines::iterator pl = pls.begin(); pl != pls.end(); ++pl) {
+		pl->translate(this->objectCenter.x, this->objectCenter.y);
+	}
+
+	return pls;
 }
 
 /*

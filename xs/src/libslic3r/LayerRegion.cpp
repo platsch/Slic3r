@@ -55,8 +55,12 @@ LayerRegion::merge_slices()
         this->slices.surfaces.push_back(Surface(stInternal, *expoly));
 }
 
+/* Makes a backup of the original surfaces and removes the polygons provided by the caller
+ * from the current surfaces. use_original_slices controls whether original or modified
+ * slices are used as basis surfaces.
+ */
 void
-LayerRegion::modify_slices(Polygons &polygons)
+LayerRegion::modify_slices(Polygons &polygons, bool use_original_slices)
 {
 	// Make a copy of the original surfaces to avoid reslicing if modify_slices is
 	// invoked multiple times
@@ -65,9 +69,16 @@ LayerRegion::modify_slices(Polygons &polygons)
 	}
 
 	// remove previously modified surfaces
-	this->slices.surfaces.clear();
+	if(use_original_slices) {
+		this->slices.surfaces.clear();
+	}
 
-	for (Surfaces::iterator surface = this->unmodified_slices.surfaces.begin(); surface != this->unmodified_slices.surfaces.end(); ++surface) {
+	SurfaceCollection* working_slices = use_original_slices ?
+			&this->unmodified_slices : &this->slices;
+
+	SurfaceCollection slices_buffer;
+
+	for (Surfaces::iterator surface = working_slices->surfaces.begin(); surface != working_slices->surfaces.end(); ++surface) {
 		Polygons subject;
 		subject.push_back(surface->expolygon.contour);
 		Polygons clip;
@@ -89,9 +100,11 @@ LayerRegion::modify_slices(Polygons &polygons)
 			s.thickness_layers = surface->thickness_layers;
 			s.bridge_angle = surface->bridge_angle;
 			s.extra_perimeters = surface->extra_perimeters;
-			this->slices.surfaces.push_back(s);
+			slices_buffer.surfaces.push_back(s);
 		}
 	}
+	this->slices.surfaces.clear(); // free memory
+	this->slices = slices_buffer;
 }
 
 

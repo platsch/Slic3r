@@ -3,12 +3,15 @@
 #include "ClipperUtils.hpp"
 #include "Geometry.hpp"
 
+#include "SVG.hpp"
+
 namespace Slic3r {
 
 PrintObject::PrintObject(Print* print, ModelObject* model_object, const BoundingBoxf3 &modobj_bbox)
 :   typed_slices(false),
     _print(print),
-    _model_object(model_object)
+    _model_object(model_object),
+	_schematic(Schematic(Point(scale_(modobj_bbox.size().x/2), scale_(modobj_bbox.size().y/2))))
 {
     // Compute the translation to be applied to our meshes so that we work with smaller coordinates
     {
@@ -337,6 +340,31 @@ PrintObject::invalidate_all_steps()
     }
     return invalidated;
 }
+
+
+void PrintObject::make_electronic_wires()
+{
+	if(this->_schematic.getPartlist()->size() > 0) {
+		// we need a configurable extension length here!!
+		coord_t layer_overlap = scale_(1.5);
+
+		FOREACH_LAYER(this, layer_it) {
+			double z_top = (*layer_it)->print_z;
+			double z_bottom = z_top - (*layer_it)->height;
+			Polylines channels = this->_schematic.getChannels(z_bottom, z_top, layer_overlap);
+			if(channels.size() > 0) {
+				Polygons channel_polygons;
+				offset(channels, &channel_polygons, scale_(0.5));
+
+				FOREACH_LAYERREGION((*layer_it), layerm) {
+					(*layerm)->modify_slices(channel_polygons, false);
+				}
+				(*layer_it)->setDirty(true);
+			}
+		}
+	}
+}
+
 
 bool
 PrintObject::has_support_material() const

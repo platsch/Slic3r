@@ -368,7 +368,11 @@ sub make_perimeters {
     $self->set_step_started(STEP_PERIMETERS);
     $self->print->status_cb->(20, "Generating perimeters");
     
+    # generate wiring
+    # note: "global" routing must be done after process_electronic_parts to avoid routing through parts,
+    # but "local" routing must be done before process_electronic_parts to ignore perimeter polygons of parts...
     $self->process_electronic_parts;
+    $self->make_electronic_wires;
     
     # merge slices if they were split into types
     if ($self->typed_slices) {
@@ -475,6 +479,7 @@ sub make_perimeters {
     $self->set_step_done(STEP_PERIMETERS);
 }
 
+# TODO: move this sub to xs
 sub process_electronic_parts {
 	my ($self) = @_;
 	
@@ -522,7 +527,7 @@ sub process_electronic_parts {
             	}
             	# cut part from object polygon
             	if(scalar @polygons > 0){ 
-            		$layerm->modify_slices(\@polygons);
+            		$layerm->modify_slices(\@polygons, 1);
             		# Adjacent layers are possibly also affected due to combined infill
             		# and/or solid TOP/BOTTOM shells -> mark all layers in this scope dirty.
             		for my $layer_id (($layer->id - $dirty_scope) .. ($layer->id + $dirty_scope)) {

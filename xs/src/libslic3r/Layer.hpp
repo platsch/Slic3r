@@ -59,7 +59,7 @@ class LayerRegion
     void merge_slices();
     // remove a polygon from slice, intended to free space for external objects
     // which are embedded during the printing process
-    void modify_slices(Polygons &polygons);
+    void modify_slices(Polygons &polygons, bool use_original_slices);
     void prepare_fill_surfaces();
     void make_perimeters(const SurfaceCollection &slices, SurfaceCollection* fill_surfaces);
     void process_external_surfaces(const Layer* lower_layer);

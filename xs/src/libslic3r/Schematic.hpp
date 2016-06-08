@@ -7,6 +7,7 @@
 #include "RubberBand.hpp"
 #include "NetPoint.hpp"
 #include "Point.hpp"
+#include "Polyline.hpp"
 #include <vector>
 
 
@@ -15,10 +16,8 @@ namespace Slic3r {
 class Schematic
 {
     public:
-    Schematic();
+    Schematic(const Point objectCenter);
     ~Schematic();
-    void setRootOffset(Pointf3 offset);
-	Pointf3 getRootOffset();
 	void setFilename(std::string filename);
     void addElectronicPart(ElectronicPart* part);
     ElectronicPart* addElectronicPart(std::string name, std::string library, std::string deviceset, std::string device, std::string package);
@@ -31,6 +30,8 @@ class Schematic
     bool removeWire(const unsigned int rubberBandID);
     bool removeNetPoint(const NetPoint* netPoint);
 
+    Polylines getChannels(const double z_bottom, const double z_top, coord_t layer_overlap);
+
 
 	private:
     bool _checkRubberBandVisibility(const RubberBand* rb, const double z);
@@ -42,7 +43,7 @@ class Schematic
     ElectronicNets netlist;
     ElectronicParts partlist;
     std::string filename;
-    Pointf3* rootOffset;
+    const Point objectCenter;
     RubberBandPtrs rubberBands;
     NetPointPtrs netPoints;
 

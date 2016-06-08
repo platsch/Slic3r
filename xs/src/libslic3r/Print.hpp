@@ -136,6 +136,8 @@ class PrintObject
     bool invalidate_step(PrintObjectStep step);
     bool invalidate_all_steps();
     
+    void make_electronic_wires();
+
     bool has_support_material() const;
     void process_external_surfaces();
     void bridge_over_infill();

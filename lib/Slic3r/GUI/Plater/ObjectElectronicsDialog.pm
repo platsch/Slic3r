@@ -352,6 +352,7 @@ sub new {
             if(defined $rubberband) {
             	if($self->{schematic}->removeWire($rubberband->getID)) {
             		$self->reload_print;
+            		$self->triggerSlicing;
             	}
             }
             
@@ -360,6 +361,7 @@ sub new {
             if(defined $netPoint) {
             	if($self->{schematic}->removeNetPoint($netPoint)) {
             		$self->reload_print;
+            		$self->triggerSlicing;
             	}
             }
         });
@@ -368,6 +370,7 @@ sub new {
             my ($rubberband, $pos) = @_;
 			$self->{schematic}->splitWire($rubberband, $pos);
 			$self->reload_print;
+			$self->triggerSlicing;
         });
                 
         $canvas->load_object($self->{model_object}, undef, [0]);
@@ -642,9 +645,7 @@ sub placePart {
     $self->reload_tree($part->getPartID());
     
     # trigger slicing steps to update modifications;
-    $self->{print}->objects->[$self->{obj_idx}]->invalidate_step(STEP_PERIMETERS);
-    $self->{plater}->stop_background_process;
-    $self->{plater}->start_background_process(1);
+    $self->triggerSlicing;
     
 }
 
@@ -1052,10 +1053,18 @@ sub movePart {
         # which is nessecary to have correct wiring!
                 
         # trigger slicing steps to update modifications;
-		$self->{print}->objects->[$self->{obj_idx}]->invalidate_step(STEP_SLICE);
-		$self->{plater}->start_background_process(1);
+		$self->triggerSlicing;
 
     }
+}
+
+# trigger slicing steps to update modifications;
+sub triggerSlicing {
+	my $self = shift;
+	
+	#$self->{print}->objects->[$self->{obj_idx}]->invalidate_step(STEP_PERIMETERS);
+	$self->{print}->objects->[$self->{obj_idx}]->invalidate_step(STEP_SLICE);
+	$self->{plater}->start_background_process(1);
 }
 
 1;
