@@ -341,7 +341,9 @@ PrintObject::invalidate_all_steps()
     return invalidated;
 }
 
-
+/* Remove channels from every layer to generate free space for
+ * the extrusion of conductive material.
+ */
 void PrintObject::make_electronic_wires()
 {
 	if(this->_schematic.getPartlist()->size() > 0) {
@@ -349,17 +351,32 @@ void PrintObject::make_electronic_wires()
 		coord_t layer_overlap = scale_(1.5);
 
 		FOREACH_LAYER(this, layer_it) {
-			double z_top = (*layer_it)->print_z;
-			double z_bottom = z_top - (*layer_it)->height;
-			Polylines channels = this->_schematic.getChannels(z_bottom, z_top, layer_overlap);
-			if(channels.size() > 0) {
-				Polygons channel_polygons;
-				offset(channels, &channel_polygons, scale_(0.5));
+			double z_top, z_bottom;
+			Polylines channels;
 
-				FOREACH_LAYERREGION((*layer_it), layerm) {
-					(*layerm)->modify_slices(channel_polygons, false);
+			// if upper_layer is defined, get channels to create a "bed" by offsetting only a small amount
+			Layer* layer = (*layer_it)->upper_layer;
+			float channel_offset = scale_(0.01); // small offset for "bed"
+
+			for(int i = 0; i < 2; i++) {
+				if(layer != NULL) {
+					z_top = layer->print_z;
+					z_bottom = z_top - layer->height;
+					channels = this->_schematic.getChannels(z_bottom, z_top, layer_overlap);
+
+					// offset and remove bed or channel
+					if(channels.size() > 0) {
+						Polygons channel_polygons;
+						offset(channels, &channel_polygons, channel_offset);
+						FOREACH_LAYERREGION((*layer_it), layerm) {
+							(*layerm)->modify_slices(channel_polygons, false);
+						}
+						(*layer_it)->setDirty(true);
+					}
 				}
-				(*layer_it)->setDirty(true);
+				// only 2 loops, first is upper_layer second is current layer
+				layer = (*layer_it);
+				channel_offset = scale_(0.5); // this should be controlled by an option!!!
 			}
 		}
 	}
