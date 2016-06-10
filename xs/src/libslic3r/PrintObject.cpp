@@ -356,7 +356,6 @@ void PrintObject::make_electronic_wires()
 
 			// if upper_layer is defined, get channels to create a "bed" by offsetting only a small amount
 			Layer* layer = (*layer_it)->upper_layer;
-			float channel_offset = scale_(0.01); // small offset for "bed"
 
 			for(int i = 0; i < 2; i++) {
 				if(layer != NULL) {
@@ -367,7 +366,21 @@ void PrintObject::make_electronic_wires()
 					// offset and remove bed or channel
 					if(channels.size() > 0) {
 						Polygons channel_polygons;
-						offset(channels, &channel_polygons, channel_offset);
+						offset(channels, &channel_polygons, scale_(0.01));
+						// double offsetting for channels. 1 step generates a polygon from the polyline,
+						// 2. step extends the polygon to avoid cropped angles.
+						if(i > 0) {
+							//SVG svg2("polygon_low_offset.svg");
+							//svg2.draw(channel_polygons, "red");
+							//svg2.Close();
+							//std::cout << "nr of polygons after polyline offset: " << channel_polygons.size() << std::endl;
+							channel_polygons = offset(channel_polygons, scale_(0.5-0.01)); // this should be controlled by an option!!!
+							//SVG svg("polygon.svg");
+							//svg.draw(channel_polygons, "red");
+							//svg.draw(channels, "green");
+							//svg.Close();
+						}
+
 						FOREACH_LAYERREGION((*layer_it), layerm) {
 							(*layerm)->modify_slices(channel_polygons, false);
 						}
@@ -376,7 +389,6 @@ void PrintObject::make_electronic_wires()
 				}
 				// only 2 loops, first is upper_layer second is current layer
 				layer = (*layer_it);
-				channel_offset = scale_(0.5); // this should be controlled by an option!!!
 			}
 		}
 	}
