@@ -101,6 +101,32 @@ PrintConfigDef::PrintConfigDef()
     def->cli = "complete-objects!";
     def->default_value = new ConfigOptionBool(false);
 
+    def = this->add("conductive_wire_extruder", coInt);
+    def->label = "Conductive wire extruder";
+    def->category = "Extruders";
+    def->tooltip = "The extruder to use when printing conductive wires.";
+    def->cli = "conductive-wire-extruder=i";
+    def->min = 1;
+    def->default_value = new ConfigOptionInt(2);
+
+    def = this->add("conductive_wire_extrusion_width", coFloatOrPercent);
+	def->label = "Conductive wires";
+	def->category = "Extrusion Width";
+	def->tooltip = "Set this to a non-zero value to set a manual extrusion width for conductive wires. If left zero, no one ones was happens. If expressed as percentage (for example 200%) it will be computed over layer height.";
+	def->sidetext = "mm or % (leave 0 for default)";
+	def->cli = "conductive-wire-extrusion-width=s";
+	def->default_value = new ConfigOptionFloatOrPercent(0.5, false);
+
+    def = this->add("conductive_wire_speed", coFloat);
+	def->label = "Conductive wires";
+	def->category = "Speed";
+	def->tooltip = "Speed for printing conductive wires. Typically very slow.";
+	def->sidetext = "mm/s";
+	def->cli = "conductive-wire-speed=f";
+	def->aliases.push_back("conductive_feed_rate");
+	def->min = 0;
+	def->default_value = new ConfigOptionFloat(2);
+
     def = this->add("cooling", coBool);
     def->label = "Enable auto cooling";
     def->tooltip = "This flag enables the automatic cooling logic that adjusts print speed and fan speed according to layer printing time.";
@@ -1310,6 +1336,8 @@ DynamicPrintConfig::normalize() {
                 this->option("support_material_extruder", true)->setInt(extruder);
             if (!this->has("support_material_interface_extruder"))
                 this->option("support_material_interface_extruder", true)->setInt(extruder);
+            if (!this->has("conductive_wire_extruder"))
+                this->option("conductive_wire_extruder", true)->setInt(extruder);
         }
     }
     

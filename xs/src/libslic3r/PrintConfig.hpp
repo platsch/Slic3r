@@ -102,6 +102,7 @@ class StaticPrintConfig : public PrintConfigBase, public StaticConfig
 class PrintObjectConfig : public virtual StaticPrintConfig
 {
     public:
+    ConfigOptionFloatOrPercent      conductive_wire_extrusion_width;
     ConfigOptionBool                dont_support_bridges;
     ConfigOptionFloatOrPercent      extrusion_width;
     ConfigOptionFloatOrPercent      first_layer_height;
@@ -131,6 +132,7 @@ class PrintObjectConfig : public virtual StaticPrintConfig
     };
     
     virtual ConfigOption* optptr(const t_config_option_key &opt_key, bool create = false) {
+        OPT_PTR(conductive_wire_extrusion_width);
         OPT_PTR(dont_support_bridges);
         OPT_PTR(extrusion_width);
         OPT_PTR(first_layer_height);
@@ -165,6 +167,8 @@ class PrintRegionConfig : public virtual StaticPrintConfig
     ConfigOptionInt                 bottom_solid_layers;
     ConfigOptionFloat               bridge_flow_ratio;
     ConfigOptionFloat               bridge_speed;
+    ConfigOptionInt                 conductive_wire_extruder;
+    ConfigOptionFloat               conductive_wire_speed;
     ConfigOptionEnum<InfillPattern> external_fill_pattern;
     ConfigOptionFloatOrPercent      external_perimeter_extrusion_width;
     ConfigOptionFloatOrPercent      external_perimeter_speed;
@@ -203,6 +207,8 @@ class PrintRegionConfig : public virtual StaticPrintConfig
         OPT_PTR(bottom_solid_layers);
         OPT_PTR(bridge_flow_ratio);
         OPT_PTR(bridge_speed);
+        OPT_PTR(conductive_wire_extruder);
+        OPT_PTR(conductive_wire_speed);
         OPT_PTR(external_fill_pattern);
         OPT_PTR(external_perimeter_extrusion_width);
         OPT_PTR(external_perimeter_speed);

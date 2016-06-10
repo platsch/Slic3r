@@ -468,6 +468,7 @@ sub build {
         perimeter_speed small_perimeter_speed external_perimeter_speed infill_speed 
         solid_infill_speed top_solid_infill_speed support_material_speed 
         support_material_interface_speed bridge_speed gap_fill_speed
+        conductive_wire_speed
         travel_speed
         first_layer_speed
         perimeter_acceleration infill_acceleration bridge_acceleration 
@@ -485,11 +486,12 @@ sub build {
         post_process
         perimeter_extruder infill_extruder solid_infill_extruder
         support_material_extruder support_material_interface_extruder
+        conductive_wire_extruder
         ooze_prevention standby_temperature_delta
         interface_shells
         extrusion_width first_layer_extrusion_width perimeter_extrusion_width 
         external_perimeter_extrusion_width infill_extrusion_width solid_infill_extrusion_width 
-        top_infill_extrusion_width support_material_extrusion_width
+        top_infill_extrusion_width support_material_extrusion_width conductive_wire_extrusion_width
         infill_overlap bridge_flow_ratio
         xy_size_compensation threads resolution
     ));
@@ -606,6 +608,7 @@ sub build {
             $optgroup->append_single_option_line('support_material_interface_speed');
             $optgroup->append_single_option_line('bridge_speed');
             $optgroup->append_single_option_line('gap_fill_speed');
+            $optgroup->append_single_option_line('conductive_wire_speed');
         }
         {
             my $optgroup = $page->new_optgroup('Speed for non-print moves');
@@ -639,6 +642,7 @@ sub build {
             $optgroup->append_single_option_line('solid_infill_extruder');
             $optgroup->append_single_option_line('support_material_extruder');
             $optgroup->append_single_option_line('support_material_interface_extruder');
+            $optgroup->append_single_option_line('conductive_wire_extruder');
         }
         {
             my $optgroup = $page->new_optgroup('Ooze prevention');
@@ -665,6 +669,7 @@ sub build {
             $optgroup->append_single_option_line('solid_infill_extrusion_width');
             $optgroup->append_single_option_line('top_infill_extrusion_width');
             $optgroup->append_single_option_line('support_material_extrusion_width');
+            $optgroup->append_single_option_line('conductive_wire_extrusion_width');
         }
         {
             my $optgroup = $page->new_optgroup('Overlap');
