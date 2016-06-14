@@ -183,11 +183,76 @@ Polylines Schematic::getChannels(const double z_bottom, const double z_top, coor
 	Polylines pls;
 
 	for (ElectronicNets::const_iterator net = this->netlist.begin(); net != this->netlist.end(); ++net) {
+
+		// collect all rubberbands for this net
+		std::list<Line> lines;
 		for (RubberBandPtrs::const_iterator rb = (*net)->wiredRubberBands.begin(); rb != (*net)->wiredRubberBands.end(); ++rb) {
 			Line l;
 			if((*rb)->getLayerSegment(z_bottom, z_top, layer_overlap, &l)) {
-				pls.push_back(l);
+				lines.push_back(l);
 			}
+		}
+
+		// find connected subsets
+		while(lines.size() > 0) {
+			Polyline pl;
+			std::list<Line>::const_iterator line2;
+			// find an endpoint
+			for (std::list<Line>::iterator line1 = lines.begin(); line1 != lines.end(); ++line1) {
+				int hitsA = 0;
+				int hitsB = 0;
+				for (std::list<Line>::iterator line2 = lines.begin(); line2 != lines.end(); ++line2) {
+					if(line1 == line2) {
+						continue;
+					}
+					if(line1->a.coincides_with_epsilon(line2->a) || line1->a.coincides_with_epsilon(line2->b)) {
+						hitsA++;
+					}
+					if(line1->b.coincides_with_epsilon(line2->a) || line1->b.coincides_with_epsilon(line2->b)) {
+						hitsB++;
+					}
+				}
+				if(hitsA == 0) {
+					pl.append(line1->a);
+					pl.append(line1->b);
+					lines.erase(line1);
+					break;
+				}
+				if(hitsB == 0) {
+					pl.append(line1->b);
+					pl.append(line1->a);
+					lines.erase(line1);
+					break;
+				}
+			}
+
+			// we now have an endpoint, traverse lines
+			int hits = 1;
+			while(hits == 1) {
+				hits = 0;
+				Point p = pl.last_point();
+				for (std::list<Line>::iterator line = lines.begin(); line != lines.end(); ++line) {
+					if(p.coincides_with_epsilon(line->a)) {
+						hits++;
+						if(hits == 1) {
+							pl.append(line->b);
+							line = lines.erase(line);
+							continue;
+						}
+					}
+					if(p.coincides_with_epsilon(line->b)) {
+						hits++;
+						if(hits == 1) {
+							pl.append(line->a);
+							line = lines.erase(line);
+							continue;
+						}
+					}
+				}
+			}
+			// split this path to equal length parts with small overlap to have extrusion ending at endpoint
+			// to be done
+			pls.push_back(pl);
 		}
 	}
 

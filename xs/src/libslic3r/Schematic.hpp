@@ -9,6 +9,7 @@
 #include "Point.hpp"
 #include "Polyline.hpp"
 #include <vector>
+#include <list>
 
 
 namespace Slic3r {
