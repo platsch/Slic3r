@@ -18,6 +18,7 @@ enum FlowRole {
     frTopSolidInfill,
     frSupportMaterial,
     frSupportMaterialInterface,
+	frConductiveWire,
 };
 
 class Flow

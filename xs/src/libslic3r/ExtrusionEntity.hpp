@@ -25,6 +25,7 @@ enum ExtrusionRole {
     erSkirt,
     erSupportMaterial,
     erSupportMaterialInterface,
+	erConductiveWire,
 };
 
 /* Special flags describing loop */

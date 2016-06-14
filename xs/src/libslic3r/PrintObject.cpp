@@ -350,6 +350,11 @@ void PrintObject::make_electronic_wires()
 		// we need a configurable extension length here!!
 		coord_t layer_overlap = scale_(1.5);
 
+		// initialize values for flow calculation
+		ConfigOptionFloatOrPercent extrusion_width = this->print()->default_object_config.conductive_wire_extrusion_width;
+		unsigned int extruder = this->print()->default_region_config.conductive_wire_extruder.getInt();
+		float nozzle_diameter = this->print()->config.nozzle_diameter.get_at(extruder-1);
+
 		FOREACH_LAYER(this, layer_it) {
 			double z_top, z_bottom;
 			Polylines channels;
@@ -389,6 +394,19 @@ void PrintObject::make_electronic_wires()
 				}
 				// only 2 loops, first is upper_layer second is current layer
 				layer = (*layer_it);
+			}
+
+			// create extrusion objects for this layer
+			Flow flow = Flow::new_from_config_width(frConductiveWire, extrusion_width, nozzle_diameter, layer->height, 0);
+
+			for (Polylines::const_iterator channel_pl = channels.begin(); channel_pl != channels.end(); ++channel_pl) {
+				ExtrusionPath path(erConductiveWire);
+				path.polyline = *channel_pl;
+				path.mm3_per_mm = flow.mm3_per_mm();
+				path.width = extrusion_width;
+				path.height = layer->height;
+
+				layer->wires.append(path);
 			}
 		}
 	}
