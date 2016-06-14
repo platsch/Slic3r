@@ -594,6 +594,15 @@ sub process_layer {
                 }
             }
         }
+        
+        # always extrude conductive wires at the end
+        if(!$layer->isa('Slic3r::Layer::Support') && (@{$layer->wires} > 0)) {
+	        $gcode .= $self->_gcodegen->set_extruder($self->print->default_region_config->conductive_wire_extruder-1);
+	        $self->_gcodegen->config->apply_static($self->print->default_region_config);
+	        $gcode .= $self->_gcodegen->extrude($_, 'conductive wire', -1)
+	            for (@{$layer->wires});
+        }
+        
         foreach my $part (@{$layer->object->schematic->getPartlist}) {
             $gcode .= $part->getPlaceGcode($layer->print_z);
         }

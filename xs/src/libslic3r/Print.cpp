@@ -319,8 +319,13 @@ Print::object_extruders() const
         if ((*region)->config.top_solid_layers.value > 0 || (*region)->config.bottom_solid_layers.value > 0)
             extruders.insert((*region)->config.solid_infill_extruder - 1);
 
-        // always include conductive wire extruder since we don't have an indicator for it's usage
-        extruders.insert((*region)->config.conductive_wire_extruder - 1);
+        // look for electronic objects and add conductive wire extruder if at least one object exists
+        FOREACH_OBJECT(this, object) {
+        	if((*object)->_schematic.getPartlist()->size() > 0) {
+        		extruders.insert((*region)->config.conductive_wire_extruder - 1);
+        	}
+        }
+
     }
     
     return extruders;
