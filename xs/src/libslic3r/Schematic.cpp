@@ -252,7 +252,17 @@ Polylines Schematic::getChannels(const double z_bottom, const double z_top, coor
 			}
 			// split this path to equal length parts with small overlap to have extrusion ending at endpoint
 			// to be done
+			double clip_length = pl.length()/2 - scale_(1); // USE CONFIG OPTION FOR THIS!
+			Polyline pl2 = pl;
+
+			//first half
+			pl.clip_end(clip_length);
+			pl.reverse();
 			pls.push_back(pl);
+
+			//second half
+			pl2.clip_start(clip_length);
+			pls.push_back(pl2);
 		}
 	}
 
