@@ -1138,16 +1138,19 @@ sub load_print_toolpaths {
 sub load_print_object_toolpaths {
     my ($self, $object) = @_;
     
-    my $perim_qverts    = Slic3r::GUI::_3DScene::GLVertexArray->new;
-    my $perim_tverts    = Slic3r::GUI::_3DScene::GLVertexArray->new;
-    my $infill_qverts   = Slic3r::GUI::_3DScene::GLVertexArray->new;
-    my $infill_tverts   = Slic3r::GUI::_3DScene::GLVertexArray->new;
-    my $support_qverts  = Slic3r::GUI::_3DScene::GLVertexArray->new;
-    my $support_tverts  = Slic3r::GUI::_3DScene::GLVertexArray->new;
+    my $perim_qverts            = Slic3r::GUI::_3DScene::GLVertexArray->new;
+    my $perim_tverts            = Slic3r::GUI::_3DScene::GLVertexArray->new;
+    my $infill_qverts           = Slic3r::GUI::_3DScene::GLVertexArray->new;
+    my $infill_tverts           = Slic3r::GUI::_3DScene::GLVertexArray->new;
+    my $support_qverts          = Slic3r::GUI::_3DScene::GLVertexArray->new;
+    my $support_tverts          = Slic3r::GUI::_3DScene::GLVertexArray->new;
+    my $conductive_wire_qverts  = Slic3r::GUI::_3DScene::GLVertexArray->new;
+    my $conductive_wire_tverts  = Slic3r::GUI::_3DScene::GLVertexArray->new;
     
     my %perim_offsets   = ();  # print_z => [ qverts, tverts ]
     my %infill_offsets  = ();
     my %support_offsets = ();
+    my %conductive_wire_offsets = ();
     
     # order layers by print_z
     my @layers = sort { $a->print_z <=> $b->print_z }
@@ -1165,6 +1168,9 @@ sub load_print_object_toolpaths {
             ];
             $support_offsets{$top_z} = [
                 $support_qverts->size, $support_tverts->size,
+            ];
+            $conductive_wire_offsets{$top_z} = [
+                $conductive_wire_qverts->size, $conductive_wire_tverts->size,
             ];
         }
         
@@ -1187,6 +1193,11 @@ sub load_print_object_toolpaths {
                 
                 $self->_extrusionentity_to_verts($layer->support_interface_fills, $top_z, $copy,
                     $support_qverts, $support_tverts);
+            }
+            
+            if ($object->step_done(STEP_PERIMETERS)) {
+                $self->_extrusionentity_to_verts($layer->wires, $top_z, $copy,
+                    $conductive_wire_qverts, $conductive_wire_tverts);
             }
         }
     }
@@ -1222,6 +1233,14 @@ sub load_print_object_toolpaths {
         qverts          => $support_qverts,
         tverts          => $support_tverts,
         offsets         => { %support_offsets },
+    );
+    
+    push @{$self->volumes}, Slic3r::GUI::3DScene::Volume->new(
+        bounding_box    => $bb,
+        color           => COLORS->[3],
+        qverts          => $conductive_wire_qverts,
+        tverts          => $conductive_wire_tverts,
+        offsets         => { %conductive_wire_offsets },
     );
 }
 
