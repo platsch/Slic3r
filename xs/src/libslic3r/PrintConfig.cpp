@@ -101,6 +101,14 @@ PrintConfigDef::PrintConfigDef()
     def->cli = "complete-objects!";
     def->default_value = new ConfigOptionBool(false);
 
+    def = this->add("conductive_wire_channel_width", coFloat);
+    def->label = "Channel width";
+    def->tooltip = "The absolute amount a channel for a conductive wire will be expanded additional to the extrusion width.";
+    def->sidetext = "mm";
+    def->cli = "conductive-wire-channel-width=f";
+    def->min = 0;
+    def->default_value = new ConfigOptionFloat(0.8);
+
     def = this->add("conductive_wire_extruder", coInt);
     def->label = "Conductive wire extruder";
     def->category = "Extruders";
@@ -109,6 +117,14 @@ PrintConfigDef::PrintConfigDef()
     def->min = 1;
     def->default_value = new ConfigOptionInt(2);
 
+	def = this->add("conductive_wire_extrusion_overlap", coFloat);
+	def->label = "Extrusion overlap";
+	def->tooltip = "Controls the length of overlap for wires within a single layer. Wire segments are extruded from the center of the line towards both endpoints to ensure clean endpoints.";
+	def->sidetext = "mm";
+	def->cli = "conductive-wire-extrusion-overlap=f";
+	def->min = 0;
+	def->default_value = new ConfigOptionFloat(1.0);
+
     def = this->add("conductive_wire_extrusion_width", coFloatOrPercent);
 	def->label = "Conductive wires";
 	def->category = "Extrusion Width";
@@ -116,6 +132,14 @@ PrintConfigDef::PrintConfigDef()
 	def->sidetext = "mm or % (leave 0 for default)";
 	def->cli = "conductive-wire-extrusion-width=s";
 	def->default_value = new ConfigOptionFloatOrPercent(0.5, false);
+
+	def = this->add("conductive_wire_slope_overlap", coFloat);
+	def->label = "Slope overlap";
+	def->tooltip = "Controls the length of overlap for sloped wires which are realized by a 'stair' of overlapping horizontal wires.";
+	def->sidetext = "mm";
+	def->cli = "conductive-wire-slope-overlap=f";
+	def->min = 0;
+	def->default_value = new ConfigOptionFloat(1.5);
 
     def = this->add("conductive_wire_speed", coFloat);
 	def->label = "Conductive wires";

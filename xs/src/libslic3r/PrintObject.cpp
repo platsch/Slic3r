@@ -347,8 +347,10 @@ PrintObject::invalidate_all_steps()
 void PrintObject::make_electronic_wires()
 {
 	if(this->_schematic.getPartlist()->size() > 0) {
-		// we need a configurable extension length here!!
-		coord_t layer_overlap = scale_(1.5);
+		// amount of overlap for wire split points to have extrusion ends at wire endpoints
+		coord_t extrusion_overlap = scale_(this->print()->default_object_config.conductive_wire_extrusion_overlap);
+		// amount of overlap for inter-layer connections of sloped wires
+		coord_t layer_overlap = scale_(this->print()->default_object_config.conductive_wire_slope_overlap);
 
 		// initialize values for flow calculation
 		ConfigOptionFloatOrPercent extrusion_width = this->print()->default_object_config.conductive_wire_extrusion_width;
@@ -366,7 +368,7 @@ void PrintObject::make_electronic_wires()
 				if(layer != NULL) {
 					z_top = layer->print_z;
 					z_bottom = z_top - layer->height;
-					channels = this->_schematic.getChannels(z_bottom, z_top, layer_overlap);
+					channels = this->_schematic.getChannels(z_bottom, z_top, extrusion_overlap, layer_overlap);
 
 					// offset and remove bed or channel
 					if(channels.size() > 0) {
@@ -379,7 +381,7 @@ void PrintObject::make_electronic_wires()
 							//svg2.draw(channel_polygons, "red");
 							//svg2.Close();
 							//std::cout << "nr of polygons after polyline offset: " << channel_polygons.size() << std::endl;
-							channel_polygons = offset(channel_polygons, scale_(0.5-0.01)); // this should be controlled by an option!!!
+							channel_polygons = offset(channel_polygons, scale_(this->print()->default_object_config.conductive_wire_channel_width/2 - 0.01)); // this should be controlled by an option!!!
 							//SVG svg("polygon.svg");
 							//svg.draw(channel_polygons, "red");
 							//svg.draw(channels, "green");

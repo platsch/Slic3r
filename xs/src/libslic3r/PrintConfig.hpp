@@ -102,7 +102,10 @@ class StaticPrintConfig : public PrintConfigBase, public StaticConfig
 class PrintObjectConfig : public virtual StaticPrintConfig
 {
     public:
+	ConfigOptionFloat               conductive_wire_channel_width;
+	ConfigOptionFloat               conductive_wire_extrusion_overlap;
     ConfigOptionFloatOrPercent      conductive_wire_extrusion_width;
+    ConfigOptionFloat               conductive_wire_slope_overlap;
     ConfigOptionBool                dont_support_bridges;
     ConfigOptionFloatOrPercent      extrusion_width;
     ConfigOptionFloatOrPercent      first_layer_height;
@@ -132,7 +135,10 @@ class PrintObjectConfig : public virtual StaticPrintConfig
     };
     
     virtual ConfigOption* optptr(const t_config_option_key &opt_key, bool create = false) {
+    	OPT_PTR(conductive_wire_channel_width);
+    	OPT_PTR(conductive_wire_extrusion_overlap);
         OPT_PTR(conductive_wire_extrusion_width);
+        OPT_PTR(conductive_wire_slope_overlap);
         OPT_PTR(dont_support_bridges);
         OPT_PTR(extrusion_width);
         OPT_PTR(first_layer_height);

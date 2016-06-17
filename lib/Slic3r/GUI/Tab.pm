@@ -494,6 +494,7 @@ sub build {
         top_infill_extrusion_width support_material_extrusion_width conductive_wire_extrusion_width
         infill_overlap bridge_flow_ratio
         xy_size_compensation threads resolution
+        conductive_wire_channel_width conductive_wire_extrusion_overlap conductive_wire_slope_overlap
     ));
     $self->{config}->set('print_settings_id', '');
     
@@ -731,8 +732,18 @@ sub build {
             );
             my $option = $optgroup->get_option('notes');
             $option->full_width(1);
-            $option->height(250);
+            $option->height(150);
             $optgroup->append_single_option_line($option);
+        }
+    }
+    
+    {
+        my $page = $self->add_options_page('3D Electronics', 'PCB-icon.png');
+        {
+            my $optgroup = $page->new_optgroup('Conductive wires');
+            $optgroup->append_single_option_line('conductive_wire_channel_width');
+            $optgroup->append_single_option_line('conductive_wire_extrusion_overlap');
+            $optgroup->append_single_option_line('conductive_wire_slope_overlap');
         }
     }
 }

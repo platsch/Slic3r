@@ -178,7 +178,7 @@ bool Schematic::removeNetPoint(const NetPoint* netPoint)
 	return result;
 }
 
-Polylines Schematic::getChannels(const double z_bottom, const double z_top, coord_t layer_overlap)
+Polylines Schematic::getChannels(const double z_bottom, const double z_top, coord_t extrusion_overlap, coord_t layer_overlap)
 {
 	Polylines pls;
 
@@ -251,8 +251,7 @@ Polylines Schematic::getChannels(const double z_bottom, const double z_top, coor
 				}
 			}
 			// split this path to equal length parts with small overlap to have extrusion ending at endpoint
-			// to be done
-			double clip_length = pl.length()/2 - scale_(1); // USE CONFIG OPTION FOR THIS!
+			double clip_length = pl.length()/2 - extrusion_overlap;
 			Polyline pl2 = pl;
 
 			//first half

@@ -31,7 +31,7 @@ class Schematic
     bool removeWire(const unsigned int rubberBandID);
     bool removeNetPoint(const NetPoint* netPoint);
 
-    Polylines getChannels(const double z_bottom, const double z_top, coord_t layer_overlap);
+    Polylines getChannels(const double z_bottom, const double z_top, coord_t extrusion_overlap, coord_t layer_overlap);
 
 
 	private:

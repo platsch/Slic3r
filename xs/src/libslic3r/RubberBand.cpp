@@ -99,7 +99,7 @@ bool RubberBand::getLayerSegment(const double z_bottom, const double z_top, coor
 	bool result = false;
 
 	// does this rubberband intersect the given layer?
-	if((this->a.z >= z_bottom && this->b.z <= z_top) || (this->a.z <= z_bottom && this->b.z >= z_top)) {
+	if((this->a.z >= z_bottom && this->b.z < z_top) || (this->a.z < z_top && this->b.z >= z_bottom)) {
 		result = true;
 		bool extend_a = true;
 
@@ -128,14 +128,14 @@ bool RubberBand::getLayerSegment(const double z_bottom, const double z_top, coor
 			Pointf3 i = this->intersect_plane(z_top);
 			segment->b.x = scale_(i.x);
 			segment->b.y = scale_(i.y);
-			segment->extend_end(layer_overlap);
+			segment->extend_end(layer_overlap/2);
 		}else{
 			segment->b.x = scale_(this->b.x);
 			segment->b.y = scale_(this->b.y);
 		}
 
 		if(extend_a) {
-			segment->extend_start(layer_overlap);
+			segment->extend_start(layer_overlap/2);
 		}
 	}
 
