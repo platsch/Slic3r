@@ -257,11 +257,17 @@ Polylines Schematic::getChannels(const double z_bottom, const double z_top, coor
 			//first half
 			pl.clip_end(clip_length);
 			pl.reverse();
-			pls.push_back(pl);
+			pl.remove_duplicate_points();
+			if(pl.length() > scale_(0.05)) {
+				pls.push_back(pl);
+			}
 
 			//second half
 			pl2.clip_start(clip_length);
-			pls.push_back(pl2);
+			pl2.remove_duplicate_points();
+			if(pl2.length() > scale_(0.05)) {
+				pls.push_back(pl2);
+			}
 		}
 	}
 

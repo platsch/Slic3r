@@ -402,13 +402,15 @@ void PrintObject::make_electronic_wires()
 			Flow flow = Flow::new_from_config_width(frConductiveWire, extrusion_width, nozzle_diameter, layer->height, 0);
 
 			for (Polylines::const_iterator channel_pl = channels.begin(); channel_pl != channels.end(); ++channel_pl) {
-				ExtrusionPath path(erConductiveWire);
-				path.polyline = *channel_pl;
-				path.mm3_per_mm = flow.mm3_per_mm();
-				path.width = extrusion_width;
-				path.height = layer->height;
+				if(channel_pl->points.size() > 1) {
+					ExtrusionPath path(erConductiveWire);
+					path.polyline = *channel_pl;
+					path.mm3_per_mm = flow.mm3_per_mm();
+					path.width = extrusion_width;
+					path.height = layer->height;
 
-				layer->wires.append(path);
+					layer->wires.append(path);
+				}
 			}
 		}
 	}

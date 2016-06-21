@@ -322,7 +322,7 @@ sub new {
             # object is a rubberband
             my $rubberband = $self->{rubberband_lookup}[$volume_idx];
             if(defined $rubberband) {
-            	print "Rubberband selected\n";	
+            	#
             }
             
             # object is a point
@@ -336,6 +336,7 @@ sub new {
             # object is a rubberband
             my $rubberband = $self->{rubberband_lookup}[$volume_idx];
             if(defined $rubberband) {
+            	$self->{plater}->stop_background_process;
             	my $mousepoint = $self->{canvas}->get_mouse_pos_3d;
             	#$rubberband->selectNearest($mousepoint);
             	$canvas->rubberband_splitting($rubberband);
@@ -350,6 +351,7 @@ sub new {
             # object is a rubberband -> delete this wire
             my $rubberband = $self->{rubberband_lookup}[$volume_idx];
             if(defined $rubberband) {
+            	$self->{plater}->stop_background_process;
             	if($self->{schematic}->removeWire($rubberband->getID)) {
             		$self->reload_print;
             		$self->triggerSlicing;
@@ -359,6 +361,7 @@ sub new {
             # object is a netPoint -> delete this point
             my $netPoint = $self->{netPoint_lookup}[$volume_idx];
             if(defined $netPoint) {
+            	$self->{plater}->stop_background_process;
             	if($self->{schematic}->removeNetPoint($netPoint)) {
             		$self->reload_print;
             		$self->triggerSlicing;
@@ -368,6 +371,7 @@ sub new {
         
         $canvas->on_rubberband_split(sub {
             my ($rubberband, $pos) = @_;
+            $self->{plater}->stop_background_process;
 			$self->{schematic}->splitWire($rubberband, $pos);
 			$self->reload_print;
 			$self->triggerSlicing;
@@ -634,6 +638,9 @@ sub render_print {
 sub placePart {
     my $self = shift;
     my ($part, $x, $y, $z) = @_;
+    
+    $self->{plater}->stop_background_process;
+    
     # round values from canvas
     $x = int($x*1000)/1000.0;
     $y = int($y*1000)/1000.0;
@@ -658,9 +665,11 @@ sub placePart {
 sub removePart {
     my ($self, $part) = @_;
     
+    $self->{plater}->stop_background_process;
     $part->setPlaced(0);
     $part->resetPosition;
     $self->reload_tree($part->getPartID);
+    $self->triggerSlicing;
 }
 
 #######################################################################
