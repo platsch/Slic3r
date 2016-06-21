@@ -337,7 +337,7 @@ sub new {
             my $rubberband = $self->{rubberband_lookup}[$volume_idx];
             if(defined $rubberband) {
             	$self->{plater}->stop_background_process;
-            	my $mousepoint = $self->{canvas}->get_mouse_pos_3d;
+            	#my $mousepoint = $self->{canvas}->get_mouse_pos_3d;
             	#$rubberband->selectNearest($mousepoint);
             	$canvas->rubberband_splitting($rubberband);
             }
@@ -372,6 +372,10 @@ sub new {
         $canvas->on_rubberband_split(sub {
             my ($rubberband, $pos) = @_;
             $self->{plater}->stop_background_process;
+            # translate to center of layer
+            print "translate to center of layer, pos.z: " . $pos->z . "\n";
+            $pos->translate(0, 0, $self->get_layer_thickness($pos->z)/2);
+            print "after translation: " . $pos->z . "\n";
 			$self->{schematic}->splitWire($rubberband, $pos);
 			$self->reload_print;
 			$self->triggerSlicing;

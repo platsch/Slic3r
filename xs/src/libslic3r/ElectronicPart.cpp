@@ -128,6 +128,8 @@ Pointf3 ElectronicPart::getAbsPadPosition(std::string padName)
 			pos.rotate(Geometry::deg2rad(this->rotation.z), Pointf(0, 0));
 			// rotation around y and z is missing!!!
 			pos.translate(this->position);
+			// set pad center
+			pos.translate(0, 0, this->footprintHeight/2);
 		}
 	}
 	return pos;

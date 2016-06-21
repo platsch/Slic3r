@@ -137,6 +137,11 @@ bool RubberBand::getLayerSegment(const double z_bottom, const double z_top, coor
 		if(extend_a) {
 			segment->extend_start(layer_overlap/2);
 		}
+
+		// if only one point touches the layer length will be 0
+		if(segment->length() < scale_(0.05)) {
+			result = false;
+		}
 	}
 
 	return result;
