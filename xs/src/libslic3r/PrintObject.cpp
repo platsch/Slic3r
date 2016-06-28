@@ -381,7 +381,7 @@ void PrintObject::make_electronic_wires()
 							//svg2.draw(channel_polygons, "red");
 							//svg2.Close();
 							//std::cout << "nr of polygons after polyline offset: " << channel_polygons.size() << std::endl;
-							channel_polygons = offset(channel_polygons, scale_(this->print()->default_object_config.conductive_wire_channel_width/2 - 0.01)); // this should be controlled by an option!!!
+							channel_polygons = offset(channel_polygons, scale_(extrusion_width/2 + this->print()->default_object_config.conductive_wire_channel_width/2 - 0.01));
 							//SVG svg("polygon.svg");
 							//svg.draw(channel_polygons, "red");
 							//svg.draw(channels, "green");
