@@ -32,7 +32,7 @@ class Extruder
     double extrusion_multiplier() const;
     double retract_length() const;
     double retract_lift() const;
-    int retract_speed() const;
+    double retract_speed() const;
     double retract_restart_extra() const;
     double retract_length_toolchange() const;
     double retract_restart_extra_toolchange() const;

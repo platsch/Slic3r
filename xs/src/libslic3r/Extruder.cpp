@@ -129,7 +129,7 @@ Extruder::retract_lift() const
     return this->config->retract_lift.get_at(this->id);
 }
 
-int
+double
 Extruder::retract_speed() const
 {
     return this->config->retract_speed.get_at(this->id);
