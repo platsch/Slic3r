@@ -401,6 +401,9 @@ void PrintObject::make_electronic_wires()
 			// create extrusion objects for this layer
 			Flow flow = Flow::new_from_config_width(frConductiveWire, extrusion_width, nozzle_diameter, layer->height, 0);
 
+			// clear old wires
+			layer->wires.clear();
+
 			for (Polylines::const_iterator channel_pl = channels.begin(); channel_pl != channels.end(); ++channel_pl) {
 				if(channel_pl->points.size() > 1) {
 					ExtrusionPath path(erConductiveWire);
