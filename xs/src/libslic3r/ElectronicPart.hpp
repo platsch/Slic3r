@@ -41,6 +41,7 @@ class ElectronicPart
     std::string getDeviceset(){return this->deviceset;};
     std::string getDevice(){return this->device;};
     std::string getPackage(){return this->package;};
+    void printPartInfo();
     double getFootprintHeight(){return this->footprintHeight;};
     void setFootprintHeight(double height){this->footprintHeight = height;};
     void setSize(double x, double y);

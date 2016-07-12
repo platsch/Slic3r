@@ -36,6 +36,22 @@ ElectronicPart::~ElectronicPart()
 // Initialization of static ID generator variable
 unsigned int ElectronicPart::s_idGenerator = 1;
 
+void ElectronicPart::printPartInfo()
+{
+	std::cout << "== Part name: " << this->name << " ==" << std::endl;
+	std::cout << "ID: " << this->partID << std::endl;
+	std::cout << "Library: " << this->library << std::endl;
+	std::cout << "Device: " << this->device << std::endl;
+	std::cout << "Package: " << this->package << std::endl;
+	std::cout << "Pads:" << std::endl;
+	for (Padlist::const_iterator pad = this->padlist.begin(); pad != this->padlist.end(); ++pad) {
+		std::cout << "   -type: " << pad->type << std::endl;
+		std::cout << "   -pad: " << pad->pad << std::endl;
+		std::cout << "   -ping: " << pad->pin << std::endl;
+		std::cout << "   -gate: " << pad->gate << std::endl;
+	}
+}
+
 // Parts are currently represented only by a simple cube.
 // This redefines the size of this cube, which is
 // initially obtained from the input schematic file
@@ -109,7 +125,7 @@ bool ElectronicPart::hasPad(std::string padName)
 {
 	bool result = false;
 	for (Padlist::const_iterator pad = this->padlist.begin(); pad != this->padlist.end(); ++pad) {
-		if(pad->pad == padName) {
+		if((pad->pad == padName) || pad->pin == padName) {
 			result = true;
 		}
 	}
@@ -120,7 +136,7 @@ Pointf3 ElectronicPart::getAbsPadPosition(std::string padName)
 {
 	Pointf3 pos;
 	for (Padlist::const_iterator pad = this->padlist.begin(); pad != this->padlist.end(); ++pad) {
-		if(pad->pad == padName) {
+		if((pad->pad == padName) || (pad->pin == padName)) {
 			pos.x = pad->position[0];
 			pos.y = pad->position[1];
 			pos.z = pad->position[2];
