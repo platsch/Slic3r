@@ -44,9 +44,14 @@ void Schematic::addElectronicNet(ElectronicNet* net)
 	//update part IDs
 	for (Pinlist::iterator netPin = net->netPins.begin(); netPin != net->netPins.end(); ++netPin) {
 		for (ElectronicParts::const_iterator part = this->partlist.begin(); part != this->partlist.end(); ++part) {
-			if((*part)->getName() == netPin->part && (*part)->hasPad(netPin->pin)) {
-				netPin->partID = (*part)->getPartID();
-				break;
+			if((*part)->getName() == netPin->part) {
+				if((*part)->hasPad(netPin->pin)) {
+					netPin->partID = (*part)->getPartID();
+					break;
+				}else{
+					std::cout << "Warning: found matching part for pin  " << netPin->pin << " but no matching pin. Part Info:"<< std::endl;
+					(*part)->printPartInfo();
+				}
 			}
 		}
 		if(netPin->partID == 0) {
@@ -231,23 +236,29 @@ Polylines Schematic::getChannels(const double z_bottom, const double z_top, coor
 			while(hits == 1) {
 				hits = 0;
 				Point p = pl.last_point();
+				std::list<Line>::iterator stored_line;
+				Point stored_point;
 				for (std::list<Line>::iterator line = lines.begin(); line != lines.end(); ++line) {
 					if(p.coincides_with_epsilon(line->a)) {
 						hits++;
 						if(hits == 1) {
-							pl.append(line->b);
-							line = lines.erase(line);
+							stored_point = line->b;
+							stored_line = line;
 							continue;
 						}
 					}
 					if(p.coincides_with_epsilon(line->b)) {
 						hits++;
 						if(hits == 1) {
-							pl.append(line->a);
-							line = lines.erase(line);
+							stored_point = line->a;
+							stored_line = line;
 							continue;
 						}
 					}
+				}
+				if(hits == 1) {
+					pl.append(stored_point);
+					lines.erase(stored_line);
 				}
 			}
 			// split this path to equal length parts with small overlap to have extrusion ending at endpoint
