@@ -189,7 +189,6 @@ Polylines Schematic::getChannels(const double z_bottom, const double z_top, coor
 	Polylines pls_akku;
 
 	for (ElectronicNets::const_iterator net = this->netlist.begin(); net != this->netlist.end(); ++net) {
-
 		// collect all rubberbands for this net
 		std::list<Line> lines;
 		for (RubberBandPtrs::const_iterator rb = (*net)->wiredRubberBands.begin(); rb != (*net)->wiredRubberBands.end(); ++rb) {
@@ -264,47 +263,47 @@ Polylines Schematic::getChannels(const double z_bottom, const double z_top, coor
 			}
 			pls_akku.push_back(pl);
 		}
+	}
 
-		if(pls_akku.size() > 0) {
-			// find longest path for this layer and apply higher overlapping
-			Polylines::iterator max_len_pl;
-			double max_len = 0;
-			for (Polylines::iterator pl = pls_akku.begin(); pl != pls_akku.end(); ++pl) {
-				if(pl->length() > max_len) {
-					max_len = pl->length();
-					max_len_pl = pl;
-				}
+	if(pls_akku.size() > 0) {
+		// find longest path for this layer and apply higher overlapping
+		Polylines::iterator max_len_pl;
+		double max_len = 0;
+		for (Polylines::iterator pl = pls_akku.begin(); pl != pls_akku.end(); ++pl) {
+			if(pl->length() > max_len) {
+				max_len = pl->length();
+				max_len_pl = pl;
 			}
-			// move longest line to front
-			Polyline longest_line = (*max_len_pl);
-			pls_akku.erase(max_len_pl);
-			pls_akku.insert(pls_akku.begin(), longest_line);
+		}
+		// move longest line to front
+		Polyline longest_line = (*max_len_pl);
+		pls_akku.erase(max_len_pl);
+		pls_akku.insert(pls_akku.begin(), longest_line);
 
 
-			// split paths to equal length parts with small overlap to have extrusion ending at endpoint
-			for (Polylines::iterator pl = pls_akku.begin(); pl != pls_akku.end(); ++pl) {
-				double clip_length;
-				if(pl == pls_akku.begin()) {
-					clip_length = (*pl).length()/2 - extrusion_overlap*2; // first extrusion at this layer
-				}else{
-					clip_length = (*pl).length()/2 - extrusion_overlap;
-				}
-				Polyline pl2 = (*pl);
+		// split paths to equal length parts with small overlap to have extrusion ending at endpoint
+		for (Polylines::iterator pl = pls_akku.begin(); pl != pls_akku.end(); ++pl) {
+			double clip_length;
+			if(pl == pls_akku.begin()) {
+				clip_length = (*pl).length()/2 - extrusion_overlap*2; // first extrusion at this layer
+			}else{
+				clip_length = (*pl).length()/2 - extrusion_overlap;
+			}
+			Polyline pl2 = (*pl);
 
-				//first half
-				(*pl).clip_end(clip_length);
-				(*pl).reverse();
-				(*pl).remove_duplicate_points();
-				if((*pl).length() > scale_(0.05)) {
-					pls.push_back((*pl));
-				}
+			//first half
+			(*pl).clip_end(clip_length);
+			(*pl).reverse();
+			(*pl).remove_duplicate_points();
+			if((*pl).length() > scale_(0.05)) {
+				pls.push_back((*pl));
+			}
 
-				//second half
-				pl2.clip_start(clip_length);
-				pl2.remove_duplicate_points();
-				if(pl2.length() > scale_(0.05)) {
-					pls.push_back(pl2);
-				}
+			//second half
+			pl2.clip_start(clip_length);
+			pl2.remove_duplicate_points();
+			if(pl2.length() > scale_(0.05)) {
+				pls.push_back(pl2);
 			}
 		}
 	}
