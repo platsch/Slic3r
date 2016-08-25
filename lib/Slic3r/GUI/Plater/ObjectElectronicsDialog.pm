@@ -106,11 +106,14 @@ sub new {
     
     # upper buttons
     my $btn_load_netlist = $self->{btn_load_netlist} = Wx::Button->new($self, -1, "Load netlist", wxDefaultPosition, wxDefaultSize, wxBU_LEFT);
+    my $btn_save_netlist = $self->{btn_save_netlist} = Wx::Button->new($self, -1, "Save netlist", wxDefaultPosition, wxDefaultSize, wxBU_LEFT);
     
     # upper buttons sizer
     my $buttons_sizer = Wx::FlexGridSizer->new( 1, 3, 5, 5);
     $buttons_sizer->Add($btn_load_netlist, 0);
-    $btn_load_netlist->SetFont($Slic3r::GUI::small_font);
+    $buttons_sizer->Add($btn_save_netlist, 0);
+    $btn_load_netlist->SetFont($Slic3r::GUI::small_font);    
+    $btn_save_netlist->SetFont($Slic3r::GUI::small_font);
     
 
     # create TreeCtrl
@@ -264,12 +267,12 @@ sub new {
     $btn_save_part->SetFont($Slic3r::GUI::small_font);
     
     # lower buttons 
-    my $btn_save_netlist = $self->{btn_save_netlist} = Wx::Button->new($self, -1, "Save netlist", wxDefaultPosition, wxDefaultSize, wxBU_LEFT);
+    #my $btn_save_netlist = $self->{btn_save_netlist} = Wx::Button->new($self, -1, "Save netlist", wxDefaultPosition, wxDefaultSize, wxBU_LEFT);
     
     # lower buttons sizer
-    my $buttons_sizer_bottom = Wx::FlexGridSizer->new( 1, 3, 5, 5);
-    $buttons_sizer_bottom->Add($btn_save_netlist, 0);
-    $btn_save_netlist->SetFont($Slic3r::GUI::small_font);
+    #my $buttons_sizer_bottom = Wx::FlexGridSizer->new( 1, 3, 5, 5);
+    #$buttons_sizer_bottom->Add($btn_save_netlist, 0);
+    #$btn_save_netlist->SetFont($Slic3r::GUI::small_font);
     
     # left pane with tree
     my $left_sizer = Wx::BoxSizer->new(wxVERTICAL);
@@ -277,7 +280,7 @@ sub new {
     $left_sizer->Add($tree, 1, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 5);
     $left_sizer->Add($buttons_sizer_mid, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 5);
     $left_sizer->Add($settings_sizer_main, 0, wxEXPAND | wxALL| wxRIGHT | wxTOP, 5);
-    $left_sizer->Add($buttons_sizer_bottom, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 5);
+    #$left_sizer->Add($buttons_sizer_bottom, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 5);
     
     # slider for choosing layer
     my $slider = $self->{slider} = Wx::Slider->new(
@@ -1034,12 +1037,14 @@ sub savePartButtonPressed {
 #######################################################################
 sub saveButtonPressed {
     my $self = shift;
-    #my ($base,$path,$type) = fileparse($self->{schematic}->{filename},('.sch','.SCH','3de','.3DE'));
-    #if (Slic3r::Electronics::Electronics->writeFile($self->{schematic},$self->{config})) {
-    #    Wx::MessageBox('File saved as '.$base.'.3de','Saved', Wx::wxICON_INFORMATION | Wx::wxOK,undef)
-    #} else {
-    #    Wx::MessageBox('Saving failed','Failed',Wx::wxICON_ERROR | Wx::wxOK,undef)
-    #}
+    my ($base,$path,$type) = fileparse($self->{schematic}->getFilename,('.sch','.SCH','3de','.3DE'));
+    my $savePath = $path . $base . ".3de";
+    #if(Slic3r::Electronics::Filereaders::3DElectronics->writeFile($self->{schematic})) {
+    if($self->{schematic}->write3deFile($savePath)) {
+        Wx::MessageBox('File saved as '.$base.'.3de','Saved', Wx::wxICON_INFORMATION | Wx::wxOK,undef);
+    } else {
+        Wx::MessageBox('Saving failed','Failed',Wx::wxICON_ERROR | Wx::wxOK,undef)
+    }
 }
 
 #######################################################################

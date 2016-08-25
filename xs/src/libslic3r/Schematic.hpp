@@ -8,6 +8,7 @@
 #include "NetPoint.hpp"
 #include "Point.hpp"
 #include "Polyline.hpp"
+#include "../pugixml/pugixml.hpp"
 #include <vector>
 #include <list>
 
@@ -20,6 +21,7 @@ class Schematic
     Schematic(const Point objectCenter);
     ~Schematic();
 	void setFilename(std::string filename);
+	std::string getFilename() const {return this->filename;};
     void addElectronicPart(ElectronicPart* part);
     ElectronicPart* addElectronicPart(std::string name, std::string library, std::string deviceset, std::string device, std::string package);
     ElectronicPart* getElectronicPart(unsigned int partID);
@@ -32,6 +34,9 @@ class Schematic
     bool removeNetPoint(const NetPoint* netPoint);
 
     Polylines getChannels(const double z_bottom, const double z_top, coord_t extrusion_overlap, coord_t layer_overlap);
+
+    bool write3deFile(std::string filename);
+    bool load3deFile(std::string filename);
 
 
 	private:

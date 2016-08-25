@@ -84,52 +84,79 @@ sub writeFile {
 
     my $file = $dom->createElement('filename');
     $root->addChild($file);
-    $file->addChild($dom->createAttribute( source => basename($schematic->{filename})));
+    $file->addChild($dom->createAttribute( source => basename($schematic->getFilename)));
     
+    # Export electronic components
     my $parts = $dom->createElement('parts');
     $root->addChild($parts);
-    for my $part (@{$schematic->{partlist}}) {
-        if (defined($part->{position}[0]) && defined($part->{position}[1]) && defined($part->{position}[2])){
-            my $node = $dom->createElement('part');
-            $parts->addChild($node);
-            $node->addChild($dom->createAttribute( name => $part->{name}));
-            $node->addChild($dom->createAttribute( library => $part->{library}));
-            $node->addChild($dom->createAttribute( deviceset => $part->{deviceset}));
-            $node->addChild($dom->createAttribute( device => $part->{device}));
-            $node->addChild($dom->createAttribute( package => $part->{package}));
-            
-            my $height = $dom->createElement('attributes');
-            $node->addChild($height);
-            $height->addChild($dom->createAttribute( height => $part->{height}));
-            
-            my $pos = $dom->createElement('position');
-            $node->addChild($pos);
-            $pos->addChild($dom->createAttribute( X => $part->{position}[0]));
-            $pos->addChild($dom->createAttribute( Y => $part->{position}[1]));
-            $pos->addChild($dom->createAttribute( Z => $part->{position}[2]));
-            
-            my $rot = $dom->createElement('rotation');
-            $node->addChild($rot);
-            $rot->addChild($dom->createAttribute( X => $part->{rotation}[0]));
-            $rot->addChild($dom->createAttribute( Y => $part->{rotation}[1]));
-            $rot->addChild($dom->createAttribute( Z => $part->{rotation}[2]));
-            
-            my $chip = $dom->createElement('componentsize');
-            $node->addChild($chip);
-            $chip->addChild($dom->createAttribute( X => $part->{componentsize}[0]));
-            $chip->addChild($dom->createAttribute( Y => $part->{componentsize}[1]));
-            $chip->addChild($dom->createAttribute( Z => $part->{componentsize}[2]));
-            
-            my $componentpos = $dom->createElement('componentpos');
-            $node->addChild($componentpos);
-            $componentpos->addChild($dom->createAttribute( X => $part->{componentpos}[0]));
-            $componentpos->addChild($dom->createAttribute( Y => $part->{componentpos}[1]));
-            $componentpos->addChild($dom->createAttribute( Z => $part->{componentpos}[2]));
-        }
+    for my $part (@{$schematic->getPartlist}) {
+        my $node = $dom->createElement('part');
+        $parts->addChild($node);
+        $node->addChild($dom->createAttribute( name => $part->getName));
+        $node->addChild($dom->createAttribute( library => $part->getLibrary));
+        $node->addChild($dom->createAttribute( deviceset => $part->getDeviceset));
+        $node->addChild($dom->createAttribute( device => $part->getDevice));
+        $node->addChild($dom->createAttribute( package => $part->getPackage));
+        
+        my $attributes = $dom->createElement('attributes');
+        $node->addChild($attributes);
+        $attributes->addChild($dom->createAttribute( partHeight => $part->getPartHeight));
+        $attributes->addChild($dom->createAttribute( footprintHeight => $part->getFootprintHeight));
+        $attributes->addChild($dom->createAttribute( placed => $part->isPlaced));
+        
+        my $pos = $dom->createElement('position');
+        $node->addChild($pos);
+        my $position = $part->getPosition;
+        $pos->addChild($dom->createAttribute( X => $position->x));
+        $pos->addChild($dom->createAttribute( Y => $position->y));
+        $pos->addChild($dom->createAttribute( Z => $position->z));
+        
+        my $rot = $dom->createElement('rotation');
+        $node->addChild($rot);
+        my $rotation = $part->getRotation;
+        $rot->addChild($dom->createAttribute( X => $rotation->x));
+        $rot->addChild($dom->createAttribute( Y => $rotation->y));
+        $rot->addChild($dom->createAttribute( Z => $rotation->z));
     }
-    my ($base,$path,$type) = fileparse($schematic->{filename},('.sch','.SCH','3de','.3DE'));
+    
+#    # Export netpoints and connections
+#    for my $net (@{$schematic->getPartlist}) {
+#    
+#    my $netpoints = $dom->createElement('netpoints');
+#    $root->addChild($netpoints);
+#    for my $part (@{$schematic->getPartlist}) {
+#        my $node = $dom->createElement('part');
+#        $parts->addChild($node);
+#        $node->addChild($dom->createAttribute( name => $part->getName));
+#        $node->addChild($dom->createAttribute( library => $part->getLibrary));
+#        $node->addChild($dom->createAttribute( deviceset => $part->getDeviceset));
+#        $node->addChild($dom->createAttribute( device => $part->getDevice));
+#        $node->addChild($dom->createAttribute( package => $part->getPackage));
+#        
+#        my $attributes = $dom->createElement('attributes');
+#        $node->addChild($attributes);
+#        $attributes->addChild($dom->createAttribute( partHeight => $part->getPartHeight));
+#        $attributes->addChild($dom->createAttribute( footprintHeight => $part->getFootprintHeight));
+#        $attributes->addChild($dom->createAttribute( placed => $part->isPlaced));
+#        
+#        my $pos = $dom->createElement('position');
+#        $node->addChild($pos);
+#        my $position = $part->getPosition;
+#        $pos->addChild($dom->createAttribute( X => $position->x));
+#        $pos->addChild($dom->createAttribute( Y => $position->y));
+#        $pos->addChild($dom->createAttribute( Z => $position->z));
+#        
+#        my $rot = $dom->createElement('rotation');
+#        $node->addChild($rot);
+#        my $rotation = $part->getRotation;
+#        $rot->addChild($dom->createAttribute( X => $rotation->x));
+#        $rot->addChild($dom->createAttribute( Y => $rotation->y));
+#        $rot->addChild($dom->createAttribute( Z => $rotation->z));
+#    }
+#    
+    my ($base,$path,$type) = fileparse($schematic->getFilename,('.sch','.SCH','3de','.3DE'));
     my $newpath = $path . $base . ".3de";
-    return $dom->toFile($newpath, 0);
+    return $dom->toFile($newpath, 2);
 }
 
 1;

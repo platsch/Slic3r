@@ -26,16 +26,4 @@ sub readFile {
     }
 }
 
-#######################################################################
-# Purpose    : Writes a file
-# Parameters : see Slic3r::Electronics::Filereaders::3DElectronics->writeFile
-# Returns    : see Slic3r::Electronics::Filereaders::3DElectronics->writeFile
-# Commet     :
-#######################################################################
-sub writeFile {
-    my $self = shift;
-    my ($schematic) = @_;
-    return Slic3r::Electronics::Filereaders::3DElectronics->writeFile($schematic);
-}
-
 1;
