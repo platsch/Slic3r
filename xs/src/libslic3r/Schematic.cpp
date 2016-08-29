@@ -32,6 +32,19 @@ ElectronicPart* Schematic::getElectronicPart(unsigned int partID)
 	for (ElectronicParts::const_iterator part = this->partlist.begin(); part != this->partlist.end(); ++part) {
 		if((*part)->getPartID() == partID) {
 			result = (*part);
+			break;
+		}
+	}
+	return result;
+}
+
+ElectronicPart* Schematic::getElectronicPart(std::string partName)
+{
+	ElectronicPart* result;
+	for (ElectronicParts::const_iterator part = this->partlist.begin(); part != this->partlist.end(); ++part) {
+		if((*part)->getName() == partName) {
+			result = (*part);
+			break;
 		}
 	}
 	return result;
@@ -319,8 +332,10 @@ Polylines Schematic::getChannels(const double z_bottom, const double z_top, coor
 
 /* Save placing and routing information to 3de file
  * in XML notation.
+ * filebase is used as a reference to the schematic
+ * base file in the XML document.
  */
-bool Schematic::write3deFile(std::string filename) {
+bool Schematic::write3deFile(std::string filename, std::string filebase) {
 	pugi::xml_document doc;
 	doc.append_attribute("encoding") = "UTF-8";
 
@@ -328,7 +343,7 @@ bool Schematic::write3deFile(std::string filename) {
 	root_node.append_attribute("version") = "0.1";
 
 	pugi::xml_node file_node = root_node.append_child("filename");
-	file_node.append_attribute("source") = this->filename.c_str();
+	file_node.append_attribute("source") = filebase.c_str();
 
 	//Export electronic components
 	pugi::xml_node parts_node = root_node.append_child("parts");
@@ -423,7 +438,98 @@ bool Schematic::write3deFile(std::string filename) {
  * will be imported from the corresponding file.
  */
 bool Schematic::load3deFile(std::string filename) {
+	bool result = false;
+	pugi::xml_document doc;
+	if (!doc.load_file(filename.c_str())) return false;
 
+	// import components
+	pugi::xml_node parts = doc.child("electronics").child("parts");
+	for (pugi::xml_node part_node = parts.child("part"); part_node; part_node = part_node.next_sibling("part")) {
+		std::string name = part_node.attribute("name").value();
+		std::string library = part_node.attribute("library").value();
+		std::string deviceset = part_node.attribute("deviceset").value();
+		std::string device = part_node.attribute("device").value();
+		std::string package = part_node.attribute("package").value();
+
+		for (ElectronicParts::iterator part = this->partlist.begin(); part != this->partlist.end(); ++part) {
+			if (((*part)->getName() == name) &&
+			((*part)->getLibrary() == library) &&
+			((*part)->getDeviceset() == deviceset) &&
+			((*part)->getDevice() == device) &&
+			((*part)->getPackage() == package)) {
+				pugi::xml_node attributes_node = part_node.child("attributes");
+				(*part)->setPartHeight(attributes_node.attribute("partHeight").as_double());
+				(*part)->setFootprintHeight(attributes_node.attribute("footprintHeight").as_double());
+				(*part)->setPlaced(attributes_node.attribute("placed").as_bool());
+
+				pugi::xml_node position_node = part_node.child("position");
+				(*part)->setPosition(position_node.attribute("X").as_double(),
+						position_node.attribute("Y").as_double(),
+						position_node.attribute("Z").as_double());
+
+				pugi::xml_node rotation_node = part_node.child("rotation");
+				(*part)->setRotation(rotation_node.attribute("X").as_double(),
+						rotation_node.attribute("Y").as_double(),
+						rotation_node.attribute("Z").as_double());
+
+			}
+		}
+	}
+
+	// import nets
+	pugi::xml_node nets = doc.child("electronics").child("nets");
+	for (pugi::xml_node net_node = nets.child("net"); net_node; net_node = net_node.next_sibling("net")) {
+		// find corresponding net
+		for (ElectronicNets::iterator net = this->netlist.begin(); net != this->netlist.end(); ++net) {
+			if((*net)->getName() == net_node.attribute("name").value()) {
+
+				// import waypoints
+				pugi::xml_node waypoints = net_node.child("waypoints");
+				for (pugi::xml_node waypoint_node = waypoints.child("waypoint"); waypoint_node; waypoint_node = waypoint_node.next_sibling("waypoint")) {
+					unsigned int key = waypoint_node.attribute("key").as_uint();
+					pugi::xml_node position_node = waypoint_node.child("position");
+					Pointf3 pos(position_node.attribute("X").as_double(),
+							position_node.attribute("Y").as_double(),
+							position_node.attribute("Z").as_double());
+					(*net)->netPoints[key] = NetPoint(key, (*net)->getName(), pos);
+					(*net)->currentNetPoint = std::max((*net)->currentNetPoint, key);
+				}
+
+				// import wires
+				pugi::xml_node wires = net_node.child("wires");
+				for (pugi::xml_node wire_node = wires.child("wire"); wire_node; wire_node = wire_node.next_sibling("wire")) {
+					RubberBand* rb = new RubberBand((*net)->getName(), Pointf3(), Pointf3());
+
+					pugi::xml_node endpoint_a = wire_node.child("endpoint_a");
+					if(std::string(endpoint_a.attribute("type").value()) == std::string("waypoint")) {
+						rb->addNetPointA(endpoint_a.child("waypoint").attribute("key").as_uint());
+					}else if(std::string(endpoint_a.attribute("type").value()) == std::string("part")) {
+						std::cout << "type part " << std::endl;
+						unsigned int partID = this->getElectronicPart(endpoint_a.child("part").attribute("name").value())->getPartID();
+						long netPinID = (*net)->findNetPin(endpoint_a.child("part").attribute("name").value(), endpoint_a.child("part").attribute("pin").value());
+						rb->addPartA(partID, netPinID);
+					}
+
+					pugi::xml_node endpoint_b = wire_node.child("endpoint_b");
+					if(std::string(endpoint_b.attribute("type").value()) == std::string("waypoint")) {
+						rb->addNetPointB(endpoint_b.child("waypoint").attribute("key").as_uint());
+					}else if(std::string(endpoint_b.attribute("type").value()) == std::string("part")) {
+						unsigned int partID = this->getElectronicPart(endpoint_b.child("part").attribute("name").value())->getPartID();
+						long netPinID = (*net)->findNetPin(endpoint_b.child("part").attribute("name").value(), endpoint_b.child("part").attribute("pin").value());
+						rb->addPartB(partID, netPinID);
+					}
+
+					if(!(*net)->addWiredRubberBand(rb)) {
+						std::cout << "WARNING: unable to add rubberband to net " << (*net)->getName() << std::endl;
+						result = false;
+					}
+				}
+			}
+			break;
+		}
+	}
+	this->_updateWiredRubberbands();
+	return result;
 }
 
 
@@ -541,15 +647,22 @@ void Schematic::_updateWiredRubberbands()
 // update given net
 void Schematic::_updateWiredRubberbands(ElectronicNet* net)
 {
-	// update positions of rubberbands connected to parts
+	// update positions of rubberbands
 	for (RubberBandPtrs::const_iterator rubberband = net->wiredRubberBands.begin(); rubberband != net->wiredRubberBands.end(); ++rubberband) {
 		if((*rubberband)->hasPartA()) {
 			ElectronicPart* partA = this->getElectronicPart((*rubberband)->getPartAiD());
 			(*rubberband)->a = partA->getAbsPadPosition(net->netPins[(*rubberband)->getNetPinAiD()].pin);
 		}
+		if((*rubberband)->hasNetPointA()) {
+			(*rubberband)->a = (*net->netPoints[(*rubberband)->getNetPointAiD()].getPoint());
+		}
+
 		if((*rubberband)->hasPartB()) {
 			ElectronicPart* partB = this->getElectronicPart((*rubberband)->getPartBiD());
 			(*rubberband)->b = partB->getAbsPadPosition(net->netPins[(*rubberband)->getNetPinBiD()].pin);
+		}
+		if((*rubberband)->hasNetPointB()) {
+			(*rubberband)->b = (*net->netPoints[(*rubberband)->getNetPointBiD()].getPoint());
 		}
 	}
 }

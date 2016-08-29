@@ -84,7 +84,7 @@ bool ElectronicNet::addWiredRubberBand(RubberBand* rb)
 {
 	bool result = false;
 
-		// check if given points exist and exactly one A and one B are defined
+	// check if given points exist and exactly one A and one B are defined
 	if(rb->hasPartA() || rb->hasNetPointA()) {
 		if(rb->hasPartB() || rb->hasNetPointB()) {
 			rb->setWired(true);

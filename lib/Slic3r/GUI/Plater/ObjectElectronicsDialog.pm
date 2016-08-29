@@ -3,6 +3,7 @@ use strict;
 use warnings;
 use utf8;
 
+use Slic3r::Electronics::Filereaders::Eagle;
 use Wx qw(:dialog :id :misc :sizer :systemsettings :notebook wxTAB_TRAVERSAL);
 use Wx::Event qw(EVT_BUTTON EVT_CLOSE);
 use base 'Wx::Frame';
@@ -940,9 +941,9 @@ sub savePartInfo {
 #######################################################################
 sub loadButtonPressed {
     my $self = shift;
-    my ($file) = @_;
+    my ($filename) = @_;
     
-    if (!$file) {
+    if (!$filename) {
         my $dlg = Wx::FileDialog->new(
             $self, 
             'Select schematic to load:',
@@ -951,13 +952,29 @@ sub loadButtonPressed {
             &Slic3r::GUI::FILE_WILDCARDS->{sch}, 
             wxFD_OPEN | wxFD_FILE_MUST_EXIST);
         return unless $dlg->ShowModal == wxID_OK;
-        $file = Slic3r::decode_path($dlg->GetPaths);
+        $filename = Slic3r::decode_path($dlg->GetPaths);
         $dlg->Destroy;
-    }
+    }    
 
-    Slic3r::Electronics::Electronics->readFile($file,$self->{schematic}, $self->{config});
+    my ($base,$path,$type) = fileparse($filename,('.sch','.SCH','3de','.3DE'));
+    if ($type eq "sch" || $type eq "SCH" || $type eq ".sch" || $type eq ".SCH") {
+        Slic3r::Electronics::Filereaders::Eagle->readFile($filename,$self->{schematic}, $self->{config});
+    } elsif ($type eq "3de" || $type eq "3DE" || $type eq ".3de" || $type eq ".3DE") {
+    	# read corresponding .sch file first
+    	my $parser = XML::LibXML->new();
+	    my $xmldoc = $parser->parse_file($filename);
+	    for my $files ($xmldoc->findnodes('/electronics/filename')) {
+	    	print "file to be opened: " . $path . $files->getAttribute('source') . "\n";
+	        Slic3r::Electronics::Filereaders::Eagle->readFile($path . $files->getAttribute('source'), $self->{schematic}, $self->{config});
+	    }
+    	$self->{schematic}->load3deFile($filename);
+        #Slic3r::Electronics::Filereaders::3DElectronics->readFile($filename,$schematic, $config);
+    }
+    
+    #Slic3r::Electronics::Electronics->readFile($file,$self->{schematic}, $self->{config});
 
     $self->reload_tree;
+    $self->triggerSlicing;
 }
 
 #######################################################################
@@ -1039,8 +1056,9 @@ sub saveButtonPressed {
     my $self = shift;
     my ($base,$path,$type) = fileparse($self->{schematic}->getFilename,('.sch','.SCH','3de','.3DE'));
     my $savePath = $path . $base . ".3de";
+    my $schematicPath = $base . $type;
     #if(Slic3r::Electronics::Filereaders::3DElectronics->writeFile($self->{schematic})) {
-    if($self->{schematic}->write3deFile($savePath)) {
+    if($self->{schematic}->write3deFile($savePath, $schematicPath)) {
         Wx::MessageBox('File saved as '.$base.'.3de','Saved', Wx::wxICON_INFORMATION | Wx::wxOK,undef);
     } else {
         Wx::MessageBox('Saving failed','Failed',Wx::wxICON_ERROR | Wx::wxOK,undef)

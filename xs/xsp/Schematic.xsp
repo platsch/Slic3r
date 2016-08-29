@@ -23,6 +23,6 @@
     bool removeNetPoint(NetPoint* netPoint)
     	%code{% RETVAL = THIS->removeNetPoint(netPoint); %};
     
-    bool write3deFile(std::string filename);	
+    bool write3deFile(std::string filename, std::string filebase);	
     bool load3deFile(std::string filename);
 };
