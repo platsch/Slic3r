@@ -377,9 +377,7 @@ sub new {
             my ($rubberband, $pos) = @_;
             $self->{plater}->stop_background_process;
             # translate to center of layer
-            print "translate to center of layer, pos.z: " . $pos->z . "\n";
             $pos->translate(0, 0, $self->get_layer_thickness($pos->z)/2);
-            print "after translation: " . $pos->z . "\n";
 			$self->{schematic}->splitWire($rubberband, $pos);
 			$self->reload_print;
 			$self->triggerSlicing;

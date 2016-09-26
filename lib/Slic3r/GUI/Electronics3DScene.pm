@@ -219,8 +219,6 @@ sub rubberband_splitting {
 	
 	# set activity until next mouse click
 	$self->{activity}->{rubberband_splitting} = $rubberband;
-	
-	print "splitting ausgeloest\n";
 }
 
 # set current z height, must be updated every time the slider is moved!
