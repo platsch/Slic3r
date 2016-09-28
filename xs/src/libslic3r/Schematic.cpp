@@ -17,12 +17,12 @@ Schematic::~Schematic()
 void Schematic::addElectronicPart(ElectronicPart* part)
 {
 	this->partlist.push_back(part);
+	_updateUnwiredRubberbands();
 }
 
 ElectronicPart* Schematic::addElectronicPart(std::string name, std::string library, std::string deviceset, std::string device, std::string package)
 {
 	addElectronicPart(new ElectronicPart(name, library, deviceset, device, package));
-	_updateUnwiredRubberbands();
 	return this->partlist.back();
 }
 
