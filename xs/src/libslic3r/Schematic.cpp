@@ -17,12 +17,13 @@ Schematic::~Schematic()
 void Schematic::addElectronicPart(ElectronicPart* part)
 {
 	this->partlist.push_back(part);
+	this->updatePartNetPoints(part);
 	_updateUnwiredRubberbands();
 }
 
 ElectronicPart* Schematic::addElectronicPart(std::string name, std::string library, std::string deviceset, std::string device, std::string package)
 {
-	addElectronicPart(new ElectronicPart(name, library, deviceset, device, package));
+	this->addElectronicPart(new ElectronicPart(name, library, deviceset, device, package));
 	return this->partlist.back();
 }
 
@@ -87,17 +88,21 @@ void Schematic::setFilename(std::string filename)
 RubberBandPtrs* Schematic::getRubberBands()
 {
 	this->rubberBands.clear();
-	this->_updateUnwiredRubberbands();
-	this->_updateWiredRubberbands();
+	//this->_updateUnwiredRubberbands();
+	//this->_updateWiredRubberbands();
 
-	RubberBandPtrs::iterator it;
+	this->updatePartNetPoints();
+
 	for (ElectronicNets::const_iterator net = this->netlist.begin(); net != this->netlist.end(); ++net) {
-		for (RubberBandPtrs::const_iterator rb = (*net)->unwiredRubberBands.begin(); rb != (*net)->unwiredRubberBands.end(); ++rb) {
-			//if(this->_checkRubberBandVisibility((*rb), z)) {
-				this->rubberBands.push_back((*rb));
-			//}
+		// unwired rubberbands
+		RubberBandPtrs* rbp = (*net)->getUnwiredRubberbands();
+		for (RubberBandPtrs::const_iterator rb = rbp->begin(); rb != rbp->end(); ++rb) {
+			this->rubberBands.push_back((*rb));
 		}
-		for (RubberBandPtrs::const_iterator wrb = (*net)->wiredRubberBands.begin(); wrb != (*net)->wiredRubberBands.end(); ++wrb) {
+
+		// wired rubberbands
+		RubberBandPtrs* wiredRbs = (*net)->generateWiredRubberBands();
+		for (RubberBandPtrs::const_iterator wrb = wiredRbs->begin(); wrb != wiredRbs->end(); ++wrb) {
 			//if(this->_checkRubberBandVisibility((*wrb), z)) {
 				this->rubberBands.push_back((*wrb));
 			//}
@@ -126,44 +131,29 @@ void Schematic::splitWire(const RubberBand* rubberband, const Pointf3& p)
 	for (ElectronicNets::const_iterator net = this->netlist.begin(); net != this->netlist.end(); ++net) {
 		if((*net)->getName() == rubberband->getNetName()) {
 			// create new netPoint
-			unsigned int netPoint = (*net)->addNetPoint(p);
+			unsigned int netPoint = (*net)->addNetPoint(WAYPOINT, p);
 
-			// first wire
-			RubberBand* rbA = new RubberBand(rubberband->getNetName(), rubberband->a, p);
-			if(rubberband->hasPartA()) {
-				rbA->addPartA(rubberband->getPartAiD(), rubberband->getNetPinAiD());
-			}else{
-				rbA->addNetPointA(rubberband->getNetPointAiD());
-			}
-
-			rbA->addNetPointB(netPoint);
-			if (!(*net)->addWiredRubberBand(rbA)) {
+			// new wires
+			if (!(*net)->addWire(rubberband->getNetPointAiD(), netPoint)) {
 				std::cout << "Warning! failed to add netWireA" << std::endl;
 				//std::cout << "a.pinA: " << wireA.pinA << " a.pointA: " << wireA.pointA << " a.pinB: " << wireA.pinB << " a.pointB: " << wireA.pointB << std::endl;
 			}
-
-			// second wire
-			RubberBand* rbB = new RubberBand(rubberband->getNetName(), p, rubberband->b);
-			if(rubberband->hasPartB()) {
-				rbB->addPartB(rubberband->getPartBiD(), rubberband->getNetPinBiD());
-			}else{
-				rbB->addNetPointB(rubberband->getNetPointBiD());
-			}
-
-			rbB->addNetPointA(netPoint);
-			if (!(*net)->addWiredRubberBand(rbB)) {
+			if (!(*net)->addWire(rubberband->getNetPointBiD(), netPoint)) {
 				std::cout << "Warning! failed to add netWireB" << std::endl;
 				//std::cout << "b.pinA: " << wireB.pinA << " b.pointA: " << wireB.pointA << " b.pinB: " << wireB.pinB << " b.pointB: " << wireB.pointB << std::endl;
 			}
 
-			//remove original rubberband??
+			//remove original wire??
 			if(rubberband->isWired()) {
-				(*net)->removeWiredRubberBand(rubberband->getID());
+				if(!(*net)->removeWiredRubberBand(rubberband->getID())) {
+					std::cout << "Warning! failed to remove wire " << rubberband->getID() << "  after splitting" << std::endl;
+				}
 			}
 
 			break;
 		}
 	}
+
 }
 
 bool Schematic::removeWire(const unsigned int rubberBandID)
@@ -186,12 +176,12 @@ bool Schematic::removeNetPoint(const NetPoint* netPoint)
 	// find corresponding net(s)
 	for (ElectronicNets::const_iterator net = this->netlist.begin(); net != this->netlist.end(); ++net) {
 		if(netPoint->getNetName() == (*net)->getName()) {
-			result = (*net)->removeNetPoint(netPoint->getKey());
+			result = (*net)->removeNetPoint(netPoint->getID());
 			break;
 		}
 	}
 	if(!result) {
-		std::cout << "Warning! failed to remove netPoint " << netPoint->getKey() << std::endl;
+		std::cout << "Warning! failed to remove netPoint " << netPoint->getID() << std::endl;
 	}
 	return result;
 }
@@ -336,7 +326,7 @@ Polylines Schematic::getChannels(const double z_bottom, const double z_top, coor
  * base file in the XML document.
  */
 bool Schematic::write3deFile(std::string filename, std::string filebase) {
-	pugi::xml_document doc;
+/*	pugi::xml_document doc;
 	doc.append_attribute("encoding") = "UTF-8";
 
 	pugi::xml_node root_node = doc.append_child("electronics");
@@ -431,6 +421,7 @@ bool Schematic::write3deFile(std::string filename, std::string filebase) {
 
 	bool result = doc.save_file(filename.c_str());
 	return result;
+	*/
 }
 
 /* Load placing and routing information from 3de file
@@ -438,7 +429,7 @@ bool Schematic::write3deFile(std::string filename, std::string filebase) {
  * will be imported from the corresponding file.
  */
 bool Schematic::load3deFile(std::string filename) {
-	bool result = false;
+/*	bool result = false;
 	pugi::xml_document doc;
 	if (!doc.load_file(filename.c_str())) return false;
 
@@ -491,7 +482,7 @@ bool Schematic::load3deFile(std::string filename) {
 					Pointf3 pos(position_node.attribute("X").as_double(),
 							position_node.attribute("Y").as_double(),
 							position_node.attribute("Z").as_double());
-					(*net)->netPoints[key] = NetPoint(key, (*net)->getName(), pos);
+					(*net)->netPoints[key] = NetPoint(key, WAYPOINT, (*net)->getName(), pos);
 					(*net)->currentNetPoint = std::max((*net)->currentNetPoint, key);
 				}
 
@@ -530,8 +521,45 @@ bool Schematic::load3deFile(std::string filename) {
 	}
 	this->_updateWiredRubberbands();
 	return result;
+	*/
 }
 
+void Schematic::updatePartNetPoints()
+{
+	for (ElectronicParts::const_iterator part = this->partlist.begin(); part != this->partlist.end(); ++part) {
+		this->updatePartNetPoints((*part));
+	}
+}
+
+/* update alle netPoints that
+ * correspond to a pin of this part
+ */
+void Schematic::updatePartNetPoints(ElectronicPart* part)
+{
+	ElectronicNetPin* pin;
+	for (ElectronicNets::const_iterator net = this->netlist.begin(); net != this->netlist.end(); ++net) {
+		for (Padlist::const_iterator pad = part->padlist.begin(); pad != part->padlist.end(); ++pad) {
+			//if((*net)->findNetPin(part->getName(), (*pad).pin, pin)) {
+			pin = (*net)->findNetPin(part->getName(), (*pad).pin);
+			if(pin) {
+				// update netPoint
+				// if part is not placed -> remove netPoint
+				if(part->isPlaced()) {
+					if(pin->netPointID == 0) {
+						// create new point if this point never existed
+						unsigned int netPoint = (*net)->addNetPoint(PART, part->getAbsPadPosition((*pad).pin));
+						pin->netPointID = netPoint;
+					}else{
+						// update netPoint
+						(*net)->updateNetPoint(PART, pin->netPointID, part->getAbsPadPosition((*pad).pin));
+					}
+				}else{
+					(*net)->removeNetPoint(pin->netPointID);
+				}
+			}
+		}
+	}
+}
 
 /*
 bool Schematic::_checkRubberBandVisibility(const RubberBand* rb, const double z)
@@ -567,7 +595,7 @@ void Schematic::_updateUnwiredRubberbands()
 // update given net
 void Schematic::_updateUnwiredRubberbands(ElectronicNet* net)
 {
-	net->unwiredRubberBands.clear();
+/*	net->unwiredRubberBands.clear();
 
 	//connections between a part and the rest of the net
 	for (int netPinA = 0; netPinA < net->netPins.size(); netPinA++) {
@@ -634,6 +662,7 @@ void Schematic::_updateUnwiredRubberbands(ElectronicNet* net)
 	}
 
 	//connections between two separate net segments
+	 */
 }
 
 // update all nets
@@ -647,7 +676,7 @@ void Schematic::_updateWiredRubberbands()
 // update given net
 void Schematic::_updateWiredRubberbands(ElectronicNet* net)
 {
-	// update positions of rubberbands
+/*	// update positions of rubberbands
 	for (RubberBandPtrs::const_iterator rubberband = net->wiredRubberBands.begin(); rubberband != net->wiredRubberBands.end(); ++rubberband) {
 		if((*rubberband)->hasPartA()) {
 			ElectronicPart* partA = this->getElectronicPart((*rubberband)->getPartAiD());
@@ -665,6 +694,7 @@ void Schematic::_updateWiredRubberbands(ElectronicNet* net)
 			(*rubberband)->b = (*net->netPoints[(*rubberband)->getNetPointBiD()].getPoint());
 		}
 	}
+	*/
 }
 
 }

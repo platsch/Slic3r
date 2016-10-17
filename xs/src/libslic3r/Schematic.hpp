@@ -34,6 +34,9 @@ class Schematic
     bool removeWire(const unsigned int rubberBandID);
     bool removeNetPoint(const NetPoint* netPoint);
 
+    void updatePartNetPoints();
+    void updatePartNetPoints(ElectronicPart* part);
+
     Polylines getChannels(const double z_bottom, const double z_top, coord_t extrusion_overlap, coord_t layer_overlap);
 
     bool write3deFile(std::string filename, std::string filebase);

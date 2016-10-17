@@ -3,23 +3,24 @@
 namespace Slic3r {
 
 
-RubberBand::RubberBand(const std::string net, Pointf3 a, Pointf3 b):netName(net)
+RubberBand::RubberBand(const std::string net, NetPoint* pointA, NetPoint* pointB, bool isWired):
+	netName(net),
+	wiredFlag(isWired)
 {
 	this->ID = this->s_idGenerator++;
-	this->a = a;
-	this->b = b;
-	this->_hasPartA = false;
-	this->_hasPartB = false;
-	this->_hasNetPointA = false;
-	this->_hasNetPointB = false;
-	this->wiredFlag = false;
+	this->netPointA = pointA;
+	this->netPointB = pointB;
+	this->netPointAiD = pointA->getID();
+	this->netPointBiD = pointB->getID();
+	this->a = (*pointA->getPoint());
+	this->b = (*pointB->getPoint());
 }
 
 RubberBand::~RubberBand()
 {
 }
 
-// returns true if a is not already defined as a netPoint
+/*// returns true if a is not already defined as a netPoint
 bool RubberBand::addPartA(unsigned int partID, unsigned int netPinID)
 {
 	bool result = false;
@@ -64,26 +65,25 @@ bool RubberBand::addNetPointB(unsigned int netPointBiD)
 	}
 	return result;
 }
-
+*/
 bool RubberBand::connectsNetPin(const unsigned int netPinID) const
 {
-	bool result = false;
+	/*bool result = false;
 	if(this->hasPartA() && (this->netPinAiD == netPinID)) {
 		result = true;
 	}
 	if(this->hasPartB() && (this->netPinBiD == netPinID)) {
 		result = true;
 	}
-	return result;
+	return result;*/
+	return false;
 }
 
 const Pointf3* RubberBand::selectNearest(const Pointf3& p)
 {
 	const Pointf3* result = &(this->a);
-	if(this->_hasPartB) {
-		if(this->a.distance_to(p) > this->b.distance_to(p)) {
-			result = &(this->b);
-		}
+	if(this->a.distance_to(p) > this->b.distance_to(p)) {
+		result = &(this->b);
 	}
 
 	return result;
