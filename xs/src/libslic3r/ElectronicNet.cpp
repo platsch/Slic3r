@@ -79,6 +79,7 @@ bool ElectronicNet::removeNetPoint(unsigned int netPointID)
 {
 	bool result = false;
 	if(this->netPoints.erase(netPointID) > 0) {
+		boost::clear_vertex(netPointIndex[netPointID], this->netGraph);
 		boost::remove_vertex(netPointIndex[netPointID], this->netGraph);
 		netPointIndex.erase(netPointID);
 		result = true;
