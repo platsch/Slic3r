@@ -18,7 +18,6 @@ void Schematic::addElectronicPart(ElectronicPart* part)
 {
 	this->partlist.push_back(part);
 	this->updatePartNetPoints(part);
-	_updateUnwiredRubberbands();
 }
 
 ElectronicPart* Schematic::addElectronicPart(std::string name, std::string library, std::string deviceset, std::string device, std::string package)
@@ -72,7 +71,6 @@ void Schematic::addElectronicNet(ElectronicNet* net)
 			std::cout << "Warning: unable to locate matching part for " << netPin->part << ", " << netPin->pin << std::endl;
 		}
 	}
-	_updateUnwiredRubberbands(net);
 }
 
 ElectronicParts* Schematic::getPartlist()
@@ -583,118 +581,4 @@ bool Schematic::_checkRubberBandVisibility(const RubberBand* rb, const double z)
 	return display;
 }
 */
-
-// update all nets
-void Schematic::_updateUnwiredRubberbands()
-{
-	for (ElectronicNets::const_iterator net = this->netlist.begin(); net != this->netlist.end(); ++net) {
-		this->_updateUnwiredRubberbands((*net));
-	}
-}
-
-// update given net
-void Schematic::_updateUnwiredRubberbands(ElectronicNet* net)
-{
-/*	net->unwiredRubberBands.clear();
-
-	//connections between a part and the rest of the net
-	for (int netPinA = 0; netPinA < net->netPins.size(); netPinA++) {
-		if(net->netPins[netPinA].partID < 1) {continue;} // real pin?
-
-		//locate part A
-		ElectronicPart* partA = this->getElectronicPart(net->netPins[netPinA].partID);
-		if(!partA->isPlaced()) {continue;} // part already placed?
-		Pointf3 pointA = partA->getAbsPadPosition(net->netPins[netPinA].pin);
-
-		//is this pin connected?
-		bool connected = false;
-		for (RubberBandPtrs::const_iterator rubberband = net->wiredRubberBands.begin(); rubberband != net->wiredRubberBands.end(); ++rubberband) {
-			if((*rubberband)->connectsNetPin(netPinA)) {
-				connected = true;
-				break;
-			}
-		}
-		// partID > 0 implies this part actually exists
-		if(!connected) {
-			//find nearest point
-			if(net->wiredRubberBands.size() > 0) {
-				unsigned int netPointBiD = net->findNearestNetPoint(pointA);
-				//create and store rubberband
-				Pointf3 pointB = *net->netPoints[netPointBiD].getPoint();
-				RubberBand* rb = new RubberBand(net->getName(), pointA, pointB);
-				rb->addPartA(partA->getPartID(), netPinA);
-				rb->addNetPointB(netPointBiD);
-				net->unwiredRubberBands.push_back(rb);
-			}else{ // find nearest part
-				if(netPinA < net->netPins.size()) {
-					// iterate over remaining netPins
-
-					ElectronicPart* partB;
-					Pointf3 pointB;
-					unsigned int minPin = 0;
-					double minDist = 9999999999999.0;
-					for (int netPinB = netPinA; netPinB < net->netPins.size(); netPinB++) {
-						if(net->netPins[netPinB].partID > 0 && net->netPins[netPinB].partID != net->netPins[netPinA].partID) {
-							partB = this->getElectronicPart(net->netPins[netPinB].partID);
-							if(!partB->isPlaced()) {continue;}
-							pointB = partB->getAbsPadPosition(net->netPins[netPinB].pin);
-							double dist = pointA.distance_to(pointB);
-							if(dist < minDist) {
-								minDist = dist;
-								minPin = netPinB;
-							}
-						}
-					}
-					if(minPin > 0) {
-						//create and store rubberband
-						partB = this->getElectronicPart(net->netPins[minPin].partID);
-						pointB = partB->getAbsPadPosition(net->netPins[minPin].pin);
-
-						RubberBand* rb = new RubberBand(net->getName(), pointA, pointB);
-						rb->addPartA(partA->getPartID(), netPinA);
-						rb->addPartB(partB->getPartID(), minPin);
-						net->unwiredRubberBands.push_back(rb);
-					}
-				}
-			}
-		}
-
-	}
-
-	//connections between two separate net segments
-	 */
-}
-
-// update all nets
-void Schematic::_updateWiredRubberbands()
-{
-	for (ElectronicNets::const_iterator net = this->netlist.begin(); net != this->netlist.end(); ++net) {
-		this->_updateWiredRubberbands((*net));
-	}
-}
-
-// update given net
-void Schematic::_updateWiredRubberbands(ElectronicNet* net)
-{
-/*	// update positions of rubberbands
-	for (RubberBandPtrs::const_iterator rubberband = net->wiredRubberBands.begin(); rubberband != net->wiredRubberBands.end(); ++rubberband) {
-		if((*rubberband)->hasPartA()) {
-			ElectronicPart* partA = this->getElectronicPart((*rubberband)->getPartAiD());
-			(*rubberband)->a = partA->getAbsPadPosition(net->netPins[(*rubberband)->getNetPinAiD()].pin);
-		}
-		if((*rubberband)->hasNetPointA()) {
-			(*rubberband)->a = (*net->netPoints[(*rubberband)->getNetPointAiD()].getPoint());
-		}
-
-		if((*rubberband)->hasPartB()) {
-			ElectronicPart* partB = this->getElectronicPart((*rubberband)->getPartBiD());
-			(*rubberband)->b = partB->getAbsPadPosition(net->netPins[(*rubberband)->getNetPinBiD()].pin);
-		}
-		if((*rubberband)->hasNetPointB()) {
-			(*rubberband)->b = (*net->netPoints[(*rubberband)->getNetPointBiD()].getPoint());
-		}
-	}
-	*/
-}
-
 }

@@ -102,6 +102,9 @@ bool ElectronicNet::addWire(const unsigned int netPointAiD, const unsigned int n
 	return result;
 }
 
+/* Removes given connection from netGraph and clears abandoned netPoints
+ * returns false if this connection doesn't exist
+ */
 bool ElectronicNet::removeWire(const unsigned int netPointAiD, const unsigned int netPointBiD)
 {
 	bool result = false;
@@ -113,15 +116,11 @@ bool ElectronicNet::removeWire(const unsigned int netPointAiD, const unsigned in
 
 		// check for abandoned netPoints
 		if(boost::degree(a, this->netGraph) < 1) {
-			this->netPoints.erase(netPointAiD);
-			boost::remove_vertex(a, this->netGraph);
-			netPointIndex.erase(netPointAiD);
+			this->removeNetPoint(netPointAiD);
 
 		}
 		if(boost::degree(b, this->netGraph) < 1) {
-			this->netPoints.erase(netPointBiD);
-			boost::remove_vertex(b, this->netGraph);
-			netPointIndex.erase(netPointBiD);
+			this->removeNetPoint(netPointBiD);
 		}
 
 		std::cout << "remove wire from " << netPointAiD << " to " << netPointBiD << std::endl;
@@ -132,30 +131,16 @@ bool ElectronicNet::removeWire(const unsigned int netPointAiD, const unsigned in
 	return result;
 }
 
-
-/*bool ElectronicNet::addWiredRubberBand(RubberBand* rb)
-{
-	bool result = false;
-
-	// check if given points exist and exactly one A and one B are defined
-	if(rb->hasPartA() || rb->hasNetPointA()) {
-		if(rb->hasPartB() || rb->hasNetPointB()) {
-			rb->setWired(true);
-			this->wiredRubberBands.push_back(rb);
-			result = true;
-		}
-	}
-
-	return result;
-}
-*/
-// Removes rubberBand with given ID from the vector, returns true if a matching RB exists, false otherwise
+// Delete corresponding connection from the netGraph
+// and remove rubberBand with given ID from the vector.
+// returns true if a matching RB exists, false otherwise
 bool ElectronicNet::removeWiredRubberBand(const unsigned int ID)
 {
 	bool result = false;
-	for(int i = 0; i < this->wiredRubberBands.size(); i++) {
-		if(this->wiredRubberBands[i]->getID() == ID) {
-			this->removeWire(this->wiredRubberBands[i]->getNetPointAiD(), this->wiredRubberBands[i]->getNetPointBiD());
+	for (RubberBandPtrs::iterator rb = this->wiredRubberBands.begin(); rb != this->wiredRubberBands.end(); ++rb) {
+		if((*rb)->getID() == ID) {
+			this->removeWire((*rb)->getNetPointAiD(), (*rb)->getNetPointBiD());
+			this->wiredRubberBands.erase(rb);
 			result = true;
 			break;
 		}
@@ -221,7 +206,7 @@ RubberBandPtrs* ElectronicNet::getUnwiredRubberbands()
 {
 	this->unwiredRubberBands.clear();
 
-	// update index
+	// update index - this should be unnecessary...
 	this->netGraphIndex = get(boost::vertex_index, this->netGraph);
 
 	// find all connected components
