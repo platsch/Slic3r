@@ -117,8 +117,7 @@ NetPointPtrs* Schematic::getNetPoints(){
 	return &this->netPoints;
 }
 
-/*
- * Splits a rubberband into two wired parts. Can be used to wire connections.
+/* Splits a rubberband into two wired parts. Can be used to wire connections.
  */
 void Schematic::splitWire(const RubberBand* rubberband, const Pointf3& p)
 {
@@ -398,18 +397,6 @@ bool Schematic::write3deFile(std::string filename, std::string filebase) {
 				pugi::xml_node endpoint_a_waypoint = endpoint_a_node.append_child("waypoint");
 				endpoint_a_waypoint.append_attribute("key") = (*rubberband)->getNetPointA()->getKey();
 			}
-			/*if((*rubberband)->hasPartA()) {
-				ElectronicPart* partA = this->getElectronicPart((*rubberband)->getPartAiD());
-				endpoint_a_node.append_attribute("type") = "part";
-				pugi::xml_node endpoint_a_part = endpoint_a_node.append_child("part");
-				endpoint_a_part.append_attribute("name") = partA->getName().c_str();
-				endpoint_a_part.append_attribute("pin") = (*net)->netPins[(*rubberband)->getNetPinAiD()].pin.c_str();
-			}
-			if((*rubberband)->hasNetPointA()) {
-				endpoint_a_node.append_attribute("type") = "waypoint";
-				pugi::xml_node endpoint_a_waypoint = endpoint_a_node.append_child("waypoint");
-				endpoint_a_waypoint.append_attribute("key") = (*rubberband)->getNetPointAiD();
-			}*/
 
 			// second endpoint
 			pugi::xml_node endpoint_b_node = wire_node.append_child("endpoint_b");
@@ -424,18 +411,6 @@ bool Schematic::write3deFile(std::string filename, std::string filebase) {
 				pugi::xml_node endpoint_b_waypoint = endpoint_b_node.append_child("waypoint");
 				endpoint_b_waypoint.append_attribute("key") = (*rubberband)->getNetPointB()->getKey();
 			}
-			/*if((*rubberband)->hasPartB()) {
-				ElectronicPart* partB = this->getElectronicPart((*rubberband)->getPartBiD());
-				endpoint_b_node.append_attribute("type") = "part";
-				pugi::xml_node endpoint_b_part = endpoint_b_node.append_child("part");
-				endpoint_b_part.append_attribute("name") = partB->getName().c_str();
-				endpoint_b_part.append_attribute("pin") = (*net)->netPins[(*rubberband)->getNetPinBiD()].pin.c_str();
-			}
-			if((*rubberband)->hasNetPointB()) {
-				endpoint_b_node.append_attribute("type") = "waypoint";
-				pugi::xml_node endpoint_b_waypoint = endpoint_b_node.append_child("waypoint");
-				endpoint_b_waypoint.append_attribute("key") = (*rubberband)->getNetPointBiD();
-			}*/
 		}
 	}
 

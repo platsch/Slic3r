@@ -41,7 +41,6 @@ class ElectronicNet
     std::string getName();
     void addPin(std::string part, std::string pin, std::string gate);
     Pinlist* getPinList();
-    //bool findNetPin(const std::string partName, const std::string pinName, ElectronicNetPin* pin);
     ElectronicNetPin* findNetPin(const std::string partName, const std::string pinName);
     ElectronicNetPin* findNetPin(const unsigned int netPointKey);
     unsigned int addNetPoint(const netPointType type, Pointf3 p);
