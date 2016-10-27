@@ -10,8 +10,8 @@ RubberBand::RubberBand(const std::string net, NetPoint* pointA, NetPoint* pointB
 	this->ID = this->s_idGenerator++;
 	this->netPointA = pointA;
 	this->netPointB = pointB;
-	this->netPointAiD = pointA->getID();
-	this->netPointBiD = pointB->getID();
+	this->netPointAiD = pointA->getKey();
+	this->netPointBiD = pointB->getKey();
 	this->a = (*pointA->getPoint());
 	this->b = (*pointB->getPoint());
 }

@@ -18,14 +18,15 @@ class NetPoint
 	NetPoint() {};
 	NetPoint(const NetPoint &other);
 	NetPoint& operator= (NetPoint other);
-	NetPoint(const unsigned int id, const netPointType type, const std::string net, const Pointf3 point);
+	NetPoint(const unsigned int key, const netPointType type, const std::string net, const Pointf3 point);
 	~NetPoint();
-	const unsigned int getID() const {return this->ID;};
+	const unsigned int getKey() const {return this->key;};
 	const std::string getNetName() const {return this->netName;};
 	const Pointf3* getPoint() const {return &this->point;};
+	const netPointType getType() const {return this->type;};
 
 	private:
-	unsigned int ID;
+	unsigned int key;
 	netPointType type;
 	std::string netName;
 	Pointf3 point;

@@ -1,3 +1,12 @@
+/* The topology of each net is stored in a boost::graph object
+ * with a builtin index vertex_index_t (netGraphIndex) for references
+ * to the netPoints and an external index (netPointIndex) for reverse lookup.
+ * Each vertex represents a waypoint for a conductive trace.
+ * The graph library is used to find "connected components" to generate
+ * rubberbands for currently unwired connections.
+ * Probably there will be more features requiring graph algorithms in the future.
+ */
+
 #include "ElectronicNet.hpp"
 
 namespace Slic3r {
@@ -10,6 +19,9 @@ ElectronicNet::ElectronicNet(std::string name)
 {
 	this->name = name;
 	this->currentNetPoint = 0;
+
+	// assign graph vertex index
+	this->netGraphIndex = get(boost::vertex_index, this->netGraph);
 }
 
 ElectronicNet::~ElectronicNet()
@@ -28,7 +40,7 @@ void ElectronicNet::addPin(std::string part, std::string pin, std::string gate)
 	netPin.pin = pin;
 	netPin.gate = gate;
 	netPin.partID = 0;
-	netPin.netPointID = 0;
+	netPin.netPointKey = 0;
 	this->netPins.push_back(netPin);
 }
 
@@ -39,13 +51,26 @@ Pinlist* ElectronicNet::getPinList()
 
 /* Find a netPin by part and pin name.
  * Returns a pointer to the pin or NULL otherwise.
- *
  */
 ElectronicNetPin* ElectronicNet::findNetPin(const std::string partName, const std::string pinName)
 {
 	ElectronicNetPin* result = NULL;
 	for (int i = 0; i < this->netPins.size(); i++) {
 		if(this->netPins[i].part == partName && this->netPins[i].pin == pinName) {
+			result = &this->netPins[i];
+			break;
+		}
+	}
+	return result;
+}
+
+/* Find a netPin by key of the corresponding netPoint.
+ * Returns a pointer to the pin or NULL otherwise.
+ */
+ElectronicNetPin* ElectronicNet::findNetPin(const unsigned int netPointKey) {
+	ElectronicNetPin* result = NULL;
+	for (int i = 0; i < this->netPins.size(); i++) {
+		if(this->netPins[i].netPointKey == netPointKey) {
 			result = &this->netPins[i];
 			break;
 		}
@@ -63,25 +88,27 @@ unsigned int ElectronicNet::addNetPoint(const netPointType type, Pointf3 p)
 	return this->currentNetPoint;
 }
 
-void ElectronicNet::updateNetPoint(const netPointType type, const unsigned int netPointID, const Pointf3 p)
+void ElectronicNet::updateNetPoint(const unsigned int netPointKey, const netPointType type, const Pointf3 p)
 {
 	// netPoint still exists?
-	if(this->netPoints.find(netPointID) == this->netPoints.end()) {
-		this->netPoints[netPointID] = NetPoint(netPointID, type, this->name, p);
-		vertex_t v = boost::add_vertex(netPointID, this->netGraph);
-		this->netPointIndex[netPointID] = v;
+	if(this->netPoints.find(netPointKey) == this->netPoints.end()) {
+		this->netPoints[netPointKey] = NetPoint(netPointKey, type, this->name, p);
+		vertex_t v = boost::add_vertex(netPointKey, this->netGraph);
+		this->netPointIndex[netPointKey] = v;
+		// make sure the current ID is still valid
+		this->currentNetPoint = std::max(this->currentNetPoint, netPointKey);
 	}else{
-		this->netPoints[netPointID].point = p;
+		this->netPoints[netPointKey].point = p;
 	}
 }
 
-bool ElectronicNet::removeNetPoint(unsigned int netPointID)
+bool ElectronicNet::removeNetPoint(unsigned int netPointKey)
 {
 	bool result = false;
-	if(this->netPoints.erase(netPointID) > 0) {
-		boost::clear_vertex(netPointIndex[netPointID], this->netGraph);
-		boost::remove_vertex(netPointIndex[netPointID], this->netGraph);
-		netPointIndex.erase(netPointID);
+	if(this->netPoints.erase(netPointKey) > 0) {
+		boost::clear_vertex(netPointIndex[netPointKey], this->netGraph);
+		boost::remove_vertex(netPointIndex[netPointKey], this->netGraph);
+		netPointIndex.erase(netPointKey);
 		result = true;
 	}
 
@@ -96,9 +123,6 @@ bool ElectronicNet::addWire(const unsigned int netPointAiD, const unsigned int n
 		boost::add_edge(this->netPointIndex[netPointAiD], this->netPointIndex[netPointBiD], this->netGraph);
 		result = true;
 	}
-
-	std::cout << "add wire from " << netPointAiD << " to " << netPointBiD << std::endl;
-	write_graphviz(std::cout, this->netGraph);
 
 	return result;
 }
@@ -123,9 +147,6 @@ bool ElectronicNet::removeWire(const unsigned int netPointAiD, const unsigned in
 		if(boost::degree(b, this->netGraph) < 1) {
 			this->removeNetPoint(netPointBiD);
 		}
-
-		std::cout << "remove wire from " << netPointAiD << " to " << netPointBiD << std::endl;
-		write_graphviz(std::cout, this->netGraph);
 
 		result = true;
 	}
@@ -165,15 +186,15 @@ unsigned int ElectronicNet::findNearestNetPoint(const Pointf3& p) const
 	return result;
 }
 
-/*bool ElectronicNet::_pointIsConnected(unsigned int netPointID)
+/*bool ElectronicNet::_pointIsConnected(unsigned int netPointKey)
 {
 	bool result = false;
 	for (RubberBandPtrs::const_iterator rubberband = this->wiredRubberBands.begin(); rubberband != this->wiredRubberBands.end(); ++rubberband) {
 		if((*rubberband)->hasNetPointA()) {
-			result |= ((*rubberband)->getNetPointAiD() == netPointID);
+			result |= ((*rubberband)->getNetPointAiD() == netPointKey);
 		}
 		if((*rubberband)->hasNetPointB()) {
-			result |= ((*rubberband)->getNetPointBiD() == netPointID);
+			result |= ((*rubberband)->getNetPointBiD() == netPointKey);
 		}
 		if(result) break;
 	}
@@ -208,13 +229,20 @@ RubberBandPtrs* ElectronicNet::getUnwiredRubberbands()
 	this->unwiredRubberBands.clear();
 
 	// update index - this should be unnecessary...
-	this->netGraphIndex = get(boost::vertex_index, this->netGraph);
+	//this->netGraphIndex = get(boost::vertex_index, this->netGraph);
+
+	// index property map
+	std::map<vertex_t, unsigned int> mapIndex;
+	boost::associative_property_map< std::map<vertex_t, unsigned int> > componentIndex(mapIndex);
+
+	// color property map
+	std::map<vertex_t, boost::default_color_type> colorMap;
+	boost::associative_property_map< std::map<vertex_t, boost::default_color_type> > color_prop_map(colorMap);
 
 	// find all connected components
-	boost::property_map<Graph, boost::vertex_index1_t>::type componentIndex;
-	int componentNum = boost::connected_components(this->netGraph, componentIndex);
+	int componentNum = boost::connected_components(this->netGraph, componentIndex, boost::color_map(color_prop_map));
 
-	// map components to netPointIDs
+	// map components to netPointKeys
 	std::map<int, std::vector<unsigned int> > componentMap;
 	boost::graph_traits<Graph>::vertex_iterator b, e;
 	for (boost::tie(b,e) = boost::vertices(this->netGraph); b!=e; ++b) {
@@ -247,7 +275,6 @@ RubberBandPtrs* ElectronicNet::getUnwiredRubberbands()
 			this->unwiredRubberBands.push_back(rb);
 		}
 	}
-
 	return &this->unwiredRubberBands;
 }
 

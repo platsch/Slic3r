@@ -8,7 +8,7 @@
 %name{Slic3r::Electronics::NetPoint} class NetPoint {
     //NetPoint();
     //~NetPoint();
-    unsigned int getID();
+    unsigned int getKey();
 	std::string getNetName()
 		%code{% RETVAL = THIS->getNetName(); %};
 	Ref<Pointf3> getPoint()

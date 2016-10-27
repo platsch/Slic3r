@@ -38,6 +38,8 @@ class RubberBand : public Linef3
 	//const unsigned int getNetPinBiD() const {return this->netPinBiD;};
 	const unsigned int getNetPointAiD() const {return this->netPointAiD;};
 	const unsigned int getNetPointBiD() const {return this->netPointBiD;};
+	const NetPoint* getNetPointA() const {return this->netPointA;};
+	const NetPoint* getNetPointB() const {return this->netPointB;};
 	const bool isWired() const {return this->wiredFlag;};
 	bool connectsNetPin(const unsigned int netPinID) const;
 	const Pointf3* selectNearest(const Pointf3& p);

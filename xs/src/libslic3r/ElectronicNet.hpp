@@ -22,7 +22,7 @@ struct ElectronicNetPin {
 	std::string pin;
 	std::string gate;
 	unsigned int partID;
-	unsigned int netPointID;
+	unsigned int netPointKey;
 };
 
 
@@ -30,7 +30,7 @@ struct ElectronicNetPin {
 class ElectronicNet;
 typedef std::vector<ElectronicNet*> ElectronicNets;
 typedef std::vector<ElectronicNetPin> Pinlist;
-typedef boost::adjacency_list <boost::vecS, boost::setS, boost::undirectedS, boost::property<boost::vertex_index_t, unsigned int, boost::property<boost::vertex_index1_t, unsigned int> > > Graph;
+typedef boost::adjacency_list <boost::vecS, boost::setS, boost::undirectedS, boost::property<boost::vertex_index_t, unsigned int> > Graph;
 typedef boost::graph_traits<Graph>::vertex_descriptor vertex_t;
 
 class ElectronicNet
@@ -43,9 +43,10 @@ class ElectronicNet
     Pinlist* getPinList();
     //bool findNetPin(const std::string partName, const std::string pinName, ElectronicNetPin* pin);
     ElectronicNetPin* findNetPin(const std::string partName, const std::string pinName);
+    ElectronicNetPin* findNetPin(const unsigned int netPointKey);
     unsigned int addNetPoint(const netPointType type, Pointf3 p);
-    void updateNetPoint(const netPointType type, const unsigned int netPointID, const Pointf3 p);
-    bool removeNetPoint(unsigned int netPointID);
+    void updateNetPoint(const unsigned int netPointKey, const netPointType type, const Pointf3 p);
+    bool removeNetPoint(unsigned int netPointKey);
     bool addWire(const unsigned int netPointAiD, const unsigned int netPointBiD);
     bool removeWire(const unsigned int netPointAiD, const unsigned int netPointBiD);
     //bool addWiredRubberBand(RubberBand* rb);
@@ -55,7 +56,7 @@ class ElectronicNet
     RubberBandPtrs* getUnwiredRubberbands();
 
 	private:
-    //bool _pointIsConnected(unsigned int netPointID);
+    //bool _pointIsConnected(unsigned int netPointKey);
 
     std::string name;
     Pinlist netPins;
@@ -64,8 +65,8 @@ class ElectronicNet
     RubberBandPtrs wiredRubberBands;
     RubberBandPtrs unwiredRubberBands;
     Graph netGraph;
-    boost::property_map<Graph, boost::vertex_index_t>::type netGraphIndex; // Index Vertex->netPointID
-    std::map<unsigned int, vertex_t> netPointIndex; // Index netPointID->Vertex
+    boost::property_map<Graph, boost::vertex_index_t>::type netGraphIndex; // Index Vertex->netPointKey
+    std::map<unsigned int, vertex_t> netPointIndex; // Index netPointKey->Vertex
 
     friend class Schematic;
 };
