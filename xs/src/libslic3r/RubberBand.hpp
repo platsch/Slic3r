@@ -43,6 +43,8 @@ class RubberBand : public Linef3
 	const bool isWired() const {return this->wiredFlag;};
 	bool connectsNetPin(const unsigned int netPinID) const;
 	const Pointf3* selectNearest(const Pointf3& p);
+	const bool pointASelected() const {return this->netPointASelected;};
+	const bool pointBSelected() const {return this->netPointBSelected;};
 	bool getLayerSegment(const double z_bottom, const double z_top, coord_t layer_overlap, Line* segment);
 
 	// Rubberband inherits from Linef3 and uses points a and b.
@@ -57,6 +59,8 @@ class RubberBand : public Linef3
 	unsigned int netPinBiD;
 	unsigned int netPointAiD;
 	unsigned int netPointBiD;
+	bool netPointASelected;
+	bool netPointBSelected;
 	bool _hasPartA;
 	bool _hasPartB;
 	bool _hasNetPointA;

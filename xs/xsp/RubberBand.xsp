@@ -18,4 +18,6 @@
     bool isWired();        
     Ref<Pointf3> selectNearest(Pointf3* p)
     	%code{% RETVAL = THIS->selectNearest(*p); %};
+    bool pointASelected();
+    bool pointBSelected();
 };

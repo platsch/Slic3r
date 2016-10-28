@@ -337,12 +337,14 @@ sub new {
             
             # object is a part
             
-            # object is a rubberband
+            # object is a rubberband -> split this rubberband
             my $rubberband = $self->{rubberband_lookup}[$volume_idx];
             if(defined $rubberband) {
             	$self->{plater}->stop_background_process;
-            	#my $mousepoint = $self->{canvas}->get_mouse_pos_3d;
-            	#$rubberband->selectNearest($mousepoint);
+            	my $mousepoint = $self->{canvas}->get_mouse_pos_3d;
+            	if(!$rubberband->isWired) { # if rubberband is not wired, start routing from closest point
+            		$rubberband->selectNearest($mousepoint);
+            	}
             	$canvas->rubberband_splitting($rubberband);
             }
             
@@ -378,11 +380,11 @@ sub new {
             $self->{plater}->stop_background_process;
             # translate to center of layer
             $pos->translate(0, 0, $self->get_layer_thickness($pos->z)/2);
-			$self->{schematic}->splitWire($rubberband, $pos);
+			$self->{schematic}->splitWire($rubberband, $pos);      
 			$self->reload_print;
 			$self->triggerSlicing;
         });
-                
+                        
         $canvas->load_object($self->{model_object}, undef, [0]);
         $canvas->set_auto_bed_shape;
         $canvas->SetSize([500,500]);

@@ -117,7 +117,9 @@ NetPointPtrs* Schematic::getNetPoints(){
 	return &this->netPoints;
 }
 
-/* Splits a rubberband into two wired parts. Can be used to wire connections.
+/* Splits a rubberband into two wired parts or
+ * a single wire if one point is selected.
+ * Can be used to wire connections.
  */
 void Schematic::splitWire(const RubberBand* rubberband, const Pointf3& p)
 {
@@ -128,13 +130,17 @@ void Schematic::splitWire(const RubberBand* rubberband, const Pointf3& p)
 			unsigned int netPoint = (*net)->addNetPoint(WAYPOINT, p);
 
 			// new wires
-			if (!(*net)->addWire(rubberband->getNetPointAiD(), netPoint)) {
-				std::cout << "Warning! failed to add netWireA" << std::endl;
-				//std::cout << "a.pinA: " << wireA.pinA << " a.pointA: " << wireA.pointA << " a.pinB: " << wireA.pinB << " a.pointB: " << wireA.pointB << std::endl;
+			if(!rubberband->pointBSelected()) {
+				if (!(*net)->addWire(rubberband->getNetPointAiD(), netPoint)) {
+					std::cout << "Warning! failed to add netWireA" << std::endl;
+					//std::cout << "a.pinA: " << wireA.pinA << " a.pointA: " << wireA.pointA << " a.pinB: " << wireA.pinB << " a.pointB: " << wireA.pointB << std::endl;
+				}
 			}
-			if (!(*net)->addWire(rubberband->getNetPointBiD(), netPoint)) {
-				std::cout << "Warning! failed to add netWireB" << std::endl;
-				//std::cout << "b.pinA: " << wireB.pinA << " b.pointA: " << wireB.pointA << " b.pinB: " << wireB.pinB << " b.pointB: " << wireB.pointB << std::endl;
+			if(!rubberband->pointASelected()) {
+				if (!(*net)->addWire(rubberband->getNetPointBiD(), netPoint)) {
+					std::cout << "Warning! failed to add netWireB" << std::endl;
+					//std::cout << "b.pinA: " << wireB.pinA << " b.pointA: " << wireB.pointA << " b.pinB: " << wireB.pinB << " b.pointB: " << wireB.pointB << std::endl;
+				}
 			}
 
 			//remove original wire??
@@ -147,8 +153,8 @@ void Schematic::splitWire(const RubberBand* rubberband, const Pointf3& p)
 			break;
 		}
 	}
-
 }
+
 
 bool Schematic::removeWire(const unsigned int rubberBandID)
 {

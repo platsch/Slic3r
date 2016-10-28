@@ -213,9 +213,20 @@ sub get_selected_volumes {
 sub rubberband_splitting {
 	my ($self, $rubberband) = @_;
 	
-	# add lines
-	$self->add_rubberband($rubberband->a, $self->get_mouse_pos_3d_obj);
-	$self->add_rubberband($rubberband->b, $self->get_mouse_pos_3d_obj);
+	# if this rubberband is wired, simply split. Else: create a wire from the closest point.
+	if($rubberband->isWired) {
+		# add lines
+		$self->add_rubberband($rubberband->a, $self->get_mouse_pos_3d_obj);
+		$self->add_rubberband($rubberband->b, $self->get_mouse_pos_3d_obj);	
+	}else{
+		if($rubberband->pointASelected) {
+			$self->add_rubberband($rubberband->a, $self->get_mouse_pos_3d_obj, 0.4);
+			$self->add_rubberband($rubberband->b, $self->get_mouse_pos_3d_obj, 0.2);
+		}else{
+			$self->add_rubberband($rubberband->a, $self->get_mouse_pos_3d_obj, 0.2);
+			$self->add_rubberband($rubberband->b, $self->get_mouse_pos_3d_obj, 0.4);
+		}	
+	}
 	
 	# set activity until next mouse click
 	$self->{activity}->{rubberband_splitting} = $rubberband;
@@ -254,9 +265,21 @@ sub mouse_event_new {
         pop @{$self->volumes};
         pop @{$self->volumes};
         
-        # add new lines
-        $self->add_rubberband($self->{activity}->{rubberband_splitting}->a, $self->get_mouse_pos_3d_obj);
-		$self->add_rubberband($self->{activity}->{rubberband_splitting}->b, $self->get_mouse_pos_3d_obj);
+        my $rubberband = $self->{activity}->{rubberband_splitting};
+        
+        if($rubberband->isWired) {
+        	# add new lines
+	        $self->add_rubberband($self->{activity}->{rubberband_splitting}->a, $self->get_mouse_pos_3d_obj);
+			$self->add_rubberband($self->{activity}->{rubberband_splitting}->b, $self->get_mouse_pos_3d_obj);
+        }else{
+	        if($rubberband->pointASelected) {
+				$self->add_rubberband($rubberband->a, $self->get_mouse_pos_3d_obj, 0.4);
+				$self->add_rubberband($rubberband->b, $self->get_mouse_pos_3d_obj, 0.2);
+			}else{
+				$self->add_rubberband($rubberband->a, $self->get_mouse_pos_3d_obj, 0.2);
+				$self->add_rubberband($rubberband->b, $self->get_mouse_pos_3d_obj, 0.4);
+			}	
+        }
         
         # refresh canvas
         $self->Refresh;

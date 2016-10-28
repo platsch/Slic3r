@@ -14,6 +14,8 @@ RubberBand::RubberBand(const std::string net, NetPoint* pointA, NetPoint* pointB
 	this->netPointBiD = pointB->getKey();
 	this->a = (*pointA->getPoint());
 	this->b = (*pointB->getPoint());
+	this->netPointASelected = false;
+	this->netPointBSelected = false;
 }
 
 RubberBand::~RubberBand()
@@ -82,7 +84,10 @@ bool RubberBand::connectsNetPin(const unsigned int netPinID) const
 const Pointf3* RubberBand::selectNearest(const Pointf3& p)
 {
 	const Pointf3* result = &(this->a);
+	this->netPointASelected = true;
 	if(this->a.distance_to(p) > this->b.distance_to(p)) {
+		this->netPointASelected = false;
+		this->netPointBSelected = true;
 		result = &(this->b);
 	}
 
