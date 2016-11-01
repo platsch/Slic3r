@@ -310,7 +310,7 @@ sub new {
     # right pane with preview canvas
     my $canvas;
     if ($Slic3r::GUI::have_OpenGL) {
-        $canvas = $self->{canvas} = Slic3r::GUI::Electronics3DScene->new($self);
+        $canvas = $self->{canvas} = Slic3r::GUI::Electronics3DScene->new($self, $self->{schematic});
         $canvas->enable_picking(1);
         $canvas->select_by('volume');
         
@@ -341,7 +341,7 @@ sub new {
             my $rubberband = $self->{rubberband_lookup}[$volume_idx];
             if(defined $rubberband) {
             	$self->{plater}->stop_background_process;
-            	my $mousepoint = $self->{canvas}->get_mouse_pos_3d;
+            	my $mousepoint = $self->{canvas}->get_mouse_pos_3d_obj;
             	if(!$rubberband->isWired) { # if rubberband is not wired, start routing from closest point
             		$rubberband->selectNearest($mousepoint);
             	}

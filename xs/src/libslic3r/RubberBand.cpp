@@ -12,8 +12,8 @@ RubberBand::RubberBand(const std::string net, NetPoint* pointA, NetPoint* pointB
 	this->netPointB = pointB;
 	this->netPointAiD = pointA->getKey();
 	this->netPointBiD = pointB->getKey();
-	this->a = (*pointA->getPoint());
-	this->b = (*pointB->getPoint());
+	this->a = (pointA->getPoint());
+	this->b = (pointB->getPoint());
 	this->netPointASelected = false;
 	this->netPointBSelected = false;
 }

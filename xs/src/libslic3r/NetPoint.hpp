@@ -22,7 +22,7 @@ class NetPoint
 	~NetPoint();
 	const unsigned int getKey() const {return this->key;};
 	const std::string getNetName() const {return this->netName;};
-	const Pointf3* getPoint() const {return &this->point;};
+	Pointf3 getPoint() const {return this->point;};
 	const netPointType getType() const {return this->type;};
 
 	private:

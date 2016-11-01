@@ -117,6 +117,27 @@ NetPointPtrs* Schematic::getNetPoints(){
 	return &this->netPoints;
 }
 
+/* find the nearest netPoint coordinates from the net indicated by the rubberband
+ * relative to p. A call to splitWire should result in a wire ending at the same point.
+ * Returns p if no point is within a threshold.
+ */
+const NetPoint* Schematic::findNearestSplittingPoint(const RubberBand* rubberband, const Pointf3& p) const
+{
+	const NetPoint* result = NULL;
+
+	for (ElectronicNets::const_iterator net = this->netlist.begin(); net != this->netlist.end(); ++net) {
+		if((*net)->getName() == rubberband->getNetName()) {
+			const NetPoint* np = (*net)->findNearestNetPoint(p);
+			if(np) {
+				if(p.distance_to(np->getPoint()) < 2) {
+					result = np;
+				}
+			}
+		}
+	}
+	return result;
+}
+
 /* Splits a rubberband into two wired parts or
  * a single wire if one point is selected.
  * Can be used to wire connections.
@@ -126,18 +147,30 @@ void Schematic::splitWire(const RubberBand* rubberband, const Pointf3& p)
 	// find corresponding net
 	for (ElectronicNets::const_iterator net = this->netlist.begin(); net != this->netlist.end(); ++net) {
 		if((*net)->getName() == rubberband->getNetName()) {
-			// create new netPoint
-			unsigned int netPoint = (*net)->addNetPoint(WAYPOINT, p);
+
+			unsigned int netPointKey = 0;
+
+			// connecting to an existing netPoint?
+			if(!rubberband->isWired()) {
+				const NetPoint* np = this->findNearestSplittingPoint(rubberband, p);
+				if(np) {
+					netPointKey = np->getKey();
+				}
+			}
+			// no, create new netPoint
+			if(netPointKey == 0) {
+				netPointKey = (*net)->addNetPoint(WAYPOINT, p);
+			}
 
 			// new wires
 			if(!rubberband->pointBSelected()) {
-				if (!(*net)->addWire(rubberband->getNetPointAiD(), netPoint)) {
+				if (!(*net)->addWire(rubberband->getNetPointAiD(), netPointKey)) {
 					std::cout << "Warning! failed to add netWireA" << std::endl;
 					//std::cout << "a.pinA: " << wireA.pinA << " a.pointA: " << wireA.pointA << " a.pinB: " << wireA.pinB << " a.pointB: " << wireA.pointB << std::endl;
 				}
 			}
 			if(!rubberband->pointASelected()) {
-				if (!(*net)->addWire(rubberband->getNetPointBiD(), netPoint)) {
+				if (!(*net)->addWire(rubberband->getNetPointBiD(), netPointKey)) {
 					std::cout << "Warning! failed to add netWireB" << std::endl;
 					//std::cout << "b.pinA: " << wireB.pinA << " b.pointA: " << wireB.pointA << " b.pinB: " << wireB.pinB << " b.pointB: " << wireB.pointB << std::endl;
 				}
@@ -377,10 +410,10 @@ bool Schematic::write3deFile(std::string filename, std::string filebase) {
 				waypoint_node.append_attribute("key") = netPoint->second.getKey();
 
 				pugi::xml_node pos_node = waypoint_node.append_child("position");
-				const Pointf3 *pos = netPoint->second.getPoint();
-				pos_node.append_attribute("X") = pos->x;
-				pos_node.append_attribute("Y") = pos->y;
-				pos_node.append_attribute("Z") = pos->z;
+				const Pointf3 pos = netPoint->second.getPoint();
+				pos_node.append_attribute("X") = pos.x;
+				pos_node.append_attribute("Y") = pos.y;
+				pos_node.append_attribute("Z") = pos.z;
 			}
 		}
 

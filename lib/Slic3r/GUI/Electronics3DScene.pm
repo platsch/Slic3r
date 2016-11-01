@@ -5,7 +5,7 @@ use utf8;
 
 use OpenGL qw(:glconstants :glfunctions :glufunctions :gluconstants);
 use List::Util qw(min max);
-use Wx::Event qw(EVT_MOUSE_EVENTS);
+use Wx::Event qw(EVT_MOUSE_EVENTS EVT_KEY_DOWN);
 use base qw(Slic3r::GUI::3DScene);
 
 __PACKAGE__->mk_accessors( qw(on_rubberband_split on_right_double_click) );
@@ -19,17 +19,23 @@ use Data::Dumper;
 # Comment     :
 #######################################################################
 sub new {
-    my ($class, $parent) = @_;
+    my ($class, $parent, $schematic) = @_;
     my $self = $class->SUPER::new($parent);
     bless ($self, $class);
     $self->{parent} = $parent;
     
+    $self->{schematic} = $schematic;
     $self->{current_z} = 0;
     $self->{visibility_offset} = 1; # Indicates how far electronic parts should be visible above the extrusion object
     
     $self->{activity}->{rubberband_splitting} = undef;
     
     EVT_MOUSE_EVENTS($self, \&mouse_event_new);
+    
+    EVT_KEY_DOWN($self, sub {
+        my ($self, $e) = @_;
+       print "Key Event!!!\n";
+    });
 
     return $self;
 }
@@ -220,11 +226,11 @@ sub rubberband_splitting {
 		$self->add_rubberband($rubberband->b, $self->get_mouse_pos_3d_obj);	
 	}else{
 		if($rubberband->pointASelected) {
-			$self->add_rubberband($rubberband->a, $self->get_mouse_pos_3d_obj, 0.4);
-			$self->add_rubberband($rubberband->b, $self->get_mouse_pos_3d_obj, 0.2);
+			$self->add_rubberband($rubberband->a, $self->get_mouse_pos_3d_obj, 0.6);
+			$self->add_rubberband($rubberband->b, $self->get_mouse_pos_3d_obj, 0.1);
 		}else{
-			$self->add_rubberband($rubberband->a, $self->get_mouse_pos_3d_obj, 0.2);
-			$self->add_rubberband($rubberband->b, $self->get_mouse_pos_3d_obj, 0.4);
+			$self->add_rubberband($rubberband->a, $self->get_mouse_pos_3d_obj, 0.6);
+			$self->add_rubberband($rubberband->b, $self->get_mouse_pos_3d_obj, 0.1);
 		}	
 	}
 	
@@ -272,12 +278,15 @@ sub mouse_event_new {
 	        $self->add_rubberband($self->{activity}->{rubberband_splitting}->a, $self->get_mouse_pos_3d_obj);
 			$self->add_rubberband($self->{activity}->{rubberband_splitting}->b, $self->get_mouse_pos_3d_obj);
         }else{
+        	my $to_netPoint = $self->{schematic}->findNearestSplittingPoint($rubberband, $self->get_mouse_pos_3d_obj);
+        	my $to_point = $to_netPoint ? $to_netPoint->getPoint : $self->get_mouse_pos_3d_obj;
+        	$to_point->translate(0.001, 0.001, 0);
 	        if($rubberband->pointASelected) {
-				$self->add_rubberband($rubberband->a, $self->get_mouse_pos_3d_obj, 0.4);
-				$self->add_rubberband($rubberband->b, $self->get_mouse_pos_3d_obj, 0.2);
+				$self->add_rubberband($rubberband->a, $to_point, 0.6);
+				$self->add_rubberband($rubberband->b, $to_point, 0.1);
 			}else{
-				$self->add_rubberband($rubberband->a, $self->get_mouse_pos_3d_obj, 0.2);
-				$self->add_rubberband($rubberband->b, $self->get_mouse_pos_3d_obj, 0.4);
+				$self->add_rubberband($rubberband->a, $to_point, 0.1);
+				$self->add_rubberband($rubberband->b, $to_point, 0.6);
 			}	
         }
         

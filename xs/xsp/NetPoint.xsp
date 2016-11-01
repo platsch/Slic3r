@@ -11,6 +11,6 @@
     unsigned int getKey();
 	std::string getNetName()
 		%code{% RETVAL = THIS->getNetName(); %};
-	Ref<Pointf3> getPoint()
+	Clone<Pointf3> getPoint()
 		%code{% RETVAL = THIS->getPoint(); %};
 };

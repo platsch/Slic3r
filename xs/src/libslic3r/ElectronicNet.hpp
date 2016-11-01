@@ -50,7 +50,7 @@ class ElectronicNet
     bool removeWire(const unsigned int netPointAiD, const unsigned int netPointBiD);
     //bool addWiredRubberBand(RubberBand* rb);
     bool removeWiredRubberBand(const unsigned int ID);
-    unsigned int findNearestNetPoint(const Pointf3& p) const;
+    const NetPoint* findNearestNetPoint(const Pointf3& p) const;
     RubberBandPtrs* generateWiredRubberBands();
     RubberBandPtrs* getUnwiredRubberbands();
 

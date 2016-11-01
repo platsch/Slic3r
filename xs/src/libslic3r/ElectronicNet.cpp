@@ -170,17 +170,17 @@ bool ElectronicNet::removeWiredRubberBand(const unsigned int ID)
 	return result;
 }
 
-unsigned int ElectronicNet::findNearestNetPoint(const Pointf3& p) const
+const NetPoint* ElectronicNet::findNearestNetPoint(const Pointf3& p) const
 {
-	unsigned int result = 0;
+	const NetPoint* result = NULL;
 	double min_dist = 999999999999999.0;
 	for (std::map<unsigned int, NetPoint>::const_iterator netPoint = this->netPoints.begin(); netPoint != this->netPoints.end(); ++netPoint) {
-		NetPoint np = netPoint->second;
-		Pointf3 point = *np.getPoint();
+		const NetPoint* np = &netPoint->second;
+		Pointf3 point = np->getPoint();
 		double dist = point.distance_to(p);
 		if(dist < min_dist) {
 			min_dist = dist;
-			result = netPoint->first;
+			result = np;
 		}
 	}
 	return result;
@@ -252,8 +252,8 @@ RubberBandPtrs* ElectronicNet::getUnwiredRubberbands()
 	// iterate through all components and find shortest connections
 	for (int i=0; i<componentNum; i++) {
 		for (int k=i+1; k<componentNum; k++) {
-			Pointf3 iPoint = *this->netPoints[*componentMap[i].begin()].getPoint(); // first element of component i
-			Pointf3 kPoint = *this->netPoints[*componentMap[k].begin()].getPoint(); // first element of component k
+			Pointf3 iPoint = this->netPoints[*componentMap[i].begin()].getPoint(); // first element of component i
+			Pointf3 kPoint = this->netPoints[*componentMap[k].begin()].getPoint(); // first element of component k
 			unsigned int netPointA = *componentMap[i].begin();
 			unsigned int netPointB = *componentMap[k].begin();
 			double min_dist = iPoint.distance_to(kPoint);
@@ -261,8 +261,8 @@ RubberBandPtrs* ElectronicNet::getUnwiredRubberbands()
 			// find shortest distance between this two components
 			for (std::vector<unsigned int>::const_iterator iIter = componentMap[i].begin(); iIter != componentMap[i].end(); ++iIter) {
 				for (std::vector<unsigned int>::const_iterator kIter = componentMap[k].begin(); kIter != componentMap[k].end(); ++kIter) {
-					iPoint = *this->netPoints[*iIter].getPoint();
-					kPoint = *this->netPoints[*kIter].getPoint();
+					iPoint = this->netPoints[*iIter].getPoint();
+					kPoint = this->netPoints[*kIter].getPoint();
 
 					if(iPoint.distance_to(kPoint) < min_dist) {
 						min_dist = iPoint.distance_to(kPoint);
