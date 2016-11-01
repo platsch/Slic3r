@@ -5,7 +5,7 @@ use utf8;
 
 use OpenGL qw(:glconstants :glfunctions :glufunctions :gluconstants);
 use List::Util qw(min max);
-use Wx::Event qw(EVT_MOUSE_EVENTS EVT_KEY_DOWN);
+use Wx::Event qw(EVT_MOUSE_EVENTS);
 use base qw(Slic3r::GUI::3DScene);
 
 __PACKAGE__->mk_accessors( qw(on_rubberband_split on_right_double_click) );
@@ -31,11 +31,6 @@ sub new {
     $self->{activity}->{rubberband_splitting} = undef;
     
     EVT_MOUSE_EVENTS($self, \&mouse_event_new);
-    
-    EVT_KEY_DOWN($self, sub {
-        my ($self, $e) = @_;
-       print "Key Event!!!\n";
-    });
 
     return $self;
 }
@@ -245,6 +240,19 @@ sub set_z {
 	
 	# update parent z info
 	$self->set_toolpaths_range(0, $z);
+}
+
+sub cancel_action {
+	my ($self) = @_;
+	
+	if($self->{activity}->{rubberband_splitting}) {
+		# remove current lines
+        pop @{$self->volumes};
+        pop @{$self->volumes};
+        
+        $self->{activity}->{rubberband_splitting} = undef;
+	}
+	$self->Refresh;
 }
 
 #######################################################################

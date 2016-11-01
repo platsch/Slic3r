@@ -35,6 +35,15 @@ sub new {
     $self->SetSizer($sizer);
     $self->SetMinSize($self->GetSize);
     
+    # catch key events to interrupt actions on the canvas with ESC key
+    Wx::Event::EVT_CHAR_HOOK($self, sub {
+    	my ($self, $e) = @_;
+    	if($e->GetKeyCode == Wx::WXK_ESCAPE) {
+    		$self->{parts}->{canvas}->cancel_action;
+    	}
+    	$e->Skip();
+    });
+    
     EVT_CLOSE($self, sub { 
         $self->Hide();
     });
