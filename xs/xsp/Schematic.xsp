@@ -16,8 +16,10 @@
     	%code{% RETVAL = THIS->getPartlist(); %};
     RubberBandPtrs* getRubberBands();
     NetPointPtrs* getNetPoints();
-    Ref<NetPoint> findNearestSplittingPoint(RubberBand* rubberband, Pointf3* p)
-    	%code{% RETVAL = THIS->findNearestSplittingPoint(rubberband, *p); %};
+    Ref<NetPoint> findNearestSplittingPoint(std::string netName, Pointf3* p)
+    	%code{% RETVAL = THIS->findNearestSplittingPoint(netName, *p); %};
+    void addWire(NetPoint* netPoint, Pointf3* p)
+    	%code{% THIS->addWire(netPoint, *p); %};
     void splitWire(RubberBand* rubberband, Pointf3* p)
     	%code{% THIS->splitWire(rubberband, *p); %};
     bool removeWire(unsigned int rubberBandID)

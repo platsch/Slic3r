@@ -9,6 +9,7 @@
     //RubberBand(std::string net, unsigned int partA);
     //~RubberBand();
     unsigned int getID();
+    std::string getNetName();
     Clone<RubberBand> clone()
         %code{% RETVAL = THIS; %};
     Ref<Pointf3> a()

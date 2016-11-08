@@ -8,7 +8,7 @@ use List::Util qw(min max);
 use Wx::Event qw(EVT_MOUSE_EVENTS);
 use base qw(Slic3r::GUI::3DScene);
 
-__PACKAGE__->mk_accessors( qw(on_rubberband_split on_right_double_click) );
+__PACKAGE__->mk_accessors( qw(on_rubberband_split on_waypoint_split on_right_double_click) );
 
 use Data::Dumper;
 
@@ -61,7 +61,7 @@ sub add_rubberband {
 	
 	my $dx = $b->x-$a->x;
     my $dy = $b->y-$a->y;
-    my $vector_l = sqrt($dx**2+$dy**2);
+    my $vector_l = max(0.001, sqrt($dx**2+$dy**2)); # lower limit to avoid division by zero during normalization
     my $x_off = ($dy*$width/2)/$vector_l;
     my $y_off = ($dx*$width/2)/$vector_l;
     
@@ -233,6 +233,16 @@ sub rubberband_splitting {
 	$self->{activity}->{rubberband_splitting} = $rubberband;
 }
 
+# starts a selection of a 2nd point with lines rendered to the endpoint of one rubberband
+sub point_splitting {
+	my ($self, $netPoint) = @_;
+	
+	$self->add_rubberband($netPoint->getPoint, $self->get_mouse_pos_3d_obj, 0.6);
+	
+	# set activity until next mouse click
+	$self->{activity}->{point_splitting} = $netPoint;
+}
+
 # set current z height, must be updated every time the slider is moved!
 sub set_z {
 	my ($self, $z) = @_;
@@ -251,6 +261,12 @@ sub cancel_action {
         pop @{$self->volumes};
         
         $self->{activity}->{rubberband_splitting} = undef;
+	}
+	if($self->{activity}->{point_splitting}) {
+		# remove current lines
+        pop @{$self->volumes};
+        
+        $self->{activity}->{point_splitting} = undef;
 	}
 	$self->Refresh;
 }
@@ -286,9 +302,8 @@ sub mouse_event_new {
 	        $self->add_rubberband($self->{activity}->{rubberband_splitting}->a, $self->get_mouse_pos_3d_obj);
 			$self->add_rubberband($self->{activity}->{rubberband_splitting}->b, $self->get_mouse_pos_3d_obj);
         }else{
-        	my $to_netPoint = $self->{schematic}->findNearestSplittingPoint($rubberband, $self->get_mouse_pos_3d_obj);
+        	my $to_netPoint = $self->{schematic}->findNearestSplittingPoint($rubberband->getNetName, $self->get_mouse_pos_3d_obj);
         	my $to_point = $to_netPoint ? $to_netPoint->getPoint : $self->get_mouse_pos_3d_obj;
-        	$to_point->translate(0.001, 0.001, 0);
 	        if($rubberband->pointASelected) {
 				$self->add_rubberband($rubberband->a, $to_point, 0.6);
 				$self->add_rubberband($rubberband->b, $to_point, 0.1);
@@ -301,12 +316,35 @@ sub mouse_event_new {
         # refresh canvas
         $self->Refresh;
     }
+    elsif ($e->Moving && $self->{activity}->{point_splitting}) {
+    	# refresh mouse position
+    	$self->mouse_event($e);
+    	
+    	# remove old line
+        pop @{$self->volumes};
+        
+        my $netPoint = $self->{activity}->{point_splitting};
+        my $to_netPoint = $self->{schematic}->findNearestSplittingPoint($netPoint->getNetName, $self->get_mouse_pos_3d_obj);
+       	my $to_point = $to_netPoint ? $to_netPoint->getPoint : $self->get_mouse_pos_3d_obj;
+        
+	    $self->add_rubberband($self->{activity}->{point_splitting}->getPoint, $to_point, 0.6);
+        
+        # refresh canvas
+        $self->Refresh;
+    }
     elsif ($e->LeftDown && $self->{activity}->{rubberband_splitting}) {
     	# callback
     	$self->on_rubberband_split->($self->{activity}->{rubberband_splitting}, $self->get_mouse_pos_3d_obj)
             if $self->on_rubberband_split;
         
         $self->{activity}->{rubberband_splitting} = undef;
+    }
+    elsif ($e->LeftDown && $self->{activity}->{point_splitting}) {
+    	# callback
+    	$self->on_waypoint_split->($self->{activity}->{point_splitting}, $self->get_mouse_pos_3d_obj)
+            if $self->on_waypoint_split;
+        
+        $self->{activity}->{point_splitting} = undef;
     }
     elsif($e->RightDClick) {
     	my $volume_idx = $self->_hover_volume_idx // -1;

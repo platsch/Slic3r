@@ -357,7 +357,13 @@ sub new {
             	$canvas->rubberband_splitting($rubberband);
             }
             
-            # object is a point
+            # object is a point -> create wire starting from this point
+            my $netPoint = $self->{netPoint_lookup}[$volume_idx];
+            if(defined $netPoint) {
+            	$self->{plater}->stop_background_process;
+            	my $mousepoint = $self->{canvas}->get_mouse_pos_3d_obj;
+            	$canvas->point_splitting($netPoint);
+            }
         });
         
         $canvas->on_right_double_click(sub {
@@ -390,6 +396,16 @@ sub new {
             # translate to center of layer
             $pos->translate(0, 0, $self->get_layer_thickness($pos->z)/2);
 			$self->{schematic}->splitWire($rubberband, $pos);      
+			$self->reload_print;
+			$self->triggerSlicing;
+        });
+        
+        $canvas->on_waypoint_split(sub {
+            my ($netPoint, $pos) = @_;
+            $self->{plater}->stop_background_process;
+            # translate to center of layer
+            $pos->translate(0, 0, $self->get_layer_thickness($pos->z)/2);
+			$self->{schematic}->addWire($netPoint, $pos);      
 			$self->reload_print;
 			$self->triggerSlicing;
         });

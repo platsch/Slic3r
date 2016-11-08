@@ -121,12 +121,12 @@ NetPointPtrs* Schematic::getNetPoints(){
  * relative to p. A call to splitWire should result in a wire ending at the same point.
  * Returns p if no point is within a threshold.
  */
-const NetPoint* Schematic::findNearestSplittingPoint(const RubberBand* rubberband, const Pointf3& p) const
+const NetPoint* Schematic::findNearestSplittingPoint(const std::string netName, const Pointf3& p) const
 {
 	const NetPoint* result = NULL;
 
 	for (ElectronicNets::const_iterator net = this->netlist.begin(); net != this->netlist.end(); ++net) {
-		if((*net)->getName() == rubberband->getNetName()) {
+		if((*net)->getName() == netName) {
 			const NetPoint* np = (*net)->findNearestNetPoint(p);
 			if(np) {
 				if(p.distance_to(np->getPoint()) < 2) {
@@ -137,6 +137,38 @@ const NetPoint* Schematic::findNearestSplittingPoint(const RubberBand* rubberban
 	}
 	return result;
 }
+
+/* Add a wire from netPoint to given point.
+ * Adds a wayopint or connects to a waypoing within "magnetic" range.
+ */
+void Schematic::addWire(const NetPoint* netPoint, const Pointf3& p)
+{
+	// find corresponding net
+	for (ElectronicNets::const_iterator net = this->netlist.begin(); net != this->netlist.end(); ++net) {
+		if((*net)->getName() == netPoint->getNetName()) {
+
+			unsigned int netPointKey = 0;
+
+			// connecting to an existing netPoint?
+			const NetPoint* np = this->findNearestSplittingPoint(netPoint->getNetName(), p);
+			if(np) {
+				netPointKey = np->getKey();
+			}
+
+			// no, create new netPoint
+			if(netPointKey == 0) {
+				netPointKey = (*net)->addNetPoint(WAYPOINT, p);
+			}
+
+			if (!(*net)->addWire(netPoint->getKey(), netPointKey)) {
+				std::cout << "Warning! failed to add netWire" << std::endl;
+			}
+
+			break;
+		}
+	}
+}
+
 
 /* Splits a rubberband into two wired parts or
  * a single wire if one point is selected.
@@ -152,7 +184,7 @@ void Schematic::splitWire(const RubberBand* rubberband, const Pointf3& p)
 
 			// connecting to an existing netPoint?
 			if(!rubberband->isWired()) {
-				const NetPoint* np = this->findNearestSplittingPoint(rubberband, p);
+				const NetPoint* np = this->findNearestSplittingPoint(rubberband->getNetName(), p);
 				if(np) {
 					netPointKey = np->getKey();
 				}
