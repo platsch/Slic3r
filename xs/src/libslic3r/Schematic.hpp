@@ -30,7 +30,7 @@ class Schematic
     ElectronicParts* getPartlist();
     RubberBandPtrs* getRubberBands();
     NetPointPtrs* getNetPoints();
-    const NetPoint* findNearestSplittingPoint(const std::string netName, const Pointf3& p) const;
+    const NetPoint* findNearestSplittingPoint(const NetPoint* sourceWayPoint, const Pointf3& p) const;
     void addWire(const NetPoint* netPoint, const Pointf3& p);
     void splitWire(const RubberBand* rubberband, const Pointf3& p);
     bool removeWire(const unsigned int rubberBandID);

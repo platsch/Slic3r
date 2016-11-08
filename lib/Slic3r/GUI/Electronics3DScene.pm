@@ -302,7 +302,8 @@ sub mouse_event_new {
 	        $self->add_rubberband($self->{activity}->{rubberband_splitting}->a, $self->get_mouse_pos_3d_obj);
 			$self->add_rubberband($self->{activity}->{rubberband_splitting}->b, $self->get_mouse_pos_3d_obj);
         }else{
-        	my $to_netPoint = $self->{schematic}->findNearestSplittingPoint($rubberband->getNetName, $self->get_mouse_pos_3d_obj);
+        	my $source_wayPoint = $rubberband->pointASelected ? $rubberband->getNetPointA : $rubberband->getNetPointB;
+        	my $to_netPoint = $self->{schematic}->findNearestSplittingPoint($source_wayPoint, $self->get_mouse_pos_3d_obj);
         	my $to_point = $to_netPoint ? $to_netPoint->getPoint : $self->get_mouse_pos_3d_obj;
 	        if($rubberband->pointASelected) {
 				$self->add_rubberband($rubberband->a, $to_point, 0.6);
@@ -324,7 +325,7 @@ sub mouse_event_new {
         pop @{$self->volumes};
         
         my $netPoint = $self->{activity}->{point_splitting};
-        my $to_netPoint = $self->{schematic}->findNearestSplittingPoint($netPoint->getNetName, $self->get_mouse_pos_3d_obj);
+        my $to_netPoint = $self->{schematic}->findNearestSplittingPoint($netPoint, $self->get_mouse_pos_3d_obj);
        	my $to_point = $to_netPoint ? $to_netPoint->getPoint : $self->get_mouse_pos_3d_obj;
         
 	    $self->add_rubberband($self->{activity}->{point_splitting}->getPoint, $to_point, 0.6);

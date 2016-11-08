@@ -121,16 +121,18 @@ NetPointPtrs* Schematic::getNetPoints(){
  * relative to p. A call to splitWire should result in a wire ending at the same point.
  * Returns p if no point is within a threshold.
  */
-const NetPoint* Schematic::findNearestSplittingPoint(const std::string netName, const Pointf3& p) const
+const NetPoint* Schematic::findNearestSplittingPoint(const NetPoint* sourceWayPoint, const Pointf3& p) const
 {
 	const NetPoint* result = NULL;
 
 	for (ElectronicNets::const_iterator net = this->netlist.begin(); net != this->netlist.end(); ++net) {
-		if((*net)->getName() == netName) {
+		if((*net)->getName() == sourceWayPoint->getNetName()) {
 			const NetPoint* np = (*net)->findNearestNetPoint(p);
 			if(np) {
-				if(p.distance_to(np->getPoint()) < 2) {
-					result = np;
+				if(p.distance_to(np->getPoint()) < 2) { // check distance
+					if(!(*net)->waypointsConnected(np->getKey(), sourceWayPoint->getKey())) { // check for cycles
+						result = np;
+					}
 				}
 			}
 		}
@@ -150,7 +152,7 @@ void Schematic::addWire(const NetPoint* netPoint, const Pointf3& p)
 			unsigned int netPointKey = 0;
 
 			// connecting to an existing netPoint?
-			const NetPoint* np = this->findNearestSplittingPoint(netPoint->getNetName(), p);
+			const NetPoint* np = this->findNearestSplittingPoint(netPoint, p);
 			if(np) {
 				netPointKey = np->getKey();
 			}
@@ -184,7 +186,8 @@ void Schematic::splitWire(const RubberBand* rubberband, const Pointf3& p)
 
 			// connecting to an existing netPoint?
 			if(!rubberband->isWired()) {
-				const NetPoint* np = this->findNearestSplittingPoint(rubberband->getNetName(), p);
+				const NetPoint* sourceWayPoint = rubberband->pointASelected() ? rubberband->getNetPointA() : rubberband->getNetPointB();
+				const NetPoint* np = this->findNearestSplittingPoint(sourceWayPoint, p);
 				if(np) {
 					netPointKey = np->getKey();
 				}

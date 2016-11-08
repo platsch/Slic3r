@@ -201,6 +201,35 @@ const NetPoint* ElectronicNet::findNearestNetPoint(const Pointf3& p) const
 	return result;
 }*/
 
+/* Check whether the given waypoints are connected
+ * (in the same component of the graph)
+ */
+bool ElectronicNet::waypointsConnected(const unsigned int netPointKeyA, const unsigned int netPointKeyB)
+{
+	bool result = false;
+
+	// index property map
+	std::map<vertex_t, unsigned int> mapIndex;
+	boost::associative_property_map< std::map<vertex_t, unsigned int> > componentIndex(mapIndex);
+
+	// color property map
+	std::map<vertex_t, boost::default_color_type> colorMap;
+	boost::associative_property_map< std::map<vertex_t, boost::default_color_type> > color_prop_map(colorMap);
+
+	// find all connected components
+	int componentNum = boost::connected_components(this->netGraph, componentIndex, boost::color_map(color_prop_map));
+
+	vertex_t a = this->netPointIndex[netPointKeyA];
+	vertex_t b = this->netPointIndex[netPointKeyB];
+
+	if(componentIndex[a] == componentIndex[b]) {
+		result = true;
+	}
+
+	return result;
+}
+
+
 /* Generates rubberbands of wired connections
  * from netGraph and returns the result
  */
