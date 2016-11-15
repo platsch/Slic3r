@@ -254,7 +254,7 @@ bool Schematic::removeNetPoint(const NetPoint* netPoint)
 	return result;
 }
 
-Polylines Schematic::getChannels(const double z_bottom, const double z_top, coord_t extrusion_overlap, coord_t layer_overlap)
+Polylines Schematic::getChannels(const double z_bottom, const double z_top, coord_t extrusion_overlap, coord_t first_extrusion_overlap, coord_t layer_overlap)
 {
 	Polylines pls;
 	Polylines pls_akku;
@@ -356,25 +356,30 @@ Polylines Schematic::getChannels(const double z_bottom, const double z_top, coor
 		for (Polylines::iterator pl = pls_akku.begin(); pl != pls_akku.end(); ++pl) {
 			double clip_length;
 			if(pl == pls_akku.begin()) {
-				clip_length = (*pl).length()/2 - extrusion_overlap*2; // first extrusion at this layer
+				clip_length = (*pl).length()/2 - first_extrusion_overlap; // first extrusion at this layer
 			}else{
 				clip_length = (*pl).length()/2 - extrusion_overlap;
 			}
-			Polyline pl2 = (*pl);
 
-			//first half
-			(*pl).clip_end(clip_length);
-			(*pl).reverse();
-			(*pl).remove_duplicate_points();
-			if((*pl).length() > scale_(0.05)) {
-				pls.push_back((*pl));
-			}
+			if(((*pl).length()/2 - clip_length) > EPSILON) {
+				Polyline pl2 = (*pl);
 
-			//second half
-			pl2.clip_start(clip_length);
-			pl2.remove_duplicate_points();
-			if(pl2.length() > scale_(0.05)) {
-				pls.push_back(pl2);
+				//first half
+				(*pl).clip_end(clip_length);
+				(*pl).reverse();
+				(*pl).remove_duplicate_points();
+				if((*pl).length() > scale_(0.05)) {
+					pls.push_back((*pl));
+				}
+
+				//second half
+				pl2.clip_start(clip_length);
+				pl2.remove_duplicate_points();
+				if(pl2.length() > scale_(0.05)) {
+					pls.push_back(pl2);
+				}
+			}else{
+				pls.push_back(*pl);
 			}
 		}
 	}

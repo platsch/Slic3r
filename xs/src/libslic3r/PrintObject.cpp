@@ -349,6 +349,7 @@ void PrintObject::make_electronic_wires()
 	if(this->_schematic.getPartlist()->size() > 0) {
 		// amount of overlap for wire split points to have extrusion ends at wire endpoints
 		coord_t extrusion_overlap = scale_(this->print()->default_object_config.conductive_wire_extrusion_overlap);
+		coord_t first_extrusion_overlap = scale_(this->print()->default_object_config.conductive_wire_first_extrusion_overlap);
 		// amount of overlap for inter-layer connections of sloped wires
 		coord_t layer_overlap = scale_(this->print()->default_object_config.conductive_wire_slope_overlap);
 
@@ -368,7 +369,7 @@ void PrintObject::make_electronic_wires()
 				if(layer != NULL) {
 					z_top = layer->print_z;
 					z_bottom = z_top - layer->height;
-					channels = this->_schematic.getChannels(z_bottom, z_top, extrusion_overlap, layer_overlap);
+					channels = this->_schematic.getChannels(z_bottom, z_top, extrusion_overlap, first_extrusion_overlap, layer_overlap);
 
 					// offset and remove bed or channel
 					if(channels.size() > 0) {

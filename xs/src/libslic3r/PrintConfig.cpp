@@ -119,11 +119,19 @@ PrintConfigDef::PrintConfigDef()
 
 	def = this->add("conductive_wire_extrusion_overlap", coFloat);
 	def->label = "Extrusion overlap";
-	def->tooltip = "Controls the length of overlap for wires within a single layer. Wire segments are extruded from the center of the line towards both endpoints to ensure clean endpoints.";
+	def->tooltip = "Controls the length of overlap for wires within a single layer. Wire segments are extruded from the center of the line towards both endpoints to ensure clean endpoints. Set to zero to disable this feature.";
 	def->sidetext = "mm";
 	def->cli = "conductive-wire-extrusion-overlap=f";
 	def->min = 0;
 	def->default_value = new ConfigOptionFloat(1.0);
+
+	def = this->add("conductive_wire_first_extrusion_overlap", coFloat);
+	def->label = "First extrusion overlap";
+	def->tooltip = "Controls the length of overlap for the first wire within a single layer for more reliable extruder priming. Set zero to disable.";
+	def->sidetext = "mm";
+	def->cli = "conductive-wire-first-extrusion-overlap=f";
+	def->min = 0;
+	def->default_value = new ConfigOptionFloat(1.5);
 
     def = this->add("conductive_wire_extrusion_width", coFloatOrPercent);
 	def->label = "Conductive wires";
