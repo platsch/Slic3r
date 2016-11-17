@@ -105,6 +105,14 @@ PlaceholderParser::set(const std::string &key, int value)
 }
 
 void
+PlaceholderParser::set(const std::string &key, double value)
+{
+    std::ostringstream ss;
+    ss << value;
+    this->set(key, ss.str());
+}
+
+void
 PlaceholderParser::set(const std::string &key, std::vector<std::string> values)
 {
     if (values.empty()) {

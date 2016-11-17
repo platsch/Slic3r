@@ -1257,7 +1257,7 @@ PrintConfigDef::PrintConfigDef()
 
     def = this->add("toolchange_gcode", coString);
     def->label = "Tool change G-code";
-    def->tooltip = "This custom code is inserted right before every extruder change. Note that you can use placeholder variables for all Slic3r settings as well as [previous_extruder] and [next_extruder].";
+    def->tooltip = "This custom code is inserted right before every extruder change. Note that you can use placeholder variables for all Slic3r settings as well as [previous_extruder], [next_extruder], [previous_retraction] and [next_retraction].";
     def->cli = "toolchange-gcode=s";
     def->multiline = true;
     def->full_width = true;

@@ -722,7 +722,7 @@ GCode::unretract()
 std::string
 GCode::set_extruder(unsigned int extruder_id)
 {
-    this->placeholder_parser->set("current_extruder", extruder_id);
+    this->placeholder_parser->set("current_extruder", (int) extruder_id);
     if (!this->writer.need_toolchange(extruder_id))
         return "";
     
@@ -737,8 +737,10 @@ GCode::set_extruder(unsigned int extruder_id)
     // append custom toolchange G-code
     if (this->writer.extruder() != NULL && !this->config.toolchange_gcode.value.empty()) {
         PlaceholderParser pp = *this->placeholder_parser;
-        pp.set("previous_extruder", this->writer.extruder()->id);
-        pp.set("next_extruder",     extruder_id);
+        pp.set("previous_extruder", (int) this->writer.extruder()->id);
+        pp.set("next_extruder",     (int) extruder_id);
+        pp.set("previous_retraction", this->writer.extruder()->retracted);
+        pp.set("next_retraction", this->writer.extruders.find(extruder_id)->second.retracted);
         gcode += pp.process(this->config.toolchange_gcode.value) + '\n';
     }
     
