@@ -297,17 +297,18 @@ sub export {
         $self->flush_filters;
     }
     
+    # write end commands to file
+    print $fh $gcodegen->retract;   # TODO: process this retract through PressureRegulator in order to discharge fully
+    print $fh $gcodegen->writer->set_fan(0);
     
-	# bit of a workaround. Call the function with a very high print_z to ensure every remaining part will be placed.    
+    # bit of a workaround. Call the function with a very high print_z to ensure every remaining part will be placed.    
     foreach my $object (@{$self->objects}) { # TODO: Shifted copies???
 	    foreach my $part (@{$object->schematic->getPartlist}) {
 	        print $fh $part->getPlaceGcode(99999999);
 	    }
 	}
+	print $fh $gcodegen->set_extruder($self->print->extruders->[0]);
     
-    # write end commands to file
-    print $fh $gcodegen->retract;   # TODO: process this retract through PressureRegulator in order to discharge fully
-    print $fh $gcodegen->writer->set_fan(0);
     printf $fh "%s\n", $gcodegen->placeholder_parser->process($self->config->end_gcode);
     print $fh $gcodegen->writer->update_progress($gcodegen->layer_count, $gcodegen->layer_count, 1);  # 100%
     print $fh $gcodegen->writer->postamble;
@@ -601,6 +602,8 @@ sub process_layer {
 	        $self->_gcodegen->config->apply_static($self->print->default_region_config);
 	        $gcode .= $self->_gcodegen->extrude($_, 'conductive wire', -1)
 	            for (@{$layer->wires});
+	        # always retract, we might need to place parts before switching to the next extruder
+	        $gcode .= $self->_gcodegen->retract(1);
         }
         
         foreach my $part (@{$layer->object->schematic->getPartlist}) {
