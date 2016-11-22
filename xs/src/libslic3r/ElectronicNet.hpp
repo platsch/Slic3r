@@ -46,6 +46,7 @@ class ElectronicNet
     unsigned int addNetPoint(const netPointType type, Pointf3 p);
     void updateNetPoint(const unsigned int netPointKey, const netPointType type, const Pointf3 p);
     bool removeNetPoint(unsigned int netPointKey);
+    NetPoint* getNetPoint(const unsigned int netPointKey) {return &this->netPoints[netPointKey];};
     bool addWire(const unsigned int netPointAiD, const unsigned int netPointBiD);
     bool removeWire(const unsigned int netPointAiD, const unsigned int netPointBiD);
     //bool addWiredRubberBand(RubberBand* rb);

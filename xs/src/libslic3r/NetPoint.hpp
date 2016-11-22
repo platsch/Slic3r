@@ -24,12 +24,16 @@ class NetPoint
 	const std::string getNetName() const {return this->netName;};
 	Pointf3 getPoint() const {return this->point;};
 	const netPointType getType() const {return this->type;};
+	bool setRouteExtensionPoints(const Pointf3 innerPoint, const Pointf3 outerPoint);
+	Pointf3 getRouteExtension(const Pointf3 fromPoint);
 
 	private:
 	unsigned int key;
 	netPointType type;
 	std::string netName;
 	Pointf3 point;
+	Pointf3 padInnerPoint;
+	Pointf3 padOuterPoint;
 
 	friend class ElectronicNet;
 };

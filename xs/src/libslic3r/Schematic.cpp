@@ -263,9 +263,11 @@ Polylines Schematic::getChannels(const double z_bottom, const double z_top, coor
 		// collect all rubberbands for this net
 		std::list<Line> lines;
 		for (RubberBandPtrs::const_iterator rb = (*net)->wiredRubberBands.begin(); rb != (*net)->wiredRubberBands.end(); ++rb) {
-			Line l;
-			if((*rb)->getLayerSegment(z_bottom, z_top, layer_overlap, &l)) {
-				lines.push_back(l);
+			Lines l;
+			if((*rb)->getLayerSegments(z_bottom, z_top, layer_overlap, &l)) {
+				for (Lines::iterator line = l.begin(); line != l.end(); ++line) {
+					lines.push_back(*line);
+				}
 			}
 		}
 
@@ -629,6 +631,9 @@ void Schematic::updatePartNetPoints(ElectronicPart* part)
 						// update netPoint
 						(*net)->updateNetPoint(pin->netPointKey, PART, part->getAbsPadPosition((*pad).pin));
 					}
+					// update route extension points
+					NetPoint* np = (*net)->getNetPoint(pin->netPointKey);
+					np->setRouteExtensionPoints(part->getAbsPadPositionPerimeter((*pad).pin, true), part->getAbsPadPositionPerimeter((*pad).pin, false));
 				}else{
 					(*net)->removeNetPoint(pin->netPointKey);
 				}

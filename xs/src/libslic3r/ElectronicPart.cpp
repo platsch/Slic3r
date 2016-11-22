@@ -151,6 +151,65 @@ Pointf3 ElectronicPart::getAbsPadPosition(std::string padName)
 	return pos;
 }
 
+/* Find the point on the outline of this pad closest to the center of the part
+ * to extend the conductive extrusion to this end of the pad. Can find the inner or outer
+ * point for cases where the trace is connected from below the part.
+ */
+Pointf3 ElectronicPart::getAbsPadPositionPerimeter(std::string padName, bool inner)
+{
+	Pointf3 pos[4];
+	Pointf3 orig(this->origin[0], this->origin[1], this->origin[2]);
+	Pointf3 result(0, 0, 0);
+		for (Padlist::const_iterator pad = this->padlist.begin(); pad != this->padlist.end(); ++pad) {
+			if((pad->pad == padName) || (pad->pin == padName)) {
+
+				// find side with minimum distance to the part's origin
+				double dx = pad->size[0]/2;
+				double dy = pad->size[1]/2;
+
+				pos[0].x = pad->position[0]+dx - this->origin[0];
+				pos[0].y = pad->position[1] - this->origin[1];
+				pos[0].z = this->origin[2];
+
+				pos[1].x = pad->position[0]-dx - this->origin[0];
+				pos[1].y = pad->position[1] - this->origin[1];
+				pos[1].z = this->origin[2];
+
+				pos[2].x = pad->position[0] - this->origin[0];
+				pos[2].y = pad->position[1]+dy - this->origin[1];
+				pos[2].z = this->origin[2];
+
+				pos[3].x = pad->position[0] - this->origin[0];
+				pos[3].y = pad->position[1]-dy - this->origin[1];
+				pos[3].z = this->origin[2];
+
+				result = pos[0];
+
+				// are we looking for the inner our outer point?
+				for(int i = 1; i < 3; i++) {
+					if(inner) {
+						if(orig.distance_to(pos[i]) < orig.distance_to(result)) {
+							result = pos[i];
+						}
+					}else{
+						if(orig.distance_to(pos[i]) > orig.distance_to(result)) {
+							result = pos[i];
+						}
+					}
+				}
+
+				result.rotate(Geometry::deg2rad(this->rotation.z), Pointf(0, 0));
+				// rotation around y and z is missing!!!
+				result.translate(this->position);
+				// set pad center
+				result.translate(0, 0, this->footprintHeight/2);
+
+				break;
+			}
+		}
+		return result;
+}
+
 TriangleMesh ElectronicPart::getFootprintMesh()
 {
 	TriangleMesh mesh;

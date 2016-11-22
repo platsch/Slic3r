@@ -405,8 +405,13 @@ void PrintObject::make_electronic_wires()
 			// clear old wires
 			layer->wires.clear();
 
-			for (Polylines::const_iterator channel_pl = channels.begin(); channel_pl != channels.end(); ++channel_pl) {
+			for (Polylines::iterator channel_pl = channels.begin(); channel_pl != channels.end(); ++channel_pl) {
 				if(channel_pl->points.size() > 1) {
+
+					// clip start and end of each trace by extrusion_width/2 to achieve correct line endpoints
+					channel_pl->clip_start(scale_(extrusion_width/2));
+					channel_pl->clip_end(scale_(extrusion_width/2));
+
 					ExtrusionPath path(erConductiveWire);
 					path.polyline = *channel_pl;
 					path.mm3_per_mm = flow.mm3_per_mm();

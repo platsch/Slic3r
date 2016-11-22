@@ -99,7 +99,7 @@ const Pointf3* RubberBand::selectNearest(const Pointf3& p)
  * Endpoints are extended by extension_length if they lie outside of the layer
  * to ensure inter-layer connectivity. extension_length and result in scaled coordinates.
  */
-bool RubberBand::getLayerSegment(const double z_bottom, const double z_top, coord_t layer_overlap, Line* segment)
+bool RubberBand::getLayerSegments(const double z_bottom, const double z_top, coord_t layer_overlap, Lines* segments)
 {
 	bool result = false;
 
@@ -107,46 +107,64 @@ bool RubberBand::getLayerSegment(const double z_bottom, const double z_top, coor
 	if((this->a.z >= z_bottom && this->b.z < z_top) || (this->a.z < z_top && this->b.z >= z_bottom)) {
 		result = true;
 		bool extend_a = true;
+		Line segment;
 
 		// point a
 		if(this->a.z < z_bottom) {
 			Pointf3 i = this->intersect_plane(z_bottom);
-			segment->a.x = scale_(i.x);
-			segment->a.y = scale_(i.y);
+			segment.a.x = scale_(i.x);
+			segment.a.y = scale_(i.y);
 		}else if(this->a.z > z_top) {
 			Pointf3 i = this->intersect_plane(z_top);
-			segment->a.x = scale_(i.x);
-			segment->a.y = scale_(i.y);
+			segment.a.x = scale_(i.x);
+			segment.a.y = scale_(i.y);
 		}else{
-			segment->a.x = scale_(this->a.x);
-			segment->a.y = scale_(this->a.y);
+			segment.a.x = scale_(this->a.x);
+			segment.a.y = scale_(this->a.y);
+
+			// if this is a pad, extend to pad perimeter
+			if(this->netPointA->getType() == PART) {
+				Pointf3 p = this->netPointA->getRouteExtension(this->b);
+				Line padExtension(segment.a, Point(scale_(p.x), scale_(p.y)));
+				segments->push_back(padExtension);
+			}
+
 			extend_a = false;
 		}
 
 		// point b
 		if(this->b.z < z_bottom) {
 			Pointf3 i = this->intersect_plane(z_bottom);
-			segment->b.x = scale_(i.x);
-			segment->b.y = scale_(i.y);
-			segment->extend_end(layer_overlap);
+			segment.b.x = scale_(i.x);
+			segment.b.y = scale_(i.y);
+			segment.extend_end(layer_overlap);
 		}else if(this->b.z > z_top) {
 			Pointf3 i = this->intersect_plane(z_top);
-			segment->b.x = scale_(i.x);
-			segment->b.y = scale_(i.y);
-			segment->extend_end(layer_overlap/2);
+			segment.b.x = scale_(i.x);
+			segment.b.y = scale_(i.y);
+			segment.extend_end(layer_overlap/2);
 		}else{
-			segment->b.x = scale_(this->b.x);
-			segment->b.y = scale_(this->b.y);
+			segment.b.x = scale_(this->b.x);
+			segment.b.y = scale_(this->b.y);
+
+			// if this is a pad, extend to pad perimeter
+			if(this->netPointB->getType() == PART) {
+				Pointf3 p = this->netPointB->getRouteExtension(this->a);
+				Line padExtension(segment.b, Point(scale_(p.x), scale_(p.y)));
+				segments->push_back(padExtension);
+			}
 		}
 
 		if(extend_a) {
-			segment->extend_start(layer_overlap/2);
+			segment.extend_start(layer_overlap/2);
 		}
 
 		// if only one point touches the layer length will be 0
-		if(segment->length() < scale_(0.05)) {
+		if(segment.length() < scale_(0.05)) {
 			result = false;
 		}
+
+		segments->push_back(segment);
 	}
 
 	return result;

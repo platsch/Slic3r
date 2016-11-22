@@ -29,4 +29,33 @@ NetPoint& NetPoint::operator= (NetPoint other)
     return *this;
 }
 
+bool NetPoint::setRouteExtensionPoints(const Pointf3 innerPoint, const Pointf3 outerPoint)
+{
+	bool result = false;
+	if(this->type == PART) {
+		result = true;
+		this->padInnerPoint = innerPoint;
+		this->padOuterPoint = outerPoint;
+	}
+
+	return result;
+}
+
+/* Find point on inner / outer end of the pad to extend
+ * the conductive trace for better footprint coverage
+ */
+Pointf3 NetPoint::getRouteExtension(const Pointf3 fromPoint)
+{
+	Pointf3 result = this->point;
+
+	if(this->type == PART) {
+		if(fromPoint.distance_to(this->padInnerPoint) > fromPoint.distance_to(this->padOuterPoint)) {
+			result = this->padInnerPoint;
+		}else{
+			result = this->padOuterPoint;
+		}
+	}
+	return result;
+}
+
 }

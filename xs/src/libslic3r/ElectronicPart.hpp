@@ -9,6 +9,7 @@
 #include "ClipperUtils.hpp"
 #include <vector>
 #include <sstream>
+#include <algorithm>
 #include <admesh/stl.h>
 
 
@@ -57,6 +58,7 @@ class ElectronicPart
     void addPad(std::string type, std::string pad, std::string pin, std::string gate, double x, double y, double rotation, double dx, double dy, double drill, std::string shape);
     bool hasPad(std::string padName);
     Pointf3 getAbsPadPosition(std::string padName);
+    Pointf3 getAbsPadPositionPerimeter(std::string padName, bool inner);
     void setVisibility(bool visible) {this->visible = visible;};
     bool isVisible() {return this->visible;};
     void setPlaced(bool placed) {this->placed = placed;};
