@@ -358,6 +358,22 @@ void PrintObject::make_electronic_wires()
 		unsigned int extruder = this->print()->default_region_config.conductive_wire_extruder.getInt();
 		float nozzle_diameter = this->print()->config.nozzle_diameter.get_at(extruder-1);
 
+		// add spare layer to the top of the object in case we have wires on the surface. Will be removed at the end of this method if empty.
+		Layer* top_layer = this->layers.back();//this->get_layer(this->layer_count()-1);
+		Layer* additional_layer = this->add_layer(top_layer->id()+1, top_layer->height, top_layer->print_z+top_layer->height, top_layer->slice_z+top_layer->height);
+
+		// add cross-references
+		top_layer->upper_layer = additional_layer;
+		additional_layer->lower_layer = top_layer;
+
+
+		// initialize layerRegions for spare layer
+		int region_count = this->print()->regions.size();
+		for(int i = 0; i < region_count; i++) {
+			additional_layer->add_region(this->print()->get_region(i));
+		}
+
+
 		FOREACH_LAYER(this, layer_it) {
 			double z_top, z_bottom;
 			Polylines channels;
@@ -416,6 +432,14 @@ void PrintObject::make_electronic_wires()
 					layer->wires.append(path);
 				}
 			}
+		}
+
+		// remove top layer if empty
+		top_layer = this->layers.back();
+		if(top_layer->wires.empty()) {
+			this->delete_layer(this->layer_count()-1);
+			// remove invalid reference from n-1 layer
+			this->layers.back()->upper_layer = NULL;
 		}
 	}
 }
