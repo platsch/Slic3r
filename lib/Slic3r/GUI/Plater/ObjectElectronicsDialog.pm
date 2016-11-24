@@ -305,7 +305,7 @@ sub new {
         wxVERTICAL | &Wx::wxSL_INVERSE,
     );
     
-    my $sliderconf = $self->{sliderconf} = 0;
+    $self->{is_zoomed} = 0;
     
     # label for slider
     my $z_label = $self->{z_label} = Wx::StaticText->new($self, -1, "", wxDefaultPosition, [40,-1], wxALIGN_CENTRE_HORIZONTAL);
@@ -580,26 +580,23 @@ sub render_print {
     }
     
     # configure slider
-    if (!$self->{sliderconf}) {
-        my %z = ();  # z => 1
-        foreach my $object (@{$self->{print}->objects}) {
-            foreach my $layer (@{$object->layers}, @{$object->support_layers}) {
-                $z{$layer->print_z} = 1;
-            }
+    my %z = ();  # z => 1
+    foreach my $object (@{$self->{print}->objects}) {
+        foreach my $layer (@{$object->layers}, @{$object->support_layers}) {
+            $z{$layer->print_z} = 1;
         }
-        $self->enabled(1);
-        $self->{layers_z} = [ sort { $a <=> $b } keys %z ];
-        $self->{slider}->SetRange(0, scalar(@{$self->{layers_z}})-1);
-        if ((my $z_idx = $self->{slider}->GetValue) <= $#{$self->{layers_z}} && $self->{slider}->GetValue != 0) {
-            $self->set_z($self->{layers_z}[$z_idx]);
-        } else {
-            $self->{slider}->SetValue(scalar(@{$self->{layers_z}})-1);
-            $self->set_z($self->{layers_z}[-1]) if @{$self->{layers_z}};
-        }
-        $self->{slider}->Show;
-        $self->Layout;
-        $self->{sliderconf} = 1;
     }
+    $self->enabled(1);
+    $self->{layers_z} = [ sort { $a <=> $b } keys %z ];
+    $self->{slider}->SetRange(0, scalar(@{$self->{layers_z}})-1);
+    if ((my $z_idx = $self->{slider}->GetValue) <= $#{$self->{layers_z}} && $self->{slider}->GetValue != 0) {
+        $self->set_z($self->{layers_z}[$z_idx]);
+    } else {
+        $self->{slider}->SetValue(scalar(@{$self->{layers_z}})-1);
+        $self->set_z($self->{layers_z}[-1]) if @{$self->{layers_z}};
+    }
+    $self->{slider}->Show;
+    $self->Layout;
     
     # reset lookup array
     $self->{part_lookup} = ();
@@ -655,8 +652,9 @@ sub render_print {
 	    #$self->canvas->add_wire_point(Slic3r::Pointf3->new(0, 0, 0), [0.8, 0.1, 0.1, 0.9]);
         $self->set_z($height) if $self->enabled;
         
-        if (!$self->{sliderconf}) {
+        if (!$self->{is_zoomed}) {
             $self->canvas->zoom_to_volumes;
+            $self->{is_zoomed} = 1;
         }
         $self->_loaded(1);
     }
