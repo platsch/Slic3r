@@ -186,7 +186,7 @@ Pointf3 ElectronicPart::getAbsPadPositionPerimeter(std::string padName, bool inn
 				result = pos[0];
 
 				// are we looking for the inner our outer point?
-				for(int i = 1; i < 3; i++) {
+				for(int i = 1; i < 4; i++) {
 					if(inner) {
 						if(orig.distance_to(pos[i]) < orig.distance_to(result)) {
 							result = pos[i];
