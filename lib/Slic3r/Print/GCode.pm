@@ -602,14 +602,21 @@ sub process_layer {
 	        $self->_gcodegen->config->apply_static($self->print->default_region_config);
 	        $gcode .= $self->_gcodegen->extrude($_, 'conductive wire', -1)
 	            for (@{$layer->wires});
-	        # always retract, we might need to place parts before switching to the next extruder
-	        $gcode .= $self->_gcodegen->retract(1);
         }
         
+        # place electronic parts for this layer
+        my $placing_gcode = "";
         foreach my $part (@{$layer->object->schematic->getPartlist}) {
-            $gcode .= $part->getPlaceGcode($layer->print_z);
+        	$placing_gcode .= $part->getPlaceGcode($layer->print_z);
         }
-        
+        if(length($placing_gcode) > 0) {
+        	# retract current extruder befor switching to vacuum nozzle
+        	$gcode .= $self->_gcodegen->retract(1);
+        	# place parts
+        	$gcode .= $placing_gcode;
+        	# switch back to current extruder in case the printer was left on the PnP tool
+        	$gcode .= $self->_gcodegen->writer()->toolchange($self->_gcodegen->get_current_extruder);
+        }
     }
     
     # apply spiral vase post-processing if this layer contains suitable geometry
