@@ -102,6 +102,7 @@ class GCode {
     std::string retract(bool toolchange = false);
     std::string unretract();
     std::string set_extruder(unsigned int extruder_id);
+    unsigned int get_current_extruder();
     Pointf point_to_gcode(const Point &point);
     
     private:

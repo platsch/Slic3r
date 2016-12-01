@@ -759,6 +759,13 @@ GCode::set_extruder(unsigned int extruder_id)
     return gcode;
 }
 
+// Return id of the current extruder
+unsigned int
+GCode::get_current_extruder()
+{
+	return this->writer.extruder()->id;
+}
+
 // convert a model-space scaled point into G-code coordinates
 Pointf
 GCode::point_to_gcode(const Point &point)
