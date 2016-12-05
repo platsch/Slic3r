@@ -23,6 +23,7 @@ class NetPoint
 	const unsigned int getKey() const {return this->key;};
 	const std::string getNetName() const {return this->netName;};
 	Pointf3 getPoint() const {return this->point;};
+	void setPosition(double x, double y, double z);
 	const netPointType getType() const {return this->type;};
 	bool setRouteExtensionPoints(const Pointf3 innerPoint, const Pointf3 outerPoint);
 	Pointf3 getRouteExtension(const Pointf3 fromPoint);

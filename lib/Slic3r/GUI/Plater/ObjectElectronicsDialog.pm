@@ -261,6 +261,7 @@ sub new {
         
         $canvas->on_select(sub {
             my ($volume_idx) = @_;
+            return if($volume_idx < 0);
             
             # object is a part
             my $part = $self->{part_lookup}[$volume_idx];
@@ -274,11 +275,34 @@ sub new {
             	#
             }
             
-            # object is a point
+            # object is a waypoint
+            my $waypoint = $self->{netPoint_lookup}[$volume_idx];
+            if(defined $waypoint) {
+            	# populate property grid
+			    $self->{propgrid}->Clear;
+			    my $prop;
+			    # read only info values
+			    
+			    #$prop = $self->{propgrid}->Append(new Wx::StringProperty("Waypoint type", "Waypoint type", $wayopint->getName()));
+			    #$prop->Enable(0);
+			    
+			    my $position = $waypoint->getPoint();
+			    $self->{propgrid}->Append(new Wx::PropertyCategory("Position"));
+			    $prop = $self->{propgrid}->Append(new Wx::FloatProperty("X", "X", $position->x));
+			    $prop->Enable(0) if(!$waypoint->isWaypointType);
+			    $prop = $self->{propgrid}->Append(new Wx::FloatProperty("Y", "Y", $position->y));
+			    $prop->Enable(0) if(!$waypoint->isWaypointType);
+			    $prop = $self->{propgrid}->Append(new Wx::FloatProperty("Z", "Z", $position->z));
+			    $prop->Enable(0) if(!$waypoint->isWaypointType);
+			    
+			    $self->{property_selected_type} = PROPERTY_WAYPOINT;
+    			$self->{property_selected_object} = $waypoint;
+            }
         });
         
         $canvas->on_double_click(sub {
             my ($volume_idx) = @_;
+            return if($volume_idx < 0);
             
             # object is a part
             
@@ -304,6 +328,7 @@ sub new {
         
         $canvas->on_right_double_click(sub {
             my ($volume_idx) = @_;
+            return if($volume_idx < 0);
             
             # object is a part -> remove part from canvas
             my $part = $self->{part_lookup}[$volume_idx];
@@ -787,6 +812,13 @@ sub property_selection_changed {
     if($self->{property_selected_type} == PROPERTY_PART) {
     	$self->savePartProperties($self->{property_selected_object});
     	$self->reload_tree($self->{property_selected_object}->getPartID());
+    }
+    
+    if($self->{property_selected_type} == PROPERTY_WAYPOINT) {
+    	my $x = $self->{propgrid}->GetPropertyValue("Position.X")->GetDouble;
+    	my $y = $self->{propgrid}->GetPropertyValue("Position.Y")->GetDouble;
+    	my $z = $self->{propgrid}->GetPropertyValue("Position.Z")->GetDouble;
+    	$self->{property_selected_object}->setPosition($x, $y, $z);
     }
     
     # trigger slicing steps to update modifications;
