@@ -8,7 +8,7 @@ use List::Util qw(min max);
 use Wx::Event qw(EVT_MOUSE_EVENTS);
 use base qw(Slic3r::GUI::3DScene);
 
-__PACKAGE__->mk_accessors( qw(on_rubberband_split on_waypoint_split on_right_double_click) );
+__PACKAGE__->mk_accessors( qw(on_place_part on_rubberband_split on_waypoint_split on_right_double_click) );
 
 use Data::Dumper;
 
@@ -125,6 +125,18 @@ sub load_electronic_part {
     );
     
     return $#{$self->volumes};
+}
+
+# start placing an electronic part.
+# on_place_part will be called when the users clicks to place this object.
+sub place_electronic_part {
+	my ($self, $part) = @_;
+	
+	my $mesh = $part->getMesh;
+	$mesh->translate($self->origin->x, $self->origin->y, $self->{current_z});
+	$self->load_electronic_part($mesh, [0.5, 0.5, 0, 0.6]);
+	
+    $self->{activity}->{place_electronic_part} = $part;
 }
 
 sub add_wire_point {
@@ -279,14 +291,25 @@ sub cancel_action {
 #######################################################################
 sub mouse_event_new {
     my ($self, $e) = @_;
-    if ($e->LeftUp && $self->{parent}->get_place) {
-        my $cur_pos = $self->mouse_ray($e->GetX, $e->GetY)->intersect_plane($self->{current_z});
-        my $item = $self->{parent}->get_place;
-        if ($item->{type} eq 'part') {
-            $self->{parent}->placePart($item->{part}, @$cur_pos);
-        }       
-        $self->{parent}->set_place(0);
-    }
+    if ($e->LeftUp && $self->{activity}->{place_electronic_part}) {
+        $self->on_place_part->($self->{activity}->{place_electronic_part}, $self->get_mouse_pos_3d_obj)
+        	if $self->on_place_part;
+        	
+        $self->{activity}->{place_electronic_part} = undef;
+    }	
+    elsif ($e->Moving && $self->{activity}->{place_electronic_part}) {
+    	# refresh mouse position
+    	$self->mouse_event($e);
+    	my $mpos = $self->get_mouse_pos_3d_obj;
+    	
+    	# remove mesh
+        pop @{$self->volumes};
+        
+        # generate mesh at new position. Not very efficient implementation...
+        my $mesh = $self->{activity}->{place_electronic_part}->getMesh;
+		$mesh->translate($self->origin->x + $mpos->x, $self->origin->y + $mpos->y, $self->{current_z});
+		$self->load_electronic_part($mesh, [0.5, 0.5, 0, 0.6]);
+    }	
     elsif ($e->Moving && $self->{activity}->{rubberband_splitting}) {
     	# refresh mouse position
     	$self->mouse_event($e);
