@@ -263,3 +263,9 @@
     $CVar = (PrintObjectStep)SvUV($PerlVar);
   %};
 };
+%typemap{PlacingMethod}{parsed}{
+  %cpp_type{PlacingMethod};
+  %precall_code{%
+    $CVar = (PlacingMethod)SvUV($PerlVar);
+  %};
+};

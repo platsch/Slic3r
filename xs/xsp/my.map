@@ -238,6 +238,7 @@ FlowRole     T_UV
 PrintStep     T_UV
 PrintObjectStep     T_UV
 SurfaceType     T_UV
+PlacingMethod     T_UV
 ClipperLib::JoinType		T_UV
 ClipperLib::PolyFillType		T_UV
 

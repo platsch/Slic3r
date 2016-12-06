@@ -64,6 +64,7 @@ use utf8;
 
 use Slic3r::Print::State ':steps';
 use Slic3r::Electronics::Electronics;
+use Slic3r::ElectronicPart ':PlacingMethods';
 use Slic3r::GUI::Electronics3DScene;
 use Slic3r::Config;
 use File::Basename qw(basename);
@@ -859,6 +860,16 @@ sub loadPartProperties {
     $prop = $self->{propgrid}->Append(new Wx::FloatProperty("Footprint height", "Footprint height", $part->getFootprintHeight()));
     $prop->Enable(0);
     
+    # how to place this part?
+    my $placingMethod = new Wx::PGChoices();
+	$placingMethod->Add("Automatic", PM_AUTOMATIC);
+	$placingMethod->Add("Manual", PM_MANUAL);
+	$placingMethod->Add("None", PM_NONE);
+    
+    $prop = $self->{propgrid}->Append(new Wx::EnumProperty("Placing method", "Placing method", $placingMethod, $part->getPlacingMethod));
+    $prop->Enable(0) if(!$part->isPlaced);
+
+	# position    
     my $position = $part->getPosition();
     $self->{propgrid}->Append(new Wx::PropertyCategory("Position"));
     $prop = $self->{propgrid}->Append(new Wx::FloatProperty("X", "X", $position->x));
@@ -868,6 +879,7 @@ sub loadPartProperties {
     $prop = $self->{propgrid}->Append(new Wx::FloatProperty("Z", "Z", $position->z));
     $prop->Enable(0) if(!$part->isPlaced);
     
+    #rotation
     my $rotation = $part->getRotation();
     $prop = $self->{propgrid}->Append(new Wx::PropertyCategory("Rotation"));
     $self->{propgrid}->Append(new Wx::FloatProperty("X", "X", $rotation->x));
@@ -889,6 +901,7 @@ sub savePartProperties {
     my ($part) = @_;
     
 	$part->setPartHeight($self->{propgrid}->GetPropertyValue("Part height")->GetDouble);
+	$part->setPlacingMethod($self->{propgrid}->GetPropertyValue("Placing method")->GetLong);
 
 	$part->setPosition($self->{propgrid}->GetPropertyValue("Position.X")->GetDouble,
 		$self->{propgrid}->GetPropertyValue("Position.Y")->GetDouble,
