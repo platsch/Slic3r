@@ -229,6 +229,15 @@ bool ElectronicNet::waypointsConnected(const unsigned int netPointKeyA, const un
 	return result;
 }
 
+/*
+ * How many connections are going from / to this waypoint?
+ */
+const unsigned int ElectronicNet::wayointDegree(const unsigned int waypointID)
+{
+	vertex_t v = this->netPointIndex[waypointID];
+	return boost::degree(v, this->netGraph);
+}
+
 
 /* Generates rubberbands of wired connections
  * from netGraph and returns the result
