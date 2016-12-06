@@ -264,7 +264,9 @@ Polylines Schematic::getChannels(const double z_bottom, const double z_top, coor
 		std::list<Line> lines;
 		for (RubberBandPtrs::const_iterator rb = (*net)->wiredRubberBands.begin(); rb != (*net)->wiredRubberBands.end(); ++rb) {
 			Lines l;
-			if((*rb)->getLayerSegments(z_bottom, z_top, layer_overlap, &l)) {
+			bool extendPinA = ((*net)->wayointDegree((*rb)->getNetPointAiD()) == 1);
+			bool extendPinB = ((*net)->wayointDegree((*rb)->getNetPointBiD()) == 1);
+			if((*rb)->getLayerSegments(z_bottom, z_top, layer_overlap, &l, extendPinA, extendPinB)) {
 				for (Lines::iterator line = l.begin(); line != l.end(); ++line) {
 					lines.push_back(*line);
 				}

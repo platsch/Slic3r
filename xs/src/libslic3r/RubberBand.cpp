@@ -97,9 +97,11 @@ const Pointf3* RubberBand::selectNearest(const Pointf3& p)
 
 /* Computes the segment of this rubberband crossing the given layer interval.
  * Endpoints are extended by extension_length if they lie outside of the layer
- * to ensure inter-layer connectivity. extension_length and result in scaled coordinates.
+ * to ensure inter-layer connectivity.
+ * Endpoints connecting an smd-pin are extended to the opposite of the pin if extendPinX is true.
+ * extension_length and result in scaled coordinates.
  */
-bool RubberBand::getLayerSegments(const double z_bottom, const double z_top, coord_t layer_overlap, Lines* segments)
+bool RubberBand::getLayerSegments(const double z_bottom, const double z_top, coord_t layer_overlap, Lines* segments, bool extendPinA, bool extendPinB)
 {
 	bool result = false;
 
@@ -123,7 +125,7 @@ bool RubberBand::getLayerSegments(const double z_bottom, const double z_top, coo
 			segment.a.y = scale_(this->a.y);
 
 			// if this is a pad, extend to pad perimeter
-			if(this->netPointA->getType() == PART) {
+			if(this->netPointA->getType() == PART && extendPinA) {
 				Pointf3 p = this->netPointA->getRouteExtension(this->b);
 				Line padExtension(segment.a, Point(scale_(p.x), scale_(p.y)));
 				segments->push_back(padExtension);
@@ -148,7 +150,7 @@ bool RubberBand::getLayerSegments(const double z_bottom, const double z_top, coo
 			segment.b.y = scale_(this->b.y);
 
 			// if this is a pad, extend to pad perimeter
-			if(this->netPointB->getType() == PART) {
+			if(this->netPointB->getType() == PART && extendPinB) {
 				Pointf3 p = this->netPointB->getRouteExtension(this->a);
 				Line padExtension(segment.b, Point(scale_(p.x), scale_(p.y)));
 				segments->push_back(padExtension);

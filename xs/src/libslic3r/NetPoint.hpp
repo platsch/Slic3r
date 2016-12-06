@@ -4,7 +4,6 @@
 #include "libslic3r.h"
 #include "Point.hpp"
 
-
 namespace Slic3r {
 
 class NetPoint;
