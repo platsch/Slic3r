@@ -125,6 +125,14 @@ PrintConfigDef::PrintConfigDef()
 	def->min = 0;
 	def->default_value = new ConfigOptionFloat(1.0);
 
+    def = this->add("conductive_wire_extrusion_width", coFloatOrPercent);
+	def->label = "Conductive wires";
+	def->category = "Extrusion Width";
+	def->tooltip = "Set this to a non-zero value to set a manual extrusion width for conductive wires. If left zero, no one ones was happens. If expressed as percentage (for example 200%) it will be computed over layer height.";
+	def->sidetext = "mm or % (leave 0 for default)";
+	def->cli = "conductive-wire-extrusion-width=s";
+	def->default_value = new ConfigOptionFloatOrPercent(0.5, false);
+
 	def = this->add("conductive_wire_first_extrusion_overlap", coFloat);
 	def->label = "First extrusion overlap";
 	def->tooltip = "Controls the length of overlap for the first wire within a single layer for more reliable extruder priming. Set zero to disable.";
@@ -133,13 +141,13 @@ PrintConfigDef::PrintConfigDef()
 	def->min = 0;
 	def->default_value = new ConfigOptionFloat(1.5);
 
-    def = this->add("conductive_wire_extrusion_width", coFloatOrPercent);
-	def->label = "Conductive wires";
-	def->category = "Extrusion Width";
-	def->tooltip = "Set this to a non-zero value to set a manual extrusion width for conductive wires. If left zero, no one ones was happens. If expressed as percentage (for example 200%) it will be computed over layer height.";
-	def->sidetext = "mm or % (leave 0 for default)";
-	def->cli = "conductive-wire-extrusion-width=s";
-	def->default_value = new ConfigOptionFloatOrPercent(0.5, false);
+	def = this->add("conductive_wire_overlap_min_extrusion_length", coFloat);
+	def->label = "Min extrusion for overlap";
+	def->tooltip = "Don't generate overlapping extrusion from the center of the line if the overall length of an extrusion path is less than this value.";
+	def->sidetext = "mm";
+	def->cli = "conductive_wire_overlap_min_extrusion_length=f";
+	def->min = 0;
+	def->default_value = new ConfigOptionFloat(0.0);
 
 	def = this->add("conductive_wire_slope_overlap", coFloat);
 	def->label = "Slope overlap";

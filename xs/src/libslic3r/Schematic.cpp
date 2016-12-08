@@ -254,7 +254,7 @@ bool Schematic::removeNetPoint(const NetPoint* netPoint)
 	return result;
 }
 
-Polylines Schematic::getChannels(const double z_bottom, const double z_top, coord_t extrusion_overlap, coord_t first_extrusion_overlap, coord_t layer_overlap)
+Polylines Schematic::getChannels(const double z_bottom, const double z_top, coord_t extrusion_overlap, coord_t first_extrusion_overlap, coord_t overlap_min_extrusion_length, coord_t layer_overlap)
 {
 
 	// update rubberbands
@@ -369,7 +369,7 @@ Polylines Schematic::getChannels(const double z_bottom, const double z_top, coor
 				clip_length = (*pl).length()/2 - extrusion_overlap;
 			}
 
-			if(((*pl).length()/2 - clip_length) > EPSILON) {
+			if((((*pl).length()/2 - clip_length) > EPSILON) && ((*pl).length() > overlap_min_extrusion_length)) {
 				Polyline pl2 = (*pl);
 
 				//first half
