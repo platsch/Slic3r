@@ -960,7 +960,7 @@ sub savePartInfo {
 # Purpose    : Event for load button
 # Parameters : $file to load
 # Returns    : none
-# Comment     : calls the method to read the file
+# Comment    : calls the method to read the file
 #######################################################################
 sub loadButtonPressed {
     my $self = shift;
@@ -991,10 +991,7 @@ sub loadButtonPressed {
 	        Slic3r::Electronics::Filereaders::Eagle->readFile($path . $files->getAttribute('source'), $self->{schematic}, $self->{config});
 	    }
     	$self->{schematic}->load3deFile($filename);
-        #Slic3r::Electronics::Filereaders::3DElectronics->readFile($filename,$schematic, $config);
     }
-    
-    #Slic3r::Electronics::Electronics->readFile($file,$self->{schematic}, $self->{config});
 
     $self->reload_tree;
     $self->triggerSlicing;
@@ -1070,21 +1067,29 @@ sub savePartButtonPressed {
 }
 
 #######################################################################
-# Purpose    : Event for save button
+# Purpose    : Event for button to save current design state as .3de file
 # Parameters : none
 # Returns    : none
-# Comment     : Calls Slic3r::Electronics::Electronics->writeFile
 #######################################################################
 sub saveButtonPressed {
     my $self = shift;
     my ($base,$path,$type) = fileparse($self->{schematic}->getFilename,('.sch','.SCH','3de','.3DE'));
     my $savePath = $path . $base . ".3de";
+    my $filename = $base . ".3de";
     my $schematicPath = $base . $type;
-    #if(Slic3r::Electronics::Filereaders::3DElectronics->writeFile($self->{schematic})) {
+    
+    my $dlg = Wx::FileDialog->new($self, 'Save electronics design file as:', $path,
+        $filename, &Slic3r::GUI::FILE_WILDCARDS->{elec}, wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
+    if ($dlg->ShowModal != wxID_OK) {
+        $dlg->Destroy;
+        return;
+    }
+    $savePath = Slic3r::decode_path($dlg->GetPaths);
+    
     if($self->{schematic}->write3deFile($savePath, $schematicPath)) {
-        Wx::MessageBox('File saved as '.$base.'.3de','Saved', Wx::wxICON_INFORMATION | Wx::wxOK,undef);
+   #     Wx::MessageBox('File saved to ' . $savePath . '.3de','Saved', Wx::wxICON_INFORMATION | Wx::wxOK, undef);
     } else {
-        Wx::MessageBox('Saving failed','Failed',Wx::wxICON_ERROR | Wx::wxOK,undef)
+        Wx::MessageBox('Saving failed','Failed', Wx::wxICON_ERROR | Wx::wxOK, undef)
     }
 }
 
@@ -1092,7 +1097,7 @@ sub saveButtonPressed {
 # Purpose    : MovesPart with Buttons
 # Parameters : x, y and z coordinates
 # Returns    : none
-# Comment     : moves Z by layer thickness
+# Comment    : moves Z by layer thickness
 #######################################################################
 sub movePart {
     my $self = shift;

@@ -51,6 +51,7 @@ use constant FILE_WILDCARDS => {
     gcode   => 'G-code files (*.gcode, *.gco, *.g, *.ngc)|*.gcode;*.GCODE;*.gco;*.GCO;*.g;*.G;*.ngc;*.NGC',
     svg     => 'SVG files *.svg|*.svg;*.SVG',
     sch     => 'Schematic files (*.sch, *.3de)|*.sch;*.SCH;*.3de;*.3DE',
+    elec    => '3de files (*.3de)|*.3de;*.3DE',
 };
 use constant MODEL_WILDCARD => join '|', @{&FILE_WILDCARDS}{qw(known stl obj amf)};
 
