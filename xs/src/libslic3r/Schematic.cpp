@@ -256,6 +256,10 @@ bool Schematic::removeNetPoint(const NetPoint* netPoint)
 
 Polylines Schematic::getChannels(const double z_bottom, const double z_top, coord_t extrusion_overlap, coord_t first_extrusion_overlap, coord_t overlap_min_extrusion_length, coord_t layer_overlap)
 {
+
+	// update rubberbands
+	this->getRubberBands();
+
 	Polylines pls;
 	Polylines pls_akku;
 

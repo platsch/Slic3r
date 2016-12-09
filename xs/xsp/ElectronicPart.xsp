@@ -32,6 +32,8 @@
     bool isVisible();
     bool isPlaced();
     void setPlaced(bool placed);
+    void setPlacingMethod(PlacingMethod method);
+    PlacingMethod getPlacingMethod();
     Clone<TriangleMesh> getFootprintMesh();
     Clone<TriangleMesh> getPartMesh();
     Clone<TriangleMesh> getMesh();
@@ -41,3 +43,19 @@
     	%code{% RETVAL = THIS->getPlaceDescription(*offset); %};
     void resetPrintedStatus();
 };
+
+%package{Slic3r::ElectronicPart};
+%{
+
+IV
+_constant()
+  ALIAS:
+    PM_AUTOMATIC            = PM_AUTOMATIC
+    PM_MANUAL               = PM_MANUAL
+    PM_NONE                 = PM_NONE
+  PROTOTYPE:
+  CODE:
+    RETVAL = ix;
+  OUTPUT: RETVAL
+
+%}

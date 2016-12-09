@@ -29,6 +29,11 @@ NetPoint& NetPoint::operator= (NetPoint other)
     return *this;
 }
 
+void NetPoint::setPosition(double x, double y, double z)
+{
+	this->point = Pointf3(x, y, z);
+}
+
 bool NetPoint::setRouteExtensionPoints(const Pointf3 innerPoint, const Pointf3 outerPoint)
 {
 	bool result = false;

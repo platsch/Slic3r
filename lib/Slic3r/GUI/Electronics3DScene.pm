@@ -8,7 +8,7 @@ use List::Util qw(min max);
 use Wx::Event qw(EVT_MOUSE_EVENTS);
 use base qw(Slic3r::GUI::3DScene);
 
-__PACKAGE__->mk_accessors( qw(on_rubberband_split on_waypoint_split on_right_double_click) );
+__PACKAGE__->mk_accessors( qw(on_place_part on_rubberband_split on_waypoint_split on_right_double_click) );
 
 use Data::Dumper;
 
@@ -33,10 +33,6 @@ sub new {
     EVT_MOUSE_EVENTS($self, \&mouse_event_new);
 
     return $self;
-}
-
-sub load_scene_volume {
-	my ($self) = @_;
 }
 
 # Inteded to draw lines for rubberbanding vizualisation
@@ -127,6 +123,19 @@ sub load_electronic_part {
     return $#{$self->volumes};
 }
 
+# start placing an electronic part.
+# on_place_part will be called when the users clicks to place this object.
+sub place_electronic_part {
+	my ($self, $part) = @_;
+	
+	my $mesh = $part->getMesh;
+	$mesh->translate($self->origin->x, $self->origin->y, $self->{current_z});
+	$self->load_electronic_part($mesh, [0, 0, 0.7, 0.7]);
+	
+    $self->{activity}->{place_electronic_part} = $part;
+    $self->enable_picking(0); # disable picking to preserve color (avoid hovering)
+}
+
 sub add_wire_point {
 	my ($self, $point, $color) = @_;
 	
@@ -199,17 +208,6 @@ sub add_wire_point {
     return $#{$self->volumes};
 }
 
-sub get_selected_volumes {
-	my $self = shift;
-	my @volume_ids;
-	
-	for my $volume_idx (0 .. $#{$self->volumes}) {
-		push @volume_ids, $volume_idx if $self->volumes->[$volume_idx]->selected;
-	}
-	
-	return @volume_ids;
-}
-
 # starts a selection of a 3rd point with lines rendered to the endpoint of the rubberband
 sub rubberband_splitting {
 	my ($self, $rubberband) = @_;
@@ -268,6 +266,13 @@ sub cancel_action {
         
         $self->{activity}->{point_splitting} = undef;
 	}
+	if($self->{activity}->{place_electronic_part}) {
+		# remove part preview
+        pop @{$self->volumes};
+        
+        $self->{activity}->{place_electronic_part} = undef;
+        $self->enable_picking(1);
+	}
 	$self->Refresh;
 }
 
@@ -279,14 +284,28 @@ sub cancel_action {
 #######################################################################
 sub mouse_event_new {
     my ($self, $e) = @_;
-    if ($e->LeftUp && $self->{parent}->get_place) {
-        my $cur_pos = $self->mouse_ray($e->GetX, $e->GetY)->intersect_plane($self->{current_z});
-        my $item = $self->{parent}->get_place;
-        if ($item->{type} eq 'part') {
-            $self->{parent}->placePart($item->{part}, @$cur_pos);
-        }       
-        $self->{parent}->set_place(0);
-    }
+    if ($e->LeftUp && $self->{activity}->{place_electronic_part}) {
+        $self->on_place_part->($self->{activity}->{place_electronic_part}, $self->get_mouse_pos_3d_obj)
+        	if $self->on_place_part;
+        	
+        $self->{activity}->{place_electronic_part} = undef;
+        $self->enable_picking(1);
+    }	
+    elsif ($e->Moving && $self->{activity}->{place_electronic_part}) {
+    	# refresh mouse position
+    	$self->mouse_event($e);
+    	my $mpos = $self->get_mouse_pos_3d_obj;
+    	
+    	# remove mesh
+        pop @{$self->volumes};
+        
+        # generate mesh at new position. Not very efficient implementation...
+        my $mesh = $self->{activity}->{place_electronic_part}->getMesh;
+		$mesh->translate($self->origin->x + $mpos->x, $self->origin->y + $mpos->y, $self->{current_z});
+		$self->load_electronic_part($mesh, [0, 0, 0.7, 0.7]);
+		$self->volumes->[$#{$self->volumes}]->hover(0);
+		#$self->volumes->[$#{$self->volumes}]->selected
+    }	
     elsif ($e->Moving && $self->{activity}->{rubberband_splitting}) {
     	# refresh mouse position
     	$self->mouse_event($e);
@@ -351,9 +370,8 @@ sub mouse_event_new {
     	my $volume_idx = $self->_hover_volume_idx // -1;
     	$self->on_right_double_click->($volume_idx)
     		if $self->on_right_double_click;
-    		
-    	#$self->mouse_event($e);
-    }else {
+    }
+    else{
         $self->mouse_event($e);
     }
 }

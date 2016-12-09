@@ -64,12 +64,14 @@ use utf8;
 
 use Slic3r::Print::State ':steps';
 use Slic3r::Electronics::Electronics;
+use Slic3r::ElectronicPart ':PlacingMethods';
 use Slic3r::GUI::Electronics3DScene;
 use Slic3r::Config;
 use File::Basename qw(basename);
-use Wx qw(:misc :sizer :slider :treectrl :button :filedialog wxTAB_TRAVERSAL wxSUNKEN_BORDER wxBITMAP_TYPE_PNG wxFD_OPEN wxFD_FILE_MUST_EXIST wxID_OK
+use Wx qw(:misc :sizer :slider :treectrl :button :filedialog :propgrid wxTAB_TRAVERSAL wxSUNKEN_BORDER wxBITMAP_TYPE_PNG wxFD_OPEN wxFD_FILE_MUST_EXIST wxID_OK
     wxTheApp wxTE_READONLY);
-use Wx::Event qw(EVT_BUTTON EVT_TREE_ITEM_COLLAPSING EVT_TREE_SEL_CHANGED EVT_SLIDER EVT_MOUSE_EVENTS);
+use Wx::Event qw(EVT_BUTTON EVT_TREE_ITEM_COLLAPSING EVT_TREE_ITEM_ACTIVATED EVT_TREE_SEL_CHANGED EVT_PG_CHANGED EVT_SLIDER EVT_MOUSE_EVENTS);
+use Wx::PropertyGrid;
 use base qw(Wx::Panel Class::Accessor);
 use Scalar::Util qw(blessed);
 use File::Basename;
@@ -77,10 +79,18 @@ use Data::Dumper;
 
 __PACKAGE__->mk_accessors(qw(print enabled _loaded canvas slider));
 
-use constant ICON_OBJECT        => 0;
-use constant ICON_SOLIDMESH     => 1;
-use constant ICON_MODIFIERMESH  => 2;
-use constant ICON_PCB           => 3;
+use constant {
+	ICON_OBJECT        => 0,
+	ICON_SOLIDMESH     => 1,
+	ICON_MODIFIERMESH  => 2,
+	ICON_PCB           => 3,
+};
+
+use constant {
+	PROPERTY_PART		=> 0,
+	PROPERTY_WAYPOINT	=> 1,
+	PROPERTY_NET		=> 2,
+};
 
 #######################################################################
 # Purpose    : Creates a Panel for 3DElectronics
@@ -98,8 +108,6 @@ sub new {
     $self->{schematic} = $print->objects->[$self->{obj_idx}]->schematic;
     my $place = $self->{place} = 0;
     $self->{model_object}->update_bounding_box;
-    $self->{rootOffset} = $self->{model_object}->_bounding_box->center;
-    print "rootOffset: " . $self->{rootOffset}->x . ", " . $self->{rootOffset}->y . "\n";
     my $configfile ||= Slic3r::decode_path(Wx::StandardPaths::Get->GetUserDataDir . "/electronics/electronics.ini");
     my $config = $self->{config};
     if (-f $configfile) {
@@ -142,62 +150,15 @@ sub new {
         $tree->SetPlData($rootId, { type => 'object' });
     }
     
-    # mid buttons
-    my $btn_place_part = $self->{btn_place_part} = Wx::Button->new($self, -1, "Place part", wxDefaultPosition, wxDefaultSize, wxBU_LEFT);
-    my $btn_remove_part = $self->{btn_remove_part} = Wx::Button->new($self, -1, "Remove Part", wxDefaultPosition, wxDefaultSize, wxBU_LEFT);
     
-    # mid buttons sizer
-    my $buttons_sizer_mid = Wx::FlexGridSizer->new( 1, 3, 5, 5);
-    $buttons_sizer_mid->Add($btn_place_part, 0);
-    $buttons_sizer_mid->Add($btn_remove_part, 0);
-    $btn_place_part->SetFont($Slic3r::GUI::small_font);
-    $btn_remove_part->SetFont($Slic3r::GUI::small_font);
+    # create PropertyGrid as central represation for part / waypoint / net properties
+    my $propgrid = $self->{propgrid} = Wx::PropertyGrid->new($self, -1, wxDefaultPosition, [350,-1], 
+        wxPG_SPLITTER_AUTO_CENTER | wxPG_DEFAULT_STYLE);
     
-    # part settings fields
-    my $name_text = $self->{name_text} = Wx::StaticText->new($self, -1, "Name:",wxDefaultPosition,[105,-1]);
-    my $name_field = $self->{name_field} = Wx::TextCtrl->new($self, -1, "",wxDefaultPosition, [230,-1], wxTE_READONLY);
-    
-    my $library_text = $self->{library_text} = Wx::StaticText->new($self, -1, "Library:",wxDefaultPosition,[105,-1]);
-    my $library_field = $self->{library_field} = Wx::TextCtrl->new($self, -1, "",wxDefaultPosition,  [230,-1], wxTE_READONLY);
-    
-    my $deviceset_text = $self->{deviceset_text} = Wx::StaticText->new($self, -1, "Deviceset:",wxDefaultPosition,[105,-1]);
-    my $deviceset_field = $self->{deviceset_field} = Wx::TextCtrl->new($self, -1, "",wxDefaultPosition,  [230,-1], wxTE_READONLY);
-    
-    my $device_text = $self->{device_text} = Wx::StaticText->new($self, -1, "Device:",wxDefaultPosition,[105,-1]);
-    my $device_field = $self->{device_field} = Wx::TextCtrl->new($self, -1, "",wxDefaultPosition,  [230,-1], wxTE_READONLY);
-    
-    my $package_text = $self->{package_text} = Wx::StaticText->new($self, -1, "Package:",wxDefaultPosition,[105,-1]);
-    my $package_field = $self->{package_field} = Wx::TextCtrl->new($self, -1, "",wxDefaultPosition,  [230,-1], wxTE_READONLY);
-    
-    my $height_text = $self->{height_text} = Wx::StaticText->new($self, -1, "Layer height:",wxDefaultPosition,[100,-1]);
-    my $height_field = $self->{height_field} = Wx::TextCtrl->new($self, -1, "",wxDefaultPosition,  [230,-1]);
-    
-    my $partheight_text = $self->{partheight_text} = Wx::StaticText->new($self, -1, "Part height:",wxDefaultPosition,[105,-1]);
-    my $partheight_field = $self->{partheight_field} = Wx::TextCtrl->new($self, -1, "",wxDefaultPosition,  [230,-1]);
-    
-    
-    my $position_text = $self->{position_text} = Wx::StaticText->new($self, -1, "Position:",wxDefaultPosition,[85,-1]);
-    my $x_text = $self->{x_text} = Wx::StaticText->new($self, -1, "X:",wxDefaultPosition,[15,-1]);
-    my $x_field = $self->{x_field} = Wx::TextCtrl->new($self, -1, "",wxDefaultPosition,  [60,-1]);
-    
-    my $y_text = $self->{y_text} = Wx::StaticText->new($self, -1, "Y:",wxDefaultPosition,[15,-1]);
-    my $y_field = $self->{y_field} = Wx::TextCtrl->new($self, -1, "",wxDefaultPosition,  [60,-1]);
-    
-    my $z_text = $self->{z_text} = Wx::StaticText->new($self, -1, "Z:",wxDefaultPosition,[15,-1]);
-    my $z_field = $self->{z_field} = Wx::TextCtrl->new($self, -1, "",wxDefaultPosition,  [60,-1]);
-    
-    my $rotation_text = $self->{rotation_text} = Wx::StaticText->new($self, -1, "Rotation:",wxDefaultPosition,[85,-1]);
-    my $xr_text = $self->{xr_text} = Wx::StaticText->new($self, -1, "X:",wxDefaultPosition,[15,-1]);
-    my $xr_field = $self->{xr_field} = Wx::TextCtrl->new($self, -1, "",wxDefaultPosition,  [60,-1]);
-    
-    my $yr_text = $self->{yr_text} = Wx::StaticText->new($self, -1, "Y:",wxDefaultPosition,[15,-1]);
-    my $yr_field = $self->{yr_field} = Wx::TextCtrl->new($self, -1, "",wxDefaultPosition,  [60,-1]);
-    
-    my $zr_text = $self->{zr_text} = Wx::StaticText->new($self, -1, "Z:",wxDefaultPosition,[15,-1]);
-    my $zr_field = $self->{zr_field} = Wx::TextCtrl->new($self, -1, "",wxDefaultPosition,  [60,-1]);
-    
-    my $empty_text = $self->{empty_text} = Wx::StaticText->new($self, -1, "",wxDefaultPosition,[15,-1]);
-    
+    $self->{property_selected_object} = -1;
+
+
+    # part settings fields    
     my $btn_xp = $self->{btn_xp} = Wx::Button->new($self, -1, "+", wxDefaultPosition, [20,20], wxBU_LEFT);
     my $btn_xm = $self->{btn_xm} = Wx::Button->new($self, -1, "-", wxDefaultPosition, [20,20], wxBU_LEFT);
     my $btn_yp = $self->{btn_yp} = Wx::Button->new($self, -1, "+", wxDefaultPosition, [20,20], wxBU_LEFT);
@@ -222,30 +183,11 @@ sub new {
     # settings sizer
     my $settings_sizer_main = Wx::StaticBoxSizer->new($self->{staticbox} = Wx::StaticBox->new($self, -1, "Part Settings"),wxVERTICAL);
     my $settings_sizer_main_grid = Wx::FlexGridSizer->new( 3, 1, 5, 5);
-    my $settings_sizer_sttings = Wx::FlexGridSizer->new( 7, 2, 5, 5);
     my $settings_sizer_positions = Wx::FlexGridSizer->new( 3, 7, 5, 5);
-    my $settings_sizer_buttons = Wx::FlexGridSizer->new( 1, 1, 5, 5);
     
     $settings_sizer_main->Add($settings_sizer_main_grid, 0,wxTOP, 0);
     
-    $settings_sizer_main_grid->Add($settings_sizer_sttings, 0,wxTOP, 0);
     $settings_sizer_main_grid->Add($settings_sizer_positions, 0,wxTOP, 0);
-    $settings_sizer_main_grid->Add($settings_sizer_buttons, 0,wxTOP, 0);
-    
-    $settings_sizer_sttings->Add($self->{name_text}, 1,wxTOP, 0);
-    $settings_sizer_sttings->Add($self->{name_field}, 1,wxTOP, 0);
-    $settings_sizer_sttings->Add($self->{library_text}, 1,wxTOP, 0);
-    $settings_sizer_sttings->Add($self->{library_field}, 1,wxTOP, 0);
-    $settings_sizer_sttings->Add($self->{deviceset_text}, 1,wxTOP, 0);
-    $settings_sizer_sttings->Add($self->{deviceset_field}, 1,wxTOP, 0);
-    $settings_sizer_sttings->Add($self->{device_text}, 1,wxTOP, 0);
-    $settings_sizer_sttings->Add($self->{device_field}, 1,wxTOP, 0);
-    $settings_sizer_sttings->Add($self->{package_text}, 1,wxTOP, 0);
-    $settings_sizer_sttings->Add($self->{package_field}, 1,wxTOP, 0);
-    $settings_sizer_sttings->Add($self->{height_text}, 1,wxTOP, 0);
-    $settings_sizer_sttings->Add($self->{height_field}, 1,wxTOP, 0);
-    $settings_sizer_sttings->Add($self->{partheight_text}, 1,wxTOP, 0);
-    $settings_sizer_sttings->Add($self->{partheight_field}, 1,wxTOP, 0);
     
     $settings_sizer_positions->Add($self->{position_text}, 1,wxTOP, 0);
     $settings_sizer_positions->Add($self->{x_text}, 1,wxTOP, 0);
@@ -272,10 +214,6 @@ sub new {
     $settings_sizer_positions->Add($self->{zr_field}, 1,wxTOP, 0);
     
     
-    my $btn_save_part = $self->{btn_save_part} = Wx::Button->new($self, -1, "Save Part", wxDefaultPosition, wxDefaultSize, wxBU_LEFT);
-    $settings_sizer_buttons->Add($btn_save_part, 0);
-    $btn_save_part->SetFont($Slic3r::GUI::small_font);
-    
     # lower buttons 
     #my $btn_save_netlist = $self->{btn_save_netlist} = Wx::Button->new($self, -1, "Save netlist", wxDefaultPosition, wxDefaultSize, wxBU_LEFT);
     
@@ -288,9 +226,8 @@ sub new {
     my $left_sizer = Wx::BoxSizer->new(wxVERTICAL);
     $left_sizer->Add($buttons_sizer, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 5);
     $left_sizer->Add($tree, 1, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 5);
-    $left_sizer->Add($buttons_sizer_mid, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 5);
+    $left_sizer->Add($propgrid, 1, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 5);
     $left_sizer->Add($settings_sizer_main, 0, wxEXPAND | wxALL| wxRIGHT | wxTOP, 5);
-    #$left_sizer->Add($buttons_sizer_bottom, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 5);
     
     # slider for choosing layer
     my $slider = $self->{slider} = Wx::Slider->new(
@@ -325,11 +262,12 @@ sub new {
         
         $canvas->on_select(sub {
             my ($volume_idx) = @_;
+            return if($volume_idx < 0);
             
             # object is a part
-            my $partID = $self->{part_lookup}[$volume_idx];
-            if(defined $partID) {
-            	$self->reload_tree($partID);	
+            my $part = $self->{part_lookup}[$volume_idx];
+            if(defined $part) {
+            	$self->reload_tree($part->getPartID);	
             }
             
             # object is a rubberband
@@ -338,11 +276,34 @@ sub new {
             	#
             }
             
-            # object is a point
+            # object is a waypoint
+            my $waypoint = $self->{netPoint_lookup}[$volume_idx];
+            if(defined $waypoint) {
+            	# populate property grid
+			    $self->{propgrid}->Clear;
+			    my $prop;
+			    # read only info values
+			    
+			    #$prop = $self->{propgrid}->Append(new Wx::StringProperty("Waypoint type", "Waypoint type", $wayopint->getName()));
+			    #$prop->Enable(0);
+			    
+			    my $position = $waypoint->getPoint();
+			    $self->{propgrid}->Append(new Wx::PropertyCategory("Position"));
+			    $prop = $self->{propgrid}->Append(new Wx::FloatProperty("X", "X", $position->x));
+			    $prop->Enable(0) if(!$waypoint->isWaypointType);
+			    $prop = $self->{propgrid}->Append(new Wx::FloatProperty("Y", "Y", $position->y));
+			    $prop->Enable(0) if(!$waypoint->isWaypointType);
+			    $prop = $self->{propgrid}->Append(new Wx::FloatProperty("Z", "Z", $position->z));
+			    $prop->Enable(0) if(!$waypoint->isWaypointType);
+			    
+			    $self->{property_selected_type} = PROPERTY_WAYPOINT;
+    			$self->{property_selected_object} = $waypoint;
+            }
         });
         
         $canvas->on_double_click(sub {
             my ($volume_idx) = @_;
+            return if($volume_idx < 0);
             
             # object is a part
             
@@ -368,6 +329,17 @@ sub new {
         
         $canvas->on_right_double_click(sub {
             my ($volume_idx) = @_;
+            return if($volume_idx < 0);
+            
+            # object is a part -> remove part from canvas
+            my $part = $self->{part_lookup}[$volume_idx];
+            if(defined $part) {
+            	$self->{plater}->stop_background_process;
+    			$part->setPlaced(0);
+    			$part->resetPosition;
+    			$self->reload_tree($part->getPartID);
+    			$self->triggerSlicing;
+            }
             
             # object is a rubberband -> delete this wire
             my $rubberband = $self->{rubberband_lookup}[$volume_idx];
@@ -388,6 +360,11 @@ sub new {
             		$self->triggerSlicing;
             	}
             }
+        });
+        # callback for placing a part from the list on the canvas
+        $canvas->on_place_part(sub {
+            my ($part, $pos) = @_;
+            $self->placePart($part, $pos);
         });
         
         $canvas->on_rubberband_split(sub {
@@ -439,26 +416,37 @@ sub new {
         $event->Veto;
     });
     
+    # set part to be selected by left-clicking on the canvas
+    EVT_TREE_ITEM_ACTIVATED($self, $tree, sub {
+        my ($self, $event) = @_;
+        my $selection = $self->get_tree_selection;
+        if ($selection->{type} eq 'part') {
+        	my $part = $selection->{part};
+        	if(!$part->isPlaced) {
+        		my $mesh = $part->getMesh();
+        		$self->{canvas}->place_electronic_part($part);
+        	}
+        }
+    });
+    
     EVT_TREE_SEL_CHANGED($self, $tree, sub {
         my ($self, $event) = @_;
         return if $self->{disable_tree_sel_changed_event};
-        $self->selection_changed;
+        $self->tree_selection_changed;
+    });
+    
+    # Property grid changed
+    EVT_PG_CHANGED($self, $propgrid, sub {
+        my ($self, $event) = @_;
+        $self->property_selection_changed;
     });
     
     EVT_BUTTON($self, $self->{btn_load_netlist}, sub { 
         $self->loadButtonPressed;
     });
     
-    EVT_BUTTON($self, $self->{btn_place_part}, sub { 
-        $self->placeButtonPressed; 
-    });
-    
     EVT_BUTTON($self, $self->{btn_remove_part}, sub { 
         $self->removeButtonPressed; 
-    });
-    
-    EVT_BUTTON($self, $self->{btn_save_part}, sub { 
-        $self->savePartButtonPressed; 
     });
     
     EVT_BUTTON($self, $self->{btn_save_netlist}, sub { 
@@ -524,15 +512,6 @@ sub sliderMoved {
     my $self = shift;
     my $height =  $self->{layers_z}[$self->{slider}->GetValue];
     my $changed = 0;
-    
-#    my $partlist = $self->{schematic}->getPartlist();
-#    for my $part (@{$partlist}) {
-#    	if (($part->isPlaced && 
-#            (!$part->isVisible && $part->getPosition()->z-$part->getFootprintHeight <= $height) ||
-#            ($part->isVisible && $part->getPosition()->z-$part->getFootprintHeight > $height))) {
-#            $changed = 1;
-#        }
-#    }
     
     $self->set_z($height);
     if ($changed == 1) {
@@ -620,10 +599,11 @@ sub render_print {
         		#if ($part->getPosition()->z-$part->getFootprintHeight() <= $height || $self->{config}->{_}{show_parts_on_higher_layers}) {
         		#	$part->setVisibility(1);
         			my $mesh = $part->getMesh();
-        			$mesh->translate($self->{rootOffset}->x, $self->{rootOffset}->y, 0);
+        			my $offset = $self->{model_object}->_bounding_box->center;
+        			$mesh->translate($offset->x, $offset->y, 0);
         			my $object_id = $self->canvas->load_electronic_part($mesh);
         			# lookup table
-        			$self->{part_lookup}[$object_id] = $part->getPartID;
+        			$self->{part_lookup}[$object_id] = $part;
         		#}else{
         		#	$part->setVisibility(0);
         		#}
@@ -668,15 +648,15 @@ sub render_print {
 #######################################################################
 sub placePart {
     my $self = shift;
-    my ($part, $x, $y, $z) = @_;
+    my ($part, $pos) = @_;
     
     $self->{plater}->stop_background_process;
     
     # round values from canvas
-    $x = int($x*1000)/1000.0;
-    $y = int($y*1000)/1000.0;
-    $z = int($z*1000)/1000.0;
-    $part->setPosition($x-$self->{rootOffset}->x, $y-$self->{rootOffset}->y, $z);
+    my $x = int($pos->x*1000)/1000.0;
+    my $y = int($pos->y*1000)/1000.0;
+    my $z = int($pos->z*1000)/1000.0;
+    $part->setPosition($x, $y, $z);
     $part->setFootprintHeight($self->get_layer_thickness($z));
     $part->setPlaced(1);
     $part->setVisibility(1);
@@ -685,22 +665,6 @@ sub placePart {
     # trigger slicing steps to update modifications;
     $self->triggerSlicing;
     
-}
-
-#######################################################################
-# Purpose    : Removes a part and its footprint from canvas
-# Parameters : part or volume_id
-# Returns    : none
-# Comment     : 
-#######################################################################
-sub removePart {
-    my ($self, $part) = @_;
-    
-    $self->{plater}->stop_background_process;
-    $part->setPlaced(0);
-    $part->resetPosition;
-    $self->reload_tree($part->getPartID);
-    $self->triggerSlicing;
 }
 
 #######################################################################
@@ -798,7 +762,7 @@ sub reload_tree {
 # Returns    : volumeid or undef
 # Comment     :
 #######################################################################
-sub get_selection {
+sub get_tree_selection {
     my ($self) = @_;
     
     my $nodeId = $self->{tree}->GetSelection;
@@ -814,9 +778,9 @@ sub get_selection {
 # Returns    : none
 # Comment     :
 #######################################################################
-sub selection_changed {
+sub tree_selection_changed {
     my ($self) = @_;
-    my $selection = $self->get_selection;
+    my $selection = $self->get_tree_selection;
     if ($selection->{type} eq 'part') {
     	my $part = $selection->{part};
     	# jump to corresponding layer
@@ -832,11 +796,222 @@ sub selection_changed {
     			}
     		}
     	}
-    	$self->showPartInfo($part);
+    	$self->loadPartProperties($part);
+    	$self->{property_selected_type} = PROPERTY_PART;
+    	$self->{property_selected_object} = $part;
     }else {
-        $self->clearPartInfo;
+        $self->{propgrid}->Clear;
     }
 }
+
+
+# saves updated values from the propertyGrid
+sub property_selection_changed {
+    my ($self) = @_;
+    
+    # current properties are of type...
+    if($self->{property_selected_type} == PROPERTY_PART) {
+    	$self->savePartProperties($self->{property_selected_object});
+    	$self->reload_tree($self->{property_selected_object}->getPartID());
+    }
+    
+    if($self->{property_selected_type} == PROPERTY_WAYPOINT) {
+    	my $x = $self->{propgrid}->GetPropertyValue("Position.X")->GetDouble;
+    	my $y = $self->{propgrid}->GetPropertyValue("Position.Y")->GetDouble;
+    	my $z = $self->{propgrid}->GetPropertyValue("Position.Z")->GetDouble;
+    	$self->{property_selected_object}->setPosition($x, $y, $z);
+    }
+    
+    # trigger slicing steps to update modifications;
+    $self->{print}->objects->[$self->{obj_idx}]->invalidate_step(STEP_SLICE);
+    # calls schedule to update the toolpath to give the user an opportunity for multiple position updates
+    $self->{plater}->schedule_background_process;
+}
+
+
+#######################################################################
+# Purpose    : Shows the part info in the GUI
+# Parameters : part to display
+# Returns    : none
+# Comment     :
+#######################################################################
+sub loadPartProperties {
+    my $self = shift;
+    my ($part) = @_;
+    
+    # populate property grid
+    $self->{propgrid}->Clear;
+    my $prop;
+    # read only info values
+    $prop = $self->{propgrid}->Append(new Wx::StringProperty("Part name", "Part name", $part->getName()));
+    $prop->Enable(0);
+    $prop = $self->{propgrid}->Append(new Wx::StringProperty("Library", "Library", $part->getLibrary()));
+    $prop->Enable(0);
+    $prop = $self->{propgrid}->Append(new Wx::StringProperty("Deviceset", "Deviceset", $part->getDeviceset()));
+    $prop->Enable(0);
+    $prop = $self->{propgrid}->Append(new Wx::StringProperty("Device", "Device", $part->getDevice()));
+    $prop->Enable(0);
+    $prop = $self->{propgrid}->Append(new Wx::StringProperty("Package", "Package", $part->getPackage()));
+    $prop->Enable(0);
+    
+    # editable values
+    $prop = $self->{propgrid}->Append(new Wx::FloatProperty("Part height", "Part height", $part->getPartHeight()));
+    $prop->Enable(0) if(!$part->isPlaced);
+    $prop = $self->{propgrid}->Append(new Wx::FloatProperty("Footprint height", "Footprint height", $part->getFootprintHeight()));
+    $prop->Enable(0);
+    
+    # how to place this part?
+    my $placingMethod = new Wx::PGChoices();
+	$placingMethod->Add("Automatic", PM_AUTOMATIC);
+	$placingMethod->Add("Manual", PM_MANUAL);
+	$placingMethod->Add("None", PM_NONE);
+    
+    $prop = $self->{propgrid}->Append(new Wx::EnumProperty("Placing method", "Placing method", $placingMethod, $part->getPlacingMethod));
+    $prop->Enable(0) if(!$part->isPlaced);
+
+	# position    
+    my $position = $part->getPosition();
+    $self->{propgrid}->Append(new Wx::PropertyCategory("Position"));
+    $prop = $self->{propgrid}->Append(new Wx::FloatProperty("X", "X", $position->x));
+    $prop->Enable(0) if(!$part->isPlaced);
+    $prop = $self->{propgrid}->Append(new Wx::FloatProperty("Y", "Y", $position->y));
+    $prop->Enable(0) if(!$part->isPlaced);
+    $prop = $self->{propgrid}->Append(new Wx::FloatProperty("Z", "Z", $position->z));
+    $prop->Enable(0) if(!$part->isPlaced);
+    
+    #rotation
+    my $rotation = $part->getRotation();
+    $prop = $self->{propgrid}->Append(new Wx::PropertyCategory("Rotation"));
+    $self->{propgrid}->Append(new Wx::FloatProperty("X", "X", $rotation->x));
+    $prop->Enable(0) if(!$part->isPlaced);
+    $prop = $self->{propgrid}->Append(new Wx::FloatProperty("Y", "Y", $rotation->y));
+    $prop->Enable(0) if(!$part->isPlaced);
+    $prop = $self->{propgrid}->Append(new Wx::FloatProperty("Z", "Z", $rotation->z));
+    $prop->Enable(0) if(!$part->isPlaced);
+}
+
+#######################################################################
+# Purpose    : Saves the partinfo of the displayed part
+# Parameters : part to save
+# Returns    : none
+# Comment     :
+#######################################################################
+sub savePartProperties {
+    my $self = shift;
+    my ($part) = @_;
+    
+	$part->setPartHeight($self->{propgrid}->GetPropertyValue("Part height")->GetDouble);
+	$part->setPlacingMethod($self->{propgrid}->GetPropertyValue("Placing method")->GetLong);
+
+	$part->setPosition($self->{propgrid}->GetPropertyValue("Position.X")->GetDouble,
+		$self->{propgrid}->GetPropertyValue("Position.Y")->GetDouble,
+		$self->{propgrid}->GetPropertyValue("Position.Z")->GetDouble
+	);
+	
+	$part->setRotation($self->{propgrid}->GetPropertyValue("Rotation.X")->GetDouble,
+		$self->{propgrid}->GetPropertyValue("Rotation.Y")->GetDouble,
+		$self->{propgrid}->GetPropertyValue("Rotation.Z")->GetDouble
+	);
+}
+
+#######################################################################
+# Purpose    : Event for load button
+# Parameters : $file to load
+# Returns    : none
+# Comment    : calls the method to read the file
+#######################################################################
+sub loadButtonPressed {
+    my $self = shift;
+    my ($filename) = @_;
+    
+    if (!$filename) {
+        my $dlg = Wx::FileDialog->new(
+            $self, 
+            'Select schematic to load:',
+            '',
+            '',
+            &Slic3r::GUI::FILE_WILDCARDS->{sch}, 
+            wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+        return unless $dlg->ShowModal == wxID_OK;
+        $filename = Slic3r::decode_path($dlg->GetPaths);
+        $dlg->Destroy;
+    }    
+
+    my ($base,$path,$type) = fileparse($filename,('.sch','.SCH','3de','.3DE'));
+    if ($type eq "sch" || $type eq "SCH" || $type eq ".sch" || $type eq ".SCH") {
+        Slic3r::Electronics::Filereaders::Eagle->readFile($filename,$self->{schematic}, $self->{config});
+    } elsif ($type eq "3de" || $type eq "3DE" || $type eq ".3de" || $type eq ".3DE") {
+    	# read corresponding .sch file first
+    	my $parser = XML::LibXML->new();
+	    my $xmldoc = $parser->parse_file($filename);
+	    for my $files ($xmldoc->findnodes('/electronics/filename')) {
+	    	print "file to be opened: " . $path . $files->getAttribute('source') . "\n";
+	        Slic3r::Electronics::Filereaders::Eagle->readFile($path . $files->getAttribute('source'), $self->{schematic}, $self->{config});
+	    }
+    	$self->{schematic}->load3deFile($filename);
+    }
+
+    $self->reload_tree;
+    $self->triggerSlicing;
+}
+
+
+#######################################################################
+# Purpose    : Event for button to save current design state as .3de file
+# Parameters : none
+# Returns    : none
+#######################################################################
+sub saveButtonPressed {
+    my $self = shift;
+    my ($base,$path,$type) = fileparse($self->{schematic}->getFilename,('.sch','.SCH','3de','.3DE'));
+    my $savePath = $path . $base . ".3de";
+    my $filename = $base . ".3de";
+    my $schematicPath = $base . $type;
+    
+    my $dlg = Wx::FileDialog->new($self, 'Save electronics design file as:', $path,
+        $filename, &Slic3r::GUI::FILE_WILDCARDS->{elec}, wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
+    if ($dlg->ShowModal != wxID_OK) {
+        $dlg->Destroy;
+        return;
+    }
+    $savePath = Slic3r::decode_path($dlg->GetPaths);
+    
+    if($self->{schematic}->write3deFile($savePath, $schematicPath)) {
+   #     Wx::MessageBox('File saved to ' . $savePath . '.3de','Saved', Wx::wxICON_INFORMATION | Wx::wxOK, undef);
+    } else {
+        Wx::MessageBox('Saving failed','Failed', Wx::wxICON_ERROR | Wx::wxOK, undef)
+    }
+}
+
+#######################################################################
+# Purpose    : MovesPart with Buttons
+# Parameters : x, y and z coordinates
+# Returns    : none
+# Comment    : moves Z by layer thickness
+#######################################################################
+sub movePart {
+    my $self = shift;
+    my ($x,$y,$z) = @_;
+    
+    my $selection = $self->get_tree_selection;
+    if ($selection->{type} eq 'part') {
+        my $part = $selection->{part};
+        
+        $self->{plater}->stop_background_process;
+        my $oldPos = $part->getPosition;
+        $part->setPosition($oldPos->x + $x, $oldPos->y + $y, $oldPos->z + $self->get_layer_thickness($oldPos->z)*$z);
+        
+        $self->loadPartProperties($part);
+        $self->reload_tree($part->getPartID);
+        # reload_tree implicitly triggeres the _updateWiredRubberbands method in schematic.cpp
+        # which is nessecary to have correct wiring!
+                
+        # trigger slicing steps to update modifications;
+		$self->triggerSlicing;
+
+    }
+}
+
 
 #######################################################################
 # Purpose    : Gets the current z position of the canvas
@@ -883,242 +1058,6 @@ sub get_layer_thickness {
             }
         }
         $i += 1;
-    }
-}
-
-#######################################################################
-# Purpose    : Shows the part info in the GUI
-# Parameters : part to display
-# Returns    : none
-# Comment     :
-#######################################################################
-sub showPartInfo {
-    my $self = shift;
-    my ($part) = @_;
-    $self->clearPartInfo;
-    $self->{name_field}->SetValue($part->getName());
-    $self->{library_field}->SetValue($part->getLibrary());
-    $self->{deviceset_field}->SetValue($part->getDeviceset());
-    $self->{device_field}->SetValue($part->getDevice());
-    $self->{package_field}->SetValue($part->getPackage());
-    $self->{height_field}->SetValue($part->getFootprintHeight());
-    $self->{partheight_field}->SetValue($part->getPartHeight());
-    my $position = $part->getPosition();
-    $self->{x_field}->SetValue($position->x);
-    $self->{y_field}->SetValue($position->y);
-    $self->{z_field}->SetValue($position->z);
-    my $rotation = $part->getRotation();
-    $self->{xr_field}->SetValue($rotation->x);
-    $self->{yr_field}->SetValue($rotation->y);
-    $self->{zr_field}->SetValue($rotation->z);
-}
-
-#######################################################################
-# Purpose    : Clears the part info
-# Parameters : none
-# Returns    : none
-# Comment     :
-#######################################################################
-sub clearPartInfo {
-    my $self = shift;
-    $self->{name_field}->SetValue("");
-    $self->{library_field}->SetValue("");
-    $self->{deviceset_field}->SetValue("");
-    $self->{device_field}->SetValue("");
-    $self->{package_field}->SetValue("");
-    $self->{height_field}->SetValue("");
-    $self->{partheight_field}->SetValue("");
-    $self->{x_field}->SetValue("");
-    $self->{y_field}->SetValue("");
-    $self->{z_field}->SetValue("");
-    $self->{xr_field}->SetValue("");
-    $self->{yr_field}->SetValue("");
-    $self->{zr_field}->SetValue("");
-}
-
-#######################################################################
-# Purpose    : Saves the partinfo of the displayed part
-# Parameters : part to save
-# Returns    : none
-# Comment     :
-#######################################################################
-sub savePartInfo {
-    my $self = shift;
-    my ($part) = @_;
-    
-	$part->setPartHeight($self->{partheight_field}->GetValue);
-
-    if (!($self->{x_field}->GetValue eq "") && !($self->{y_field}->GetValue eq "") && !($self->{z_field}->GetValue eq "")) {
-    	$part->setPosition($self->{x_field}->GetValue, $self->{y_field}->GetValue, $self->{z_field}->GetValue);
-    }
-    if (!($self->{xr_field}->GetValue eq "") && !($self->{yr_field}->GetValue eq "") && !($self->{zr_field}->GetValue eq "")) {
-    	$part->setRotation($self->{xr_field}->GetValue, $self->{yr_field}->GetValue, $self->{zr_field}->GetValue);
-    }
-}
-
-#######################################################################
-# Purpose    : Event for load button
-# Parameters : $file to load
-# Returns    : none
-# Comment    : calls the method to read the file
-#######################################################################
-sub loadButtonPressed {
-    my $self = shift;
-    my ($filename) = @_;
-    
-    if (!$filename) {
-        my $dlg = Wx::FileDialog->new(
-            $self, 
-            'Select schematic to load:',
-            '',
-            '',
-            &Slic3r::GUI::FILE_WILDCARDS->{sch}, 
-            wxFD_OPEN | wxFD_FILE_MUST_EXIST);
-        return unless $dlg->ShowModal == wxID_OK;
-        $filename = Slic3r::decode_path($dlg->GetPaths);
-        $dlg->Destroy;
-    }    
-
-    my ($base,$path,$type) = fileparse($filename,('.sch','.SCH','3de','.3DE'));
-    if ($type eq "sch" || $type eq "SCH" || $type eq ".sch" || $type eq ".SCH") {
-        Slic3r::Electronics::Filereaders::Eagle->readFile($filename,$self->{schematic}, $self->{config});
-    } elsif ($type eq "3de" || $type eq "3DE" || $type eq ".3de" || $type eq ".3DE") {
-    	# read corresponding .sch file first
-    	my $parser = XML::LibXML->new();
-	    my $xmldoc = $parser->parse_file($filename);
-	    for my $files ($xmldoc->findnodes('/electronics/filename')) {
-	    	print "file to be opened: " . $path . $files->getAttribute('source') . "\n";
-	        Slic3r::Electronics::Filereaders::Eagle->readFile($path . $files->getAttribute('source'), $self->{schematic}, $self->{config});
-	    }
-    	$self->{schematic}->load3deFile($filename);
-    }
-
-    $self->reload_tree;
-    $self->triggerSlicing;
-}
-
-#######################################################################
-# Purpose    : Event for place button
-# Parameters : none
-# Returns    : none
-# Comment     : sets the place variable to the current selection
-#######################################################################
-sub placeButtonPressed {
-    my $self = shift;
-    $self->{place} = $self->get_selection;
-}
-
-#######################################################################
-# Purpose    : Returns the current item to place
-# Parameters : none
-# Returns    : item to place
-# Comment     :
-#######################################################################
-sub get_place {
-    my $self = shift;
-    return $self->{place};
-}
-
-#######################################################################
-# Purpose    : Sets the item to place
-# Parameters : item to place
-# Returns    : none
-# Comment     :
-#######################################################################
-sub set_place {
-    my $self = shift;
-    my ($value) = @_;
-    $self->{place} = $value;
-}
-
-#######################################################################
-# Purpose    : Event for remove button
-# Parameters : none
-# Returns    : none
-# Comment     : calls the remove function
-#######################################################################
-sub removeButtonPressed {
-    my $self = shift;
-    my $selection = $self->get_selection;
-    if ($selection->{type} eq 'part') {
-    	$self->removePart($selection->{part});
-    }
-}
-
-#######################################################################
-# Purpose    : Event for save part button
-# Parameters : none
-# Returns    : none
-# Comment     : saves the partinfo
-#######################################################################
-sub savePartButtonPressed {
-    my $self = shift;
-    my $selection = $self->get_selection;
-    if ($selection->{type} eq 'part') {
-        my $part = $selection->{part};
-        $self->savePartInfo($part);
-        $self->reload_tree($part->getPartID());
-    }
-    
-    # trigger slicing steps to update modifications;
-    $self->{print}->objects->[$self->{obj_idx}]->invalidate_step(STEP_SLICE);
-    # calls schedule to update the toolpath to give the user an opportunity for multiple position updates
-    $self->{plater}->schedule_background_process;
-}
-
-#######################################################################
-# Purpose    : Event for button to save current design state as .3de file
-# Parameters : none
-# Returns    : none
-#######################################################################
-sub saveButtonPressed {
-    my $self = shift;
-    my ($base,$path,$type) = fileparse($self->{schematic}->getFilename,('.sch','.SCH','3de','.3DE'));
-    my $savePath = $path . $base . ".3de";
-    my $filename = $base . ".3de";
-    my $schematicPath = $base . $type;
-    
-    my $dlg = Wx::FileDialog->new($self, 'Save electronics design file as:', $path,
-        $filename, &Slic3r::GUI::FILE_WILDCARDS->{elec}, wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
-    if ($dlg->ShowModal != wxID_OK) {
-        $dlg->Destroy;
-        return;
-    }
-    $savePath = Slic3r::decode_path($dlg->GetPaths);
-    
-    if($self->{schematic}->write3deFile($savePath, $schematicPath)) {
-   #     Wx::MessageBox('File saved to ' . $savePath . '.3de','Saved', Wx::wxICON_INFORMATION | Wx::wxOK, undef);
-    } else {
-        Wx::MessageBox('Saving failed','Failed', Wx::wxICON_ERROR | Wx::wxOK, undef)
-    }
-}
-
-#######################################################################
-# Purpose    : MovesPart with Buttons
-# Parameters : x, y and z coordinates
-# Returns    : none
-# Comment    : moves Z by layer thickness
-#######################################################################
-sub movePart {
-    my $self = shift;
-    my ($x,$y,$z) = @_;
-    
-    my $selection = $self->get_selection;
-    if ($selection->{type} eq 'part') {
-        my $part = $selection->{part};
-        
-        $self->{plater}->stop_background_process;
-        my $oldPos = $part->getPosition;
-        $part->setPosition($oldPos->x + $x, $oldPos->y + $y, $oldPos->z + $self->get_layer_thickness($oldPos->z)*$z);
-        
-        $self->showPartInfo($part);
-        $self->reload_tree($part->getPartID);
-        # reload_tree implicitly triggeres the _updateWiredRubberbands method in schematic.cpp
-        # which is nessecary to have correct wiring!
-                
-        # trigger slicing steps to update modifications;
-		$self->triggerSlicing;
-
     }
 }
 

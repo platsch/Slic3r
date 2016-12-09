@@ -13,4 +13,11 @@
 		%code{% RETVAL = THIS->getNetName(); %};
 	Clone<Pointf3> getPoint()
 		%code{% RETVAL = THIS->getPoint(); %};
+	void setPosition(double x, double y, double z);
+	
+	//wrapper to handle type enum
+	bool isPartType()
+		%code{% RETVAL = (THIS->getType() == PART); %};
+	bool isWaypointType()
+		%code{% RETVAL = (THIS->getType() == WAYPOINT); %};
 };

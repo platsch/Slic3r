@@ -27,6 +27,8 @@ struct ElectronicPad {
 	std::string shape;
 };
 
+enum PlacingMethod {PM_AUTOMATIC, PM_MANUAL, PM_NONE};
+
 class ElectronicPart;
 typedef std::vector<ElectronicPart*> ElectronicParts;
 typedef std::vector<ElectronicPad> Padlist;
@@ -63,6 +65,8 @@ class ElectronicPart
     bool isVisible() {return this->visible;};
     void setPlaced(bool placed) {this->placed = placed;};
     bool isPlaced() {return this->placed;};
+    void setPlacingMethod(PlacingMethod method);
+    const PlacingMethod getPlacingMethod() {return this->placingMethod;};
     TriangleMesh getFootprintMesh();
     TriangleMesh getPartMesh();
     TriangleMesh getMesh();
@@ -81,6 +85,7 @@ class ElectronicPart
 	std::string package;
 	bool visible;
 	bool placed;
+	PlacingMethod placingMethod;
 	bool printed; // indicates that this part is already included in the GCode
 
 	double size[3];
