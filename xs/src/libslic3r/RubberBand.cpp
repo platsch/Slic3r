@@ -139,7 +139,7 @@ bool RubberBand::getLayerSegments(const double z_bottom, const double z_top, coo
 			Pointf3 i = this->intersect_plane(z_bottom);
 			segment.b.x = scale_(i.x);
 			segment.b.y = scale_(i.y);
-			segment.extend_end(layer_overlap);
+			segment.extend_end(layer_overlap/2);
 		}else if(this->b.z > z_top) {
 			Pointf3 i = this->intersect_plane(z_top);
 			segment.b.x = scale_(i.x);
