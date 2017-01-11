@@ -418,6 +418,8 @@ void PrintObject::make_electronic_wires()
 
 			// create extrusion objects for this layer
 			Flow flow = Flow::new_from_config_width(frConductiveWire, extrusion_width, nozzle_diameter, layer->height, 0);
+			// Currently not using the standard flow object, because the conductive ink can't be modelled as rectangle with semicircles at the end.
+			// Instead, simple use the volume of the rect.
 
 			// clear old wires
 			layer->wires.clear();
@@ -432,6 +434,7 @@ void PrintObject::make_electronic_wires()
 					ExtrusionPath path(erConductiveWire);
 					path.polyline = *channel_pl;
 					path.mm3_per_mm = flow.mm3_per_mm();
+					//path.mm3_per_mm = extrusion_width * layer->height;
 					path.width = extrusion_width;
 					path.height = layer->height;
 
