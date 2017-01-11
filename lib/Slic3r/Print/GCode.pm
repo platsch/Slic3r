@@ -301,13 +301,20 @@ sub export {
     print $fh $gcodegen->retract;   # TODO: process this retract through PressureRegulator in order to discharge fully
     print $fh $gcodegen->writer->set_fan(0);
     
-    # bit of a workaround. Call the function with a very high print_z to ensure every remaining part will be placed.    
+    # bit of a workaround. Call the function with a very high print_z to ensure every remaining part will be placed.
+    my $pnp_gcode = "";
     foreach my $object (@{$self->objects}) { # TODO: Shifted copies???
 	    foreach my $part (@{$object->schematic->getPartlist}) {
-	        print $fh $part->getPlaceGcode(99999999);
+	        $pnp_gcode .= $part->getPlaceGcode(99999999);
 	    }
 	}
-	print $fh $gcodegen->set_extruder($self->print->extruders->[0]);
+	if($pnp_gcode ne "") {
+		# switch back to first extruder
+    	print $fh $gcodegen->set_extruder($self->print->extruders->[0]);
+    	print $fh $pnp_gcode;
+		# re-activate first extruder, in case the printer was left on the PnP "Extruder"
+		print $fh $self->_gcodegen->writer()->toolchange($self->print->extruders->[0]);	
+	}
     
     printf $fh "%s\n", $gcodegen->placeholder_parser->process($self->config->end_gcode);
     print $fh $gcodegen->writer->update_progress($gcodegen->layer_count, $gcodegen->layer_count, 1);  # 100%
@@ -615,7 +622,7 @@ sub process_layer {
         	# place parts
         	$gcode .= $placing_gcode;
         	# switch back to current extruder in case the printer was left on the PnP tool
-        	$gcode .= $self->_gcodegen->writer()->toolchange($self->_gcodegen->get_current_extruder);
+            #$gcode .= $self->_gcodegen->writer()->toolchange($self->_gcodegen->get_current_extruder);
         }
     }
     
