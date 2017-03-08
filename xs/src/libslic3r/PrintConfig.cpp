@@ -330,6 +330,17 @@ PrintConfigDef::PrintConfigDef()
         def->default_value = opt;
     }
 
+
+    def = this->add("retract_layer_change", coBools);
+    def->label = "Retract on layer change";
+    def->tooltip = "This flag enforces a retraction whenever a Z move is done.";
+    def->cli = "retract-layer-change!";
+    {
+        ConfigOptionBools* opt = new ConfigOptionBools();
+        opt->values.push_back(false);
+        def->default_value = opt;
+    }
+
     def = this->add("extrusion_axis", coString);
     def->label = "Extrusion axis";
     def->tooltip = "Use this option to set the axis letter associated to your printer's extruder (usually E but some printers use A).";
@@ -893,6 +904,53 @@ PrintConfigDef::PrintConfigDef()
     
     def = this->add("printer_settings_id", coString);
     def->default_value = new ConfigOptionString("");
+
+
+    def = this->add("pneumatic_extruder", coBools);
+    def->label = "Pressure driven extruder";
+    def->tooltip = "Is this a standard filament or air pressure driven extruder?";
+    def->cli = "pneumatic_extruder!";
+    {
+        ConfigOptionBools* opt = new ConfigOptionBools();
+        opt->values.push_back(false);
+        def->default_value = opt;
+	}
+
+    def = this->add("pneumatic_extruder_pressure", coFloats);
+    def->label = "Pressure";
+    def->tooltip = "Air pressure during extrusion";
+    def->cli = "pneumatic_extruder_pressure=f@";
+    {
+        ConfigOptionFloats* opt = new ConfigOptionFloats();
+        opt->values.push_back(14.0);
+        def->default_value = opt;
+	}
+
+    def = this->add("pneumatic_extrusion_preamble", coStrings);
+    def->label = "Extrusion preamble";
+    def->tooltip = "This will be injected before every pressure driven extrusion line. Open valve, set pressure, wait, etc...";
+    def->multiline = true;
+    def->full_width = true;
+    def->height = 120;
+    def->cli = "pneumatic_extrusion_preamble=s@";
+    {
+        ConfigOptionStrings* opt = new ConfigOptionStrings();
+        opt->values.push_back(";Extrusion Preamble\nM400  ;  Sync printer queue\nM42 P2 S255  ; open pressure nozzle\nG4 P110  ;  wait for material flow");
+        def->default_value = opt;
+    }
+
+    def = this->add("pneumatic_extrusion_postamble", coStrings);
+    def->label = "Extrusion postamble";
+    def->tooltip = "This will be injected after every pressure driven extrusion line. Close valve, set pressure, wait, etc...";
+    def->multiline = true;
+    def->full_width = true;
+    def->height = 120;
+    def->cli = "pneumatic_extrusion_postamble=s@";
+    {
+        ConfigOptionStrings* opt = new ConfigOptionStrings();
+        opt->values.push_back(";Extrusion Postamble\nM400  ;  Sync printer queue\nM42 P2 S0  ; close pressure nozzle");
+        def->default_value = opt;
+    }
 
     def = this->add("pressure_advance", coFloat);
     def->label = "Pressure advance";

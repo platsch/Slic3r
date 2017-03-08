@@ -582,6 +582,10 @@ GCode::_extrude(ExtrusionPath path, std::string description, double speed)
     if (path.role == erExternalPerimeter) comment += ";_EXTERNAL_PERIMETER";
     gcode += this->writer.set_speed(F, "", this->enable_cooling_markers ? comment : "");
     double path_length = 0;
+
+    // start pneumatic extrusion
+    if(EXTRUDER_CONFIG(pneumatic_extruder)) gcode += EXTRUDER_CONFIG(pneumatic_extrusion_preamble);
+
     {
         std::string comment = this->config.gcode_comments ? description : "";
         Lines lines = path.polyline.lines();
@@ -596,6 +600,10 @@ GCode::_extrude(ExtrusionPath path, std::string description, double speed)
             );
         }
     }
+
+    // end pneumatic extrusion
+    if(EXTRUDER_CONFIG(pneumatic_extruder)) gcode += EXTRUDER_CONFIG(pneumatic_extrusion_postamble);
+
     if (this->wipe.enable) {
         this->wipe.path = path.polyline;
         this->wipe.path.reverse();
@@ -702,6 +710,10 @@ GCode::retract(bool toolchange)
     if (this->writer.extruder() == NULL)
         return gcode;
     
+    // air pressure extruder, no retraction possible
+    if(EXTRUDER_CONFIG(pneumatic_extruder))
+    	return gcode;
+
     // wipe (if it's enabled for this extruder and we have a stored wipe path)
     if (EXTRUDER_CONFIG(wipe) && this->wipe.has_path()) {
         gcode += this->wipe.wipe(*this, toolchange);
@@ -724,6 +736,11 @@ std::string
 GCode::unretract()
 {
     std::string gcode;
+
+    // air pressure extruder, no retraction possible
+    if(EXTRUDER_CONFIG(pneumatic_extruder))
+        return gcode;
+
     gcode += this->writer.unlift();
     gcode += this->writer.unretract();
     return gcode;
