@@ -498,6 +498,51 @@ class ConfigOptionEnum : public ConfigOptionSingle<T>
     static t_config_enum_values get_enum_values();
 };
 
+/*
+template <class T>
+class ConfigOptionEnums : public ConfigOptionVector<T>
+{
+    public:
+    // by default, use the first value (0) of the T enum type
+    ConfigOptionEnums() : ConfigOptionVector<T>(static_cast<T>(0)) {};
+    ConfigOptionEnums(std::vector<T> _values) : ConfigOptionVector<T>(_values) {};
+    ConfigOptionEnums<T>* clone() const { return new ConfigOptionEnums<T>(this->values); };
+
+    std::string serialize() const {
+        std::ostringstream ss;
+        t_config_enum_values enum_keys_map = ConfigOptionEnum<T>::get_enum_values();
+        for (typename std::vector<T>::const_iterator it = this->values.begin(); it != this->values.end(); ++it) {
+            if (it - this->values.begin() != 0) ss << ",";
+            for (t_config_enum_values::iterator it = enum_keys_map.begin(); it != enum_keys_map.end(); ++it) {
+                if (it->second == static_cast<int>(this->value)) ss << it->first;
+            }
+        }
+        return ss.str();
+    };
+
+    bool deserialize(std::string str, bool append = false) {
+        bool result = true;
+        if (!append) this->values.clear();
+	    std::istringstream is(str);
+	    std::string item_str;
+        t_config_enum_values enum_keys_map = ConfigOptionEnum<T>::get_enum_values();
+        while (std::getline(is, item_str, ',')) {
+            if (enum_keys_map.count(str) == 0) {
+                this->values.push_back(static_cast<T>(0));
+                result = false;
+            }else{
+                this->value.push_back(static_cast<T>(enum_keys_map[str]));
+            }
+        }
+        return result;
+    };
+
+    // Map from an enum name to an enum integer value.
+    //FIXME The map is called often, it shall be initialized statically.
+    static t_config_enum_values get_enum_values();
+
+};
+*/
 // Generic enum configuration value.
 // We use this one in DynamicConfig objects when creating a config value object for ConfigOptionType == coEnum.
 // In the StaticConfig, it is better to use the specialized ConfigOptionEnum<T> containers.
@@ -550,6 +595,8 @@ enum ConfigOptionType {
     coBools,
     // a generic enum
     coEnum,
+    // a vector of generic enums
+    //coEnums,
 };
 
 // Definition of a configuration value for the purpose of GUI presentation, editing, value mapping and config file handling.

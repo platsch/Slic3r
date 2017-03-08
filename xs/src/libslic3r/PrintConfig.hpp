@@ -44,6 +44,10 @@ enum SeamPosition {
     spRandom, spNearest, spAligned, spRear
 };
 
+enum ExtruderType {
+    etFilament, etPressure
+};
+
 template<> inline t_config_enum_values ConfigOptionEnum<GCodeFlavor>::get_enum_values() {
     t_config_enum_values keys_map;
     keys_map["reprap"]          = gcfRepRap;
@@ -92,6 +96,13 @@ template<> inline t_config_enum_values ConfigOptionEnum<SeamPosition>::get_enum_
     keys_map["rear"]                = spRear;
     return keys_map;
 }
+/*
+template<> inline t_config_enum_values ConfigOptionEnum<ExtruderType>::get_enum_values() {
+    t_config_enum_values keys_map;
+    keys_map["filament"]            = etFilament;
+    keys_map["pressure"]            = etPressure;
+    return keys_map;
+}*/
 
 // Defines each and every confiuration option of Slic3r, including the properties of the GUI dialogs.
 // Does not store the actual values, but defines default values.
@@ -286,6 +297,7 @@ class GCodeConfig : public virtual StaticPrintConfig
     public:
     ConfigOptionString              before_layer_gcode;
     ConfigOptionString              end_gcode;
+    //ConfigOptionEnums<ExtruderType> extruder_type;
     ConfigOptionString              extrusion_axis;
     ConfigOptionFloats              extrusion_multiplier;
     ConfigOptionFloats              filament_diameter;
@@ -295,6 +307,10 @@ class GCodeConfig : public virtual StaticPrintConfig
     ConfigOptionString              layer_gcode;
     ConfigOptionFloat               max_print_speed;
     ConfigOptionFloat               max_volumetric_speed;
+    ConfigOptionBools               pneumatic_extruder;
+    ConfigOptionFloats              pneumatic_extruder_pressure;
+    ConfigOptionStrings             pneumatic_extrusion_preamble;
+    ConfigOptionStrings             pneumatic_extrusion_postamble;
     ConfigOptionFloat               pressure_advance;
     ConfigOptionFloats              retract_length;
     ConfigOptionFloats              retract_length_toolchange;
@@ -328,6 +344,10 @@ class GCodeConfig : public virtual StaticPrintConfig
         OPT_PTR(layer_gcode);
         OPT_PTR(max_print_speed);
         OPT_PTR(max_volumetric_speed);
+        OPT_PTR(pneumatic_extruder);
+        OPT_PTR(pneumatic_extruder_pressure);
+        OPT_PTR(pneumatic_extrusion_preamble);
+        OPT_PTR(pneumatic_extrusion_postamble);
         OPT_PTR(pressure_advance);
         OPT_PTR(retract_length);
         OPT_PTR(retract_length_toolchange);
