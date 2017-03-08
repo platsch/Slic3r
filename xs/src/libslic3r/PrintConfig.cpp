@@ -1,11 +1,10 @@
 #include "PrintConfig.hpp"
+#include <boost/thread.hpp>
 
 namespace Slic3r {
 
 PrintConfigDef::PrintConfigDef()
 {
-    t_optiondef_map &Options = this->options;
-    
     ConfigOptionDef* def;
     
     def = this->add("avoid_crossing_perimeters", coBool);
@@ -24,10 +23,15 @@ PrintConfigDef::PrintConfigDef()
         opt->values.push_back(Pointf(0,200));
         def->default_value = opt;
     }
+    def = this->add("has_heatbed", coBool);
+    def->label = "Has heated bed";
+    def->tooltip = "Unselecting this will suppress automatic generation of bed heating gcode.";
+    def->cli = "has_heatbed!";
+    def->default_value = new ConfigOptionBool(true);
     
     def = this->add("bed_temperature", coInt);
     def->label = "Other layers";
-    def->tooltip = "Bed temperature for layers after the first one. Set this to zero to disable bed temperature control commands in the output.";
+    def->tooltip = "Bed temperature for layers after the first one.";
     def->cli = "bed-temperature=i";
     def->full_label = "Bed temperature";
     def->min = 0;
@@ -79,13 +83,24 @@ PrintConfigDef::PrintConfigDef()
 
     def = this->add("bridge_speed", coFloat);
     def->label = "Bridges";
+    def->gui_type = "f_enum_open";
     def->category = "Speed";
     def->tooltip = "Speed for printing bridges.";
     def->sidetext = "mm/s";
     def->cli = "bridge-speed=f";
     def->aliases.push_back("bridge_feed_rate");
     def->min = 0;
+    def->enum_values.push_back("0");
+    def->enum_labels.push_back("auto");
     def->default_value = new ConfigOptionFloat(60);
+
+    def = this->add("brim_connections_width", coFloat);
+    def->label = "Brim connections width";
+    def->tooltip = "If set to a positive value, straight connections will be built on the first layer between adjacent objects.";
+    def->sidetext = "mm";
+    def->cli = "brim-connections-width=f";
+    def->min = 0;
+    def->default_value = new ConfigOptionFloat(0);
 
     def = this->add("brim_width", coFloat);
     def->label = "Brim width";
@@ -222,11 +237,13 @@ PrintConfigDef::PrintConfigDef()
     def->cli = "external-fill-pattern|solid-fill-pattern=s";
     def->enum_keys_map = ConfigOptionEnum<InfillPattern>::get_enum_values();
     def->enum_values.push_back("rectilinear");
+    def->enum_values.push_back("alignedrectilinear");
     def->enum_values.push_back("concentric");
     def->enum_values.push_back("hilbertcurve");
     def->enum_values.push_back("archimedeanchords");
     def->enum_values.push_back("octagramspiral");
     def->enum_labels.push_back("Rectilinear");
+    def->enum_labels.push_back("Aligned Rectilinear");
     def->enum_labels.push_back("Concentric");
     def->enum_labels.push_back("Hilbert Curve");
     def->enum_labels.push_back("Archimedean Chords");
@@ -235,21 +252,28 @@ PrintConfigDef::PrintConfigDef()
     def->default_value = new ConfigOptionEnum<InfillPattern>(ipRectilinear);
 
     def = this->add("external_perimeter_extrusion_width", coFloatOrPercent);
-    def->label = "External perimeters";
+    def->label = "↳ external";
+    def->gui_type = "f_enum_open";
     def->category = "Extrusion Width";
-    def->tooltip = "Set this to a non-zero value to set a manual extrusion width for external perimeters. If left zero, an automatic value will be used that maximizes accuracy of the external visible surfaces. If expressed as percentage (for example 200%) it will be computed over layer height.";
-    def->sidetext = "mm or % (leave 0 for default)";
+    def->tooltip = "Set this to a non-zero value to set a manual extrusion width for external perimeters. If auto is chosen, a value will be used that maximizes accuracy of the external visible surfaces. If expressed as percentage (for example 200%) it will be computed over layer height.";
+    def->sidetext = "mm or %";
     def->cli = "external-perimeter-extrusion-width=s";
+    def->min = 0;
+    def->enum_values.push_back("0");
+    def->enum_labels.push_back("auto");
     def->default_value = new ConfigOptionFloatOrPercent(0, false);
 
     def = this->add("external_perimeter_speed", coFloatOrPercent);
-    def->label = "External perimeters";
+    def->label = "↳ external";
+    def->gui_type = "f_enum_open";
     def->category = "Speed";
-    def->tooltip = "This separate setting will affect the speed of external perimeters (the visible ones). If expressed as percentage (for example: 80%) it will be calculated on the perimeters speed setting above. Set to zero for auto.";
+    def->tooltip = "This separate setting will affect the speed of external perimeters (the visible ones). If expressed as percentage (for example: 80%) it will be calculated on the perimeters speed setting above.";
     def->sidetext = "mm/s or %";
     def->cli = "external-perimeter-speed=s";
     def->ratio_over = "perimeter_speed";
     def->min = 0;
+    def->enum_values.push_back("0");
+    def->enum_labels.push_back("auto");
     def->default_value = new ConfigOptionFloatOrPercent(50, true);
 
     def = this->add("external_perimeters_first", coBool);
@@ -324,10 +348,14 @@ PrintConfigDef::PrintConfigDef()
     
     def = this->add("extrusion_width", coFloatOrPercent);
     def->label = "Default extrusion width";
+    def->gui_type = "f_enum_open";
     def->category = "Extrusion Width";
-    def->tooltip = "Set this to a non-zero value to set a manual extrusion width. If left to zero, Slic3r calculates a width automatically. If expressed as percentage (for example: 230%) it will be computed over layer height.";
-    def->sidetext = "mm or % (leave 0 for auto)";
+    def->tooltip = "Set this to a non-zero value to set a manual extrusion width. If expressed as percentage (for example: 230%) it will be computed over layer height.";
+    def->sidetext = "mm or %";
     def->cli = "extrusion-width=s";
+    def->min = 0;
+    def->enum_values.push_back("0");
+    def->enum_labels.push_back("auto");
     def->default_value = new ConfigOptionFloatOrPercent(0, false);
 
     def = this->add("fan_always_on", coBool);
@@ -354,6 +382,31 @@ PrintConfigDef::PrintConfigDef()
     {
         ConfigOptionStrings* opt = new ConfigOptionStrings();
         opt->values.push_back("#FFFFFF");
+        def->default_value = opt;
+    }
+
+    def = this->add("filament_notes", coStrings);
+    def->label = "Filament notes";
+    def->tooltip = "You can put your notes regarding the filament here.";
+    def->cli = "filament-notes=s@";
+    def->multiline = true;
+    def->full_width = true;
+    def->height = 130;
+    {
+        ConfigOptionStrings* opt = new ConfigOptionStrings();
+        opt->values.push_back("");
+        def->default_value = opt;
+    }
+
+    def = this->add("filament_max_volumetric_speed", coFloats);
+    def->label = "Max volumetric speed";
+    def->tooltip = "Maximum volumetric speed allowed for this filament. Limits the maximum volumetric speed of a print to the minimum of print and filament volumetric speed. Set to zero for no limit.";
+    def->sidetext = "mm³/s";
+    def->cli = "filament-max-volumetric-speed=f@";
+    def->min = 0;
+    {
+        ConfigOptionFloats* opt = new ConfigOptionFloats();
+        opt->values.push_back(0.f);
         def->default_value = opt;
     }
 
@@ -422,6 +475,12 @@ PrintConfigDef::PrintConfigDef()
     def->enum_labels.push_back("100%");
     def->default_value = new ConfigOptionPercent(20);
 
+    def = this->add("fill_gaps", coBool);
+    def->label = "Fill gaps";
+    def->tooltip = "If this is enabled, gaps will be filled with single passes. Enable this for better quality, disable it for shorter printing times.";
+    def->cli = "fill-gaps!";
+    def->default_value = new ConfigOptionBool(true);
+
     def = this->add("fill_pattern", coEnum);
     def->label = "Fill pattern";
     def->category = "Infill";
@@ -429,8 +488,11 @@ PrintConfigDef::PrintConfigDef()
     def->cli = "fill-pattern=s";
     def->enum_keys_map = ConfigOptionEnum<InfillPattern>::get_enum_values();
     def->enum_values.push_back("rectilinear");
+    def->enum_values.push_back("alignedrectilinear");
     def->enum_values.push_back("grid");
-    def->enum_values.push_back("line");
+    def->enum_values.push_back("triangles");
+    def->enum_values.push_back("stars");
+    def->enum_values.push_back("cubic");
     def->enum_values.push_back("concentric");
     def->enum_values.push_back("honeycomb");
     def->enum_values.push_back("3dhoneycomb");
@@ -438,15 +500,18 @@ PrintConfigDef::PrintConfigDef()
     def->enum_values.push_back("archimedeanchords");
     def->enum_values.push_back("octagramspiral");
     def->enum_labels.push_back("Rectilinear");
+    def->enum_labels.push_back("Aligned Rectilinear");
     def->enum_labels.push_back("Grid");
-    def->enum_labels.push_back("Line");
+    def->enum_labels.push_back("Triangles");
+    def->enum_labels.push_back("Stars");
+    def->enum_labels.push_back("Cubic");
     def->enum_labels.push_back("Concentric");
     def->enum_labels.push_back("Honeycomb");
     def->enum_labels.push_back("3D Honeycomb");
     def->enum_labels.push_back("Hilbert Curve");
     def->enum_labels.push_back("Archimedean Chords");
     def->enum_labels.push_back("Octagram Spiral");
-    def->default_value = new ConfigOptionEnum<InfillPattern>(ipHoneycomb);
+    def->default_value = new ConfigOptionEnum<InfillPattern>(ipStars);
 
     def = this->add("first_layer_acceleration", coFloat);
     def->label = "First layer";
@@ -466,11 +531,15 @@ PrintConfigDef::PrintConfigDef()
 
     def = this->add("first_layer_extrusion_width", coFloatOrPercent);
     def->label = "First layer";
+    def->gui_type = "f_enum_open";
     def->category = "Extrusion Width";
-    def->tooltip = "Set this to a non-zero value to set a manual extrusion width for first layer. You can use this to force fatter extrudates for better adhesion. If expressed as percentage (for example 120%) it will be computed over first layer height. If set to zero, it will use the Default Extrusion Width.";
-    def->sidetext = "mm or % (leave 0 for default)";
+    def->tooltip = "Set this to a non-zero value to set a manual extrusion width for first layer. You can use this to force fatter extrudates for better adhesion. If expressed as percentage (for example 120%) it will be computed over first layer height.";
+    def->sidetext = "mm or %";
     def->cli = "first-layer-extrusion-width=s";
     def->ratio_over = "first_layer_height";
+    def->min = 0;
+    def->enum_values.push_back("0");
+    def->enum_labels.push_back("default");
     def->default_value = new ConfigOptionFloatOrPercent(200, true);
 
     def = this->add("first_layer_height", coFloatOrPercent);
@@ -503,12 +572,16 @@ PrintConfigDef::PrintConfigDef()
     }
     
     def = this->add("gap_fill_speed", coFloat);
-    def->label = "Gap fill";
+    def->label = "↳ gaps";
+    def->gui_type = "f_enum_open";
     def->category = "Speed";
-    def->tooltip = "Speed for filling small gaps using short zigzag moves. Keep this reasonably low to avoid too much shaking and resonance issues. Set zero to disable gaps filling.";
-    def->sidetext = "mm/s";
-    def->cli = "gap-fill-speed=f";
+    def->tooltip = "Speed for filling gaps. Since these are usually single lines you might want to use a low speed for better sticking. If expressed as percentage (for example: 80%) it will be calculated on the infill speed setting above.";
+    def->sidetext = "mm/s or %";
+    def->cli = "gap-fill-speed=s";
+    def->ratio_over = "infill_speed";
     def->min = 0;
+    def->enum_values.push_back("0");
+    def->enum_labels.push_back("auto");
     def->default_value = new ConfigOptionFloat(20);
 
     def = this->add("gcode_arcs", coBool);
@@ -529,18 +602,22 @@ PrintConfigDef::PrintConfigDef()
     def->cli = "gcode-flavor=s";
     def->enum_keys_map = ConfigOptionEnum<GCodeFlavor>::get_enum_values();
     def->enum_values.push_back("reprap");
+    def->enum_values.push_back("repetier");
     def->enum_values.push_back("teacup");
     def->enum_values.push_back("makerware");
     def->enum_values.push_back("sailfish");
     def->enum_values.push_back("mach3");
     def->enum_values.push_back("machinekit");
+    def->enum_values.push_back("smoothie");
     def->enum_values.push_back("no-extrusion");
-    def->enum_labels.push_back("RepRap (Marlin/Sprinter/Repetier)");
+    def->enum_labels.push_back("RepRap (Marlin/Sprinter)");
+    def->enum_labels.push_back("Repetier");
     def->enum_labels.push_back("Teacup");
     def->enum_labels.push_back("MakerWare (MakerBot)");
     def->enum_labels.push_back("Sailfish (MakerBot)");
     def->enum_labels.push_back("Mach3/LinuxCNC");
     def->enum_labels.push_back("Machinekit");
+    def->enum_labels.push_back("Smoothieware");
     def->enum_labels.push_back("No extrusion");
     def->default_value = new ConfigOptionEnum<GCodeFlavor>(gcfRepRap);
 
@@ -572,10 +649,14 @@ PrintConfigDef::PrintConfigDef()
 
     def = this->add("infill_extrusion_width", coFloatOrPercent);
     def->label = "Infill";
+    def->gui_type = "f_enum_open";
     def->category = "Extrusion Width";
     def->tooltip = "Set this to a non-zero value to set a manual extrusion width for infill. You may want to use fatter extrudates to speed up the infill and make your parts stronger. If expressed as percentage (for example 90%) it will be computed over layer height.";
-    def->sidetext = "mm or % (leave 0 for default)";
+    def->sidetext = "mm or %";
     def->cli = "infill-extrusion-width=s";
+    def->min = 0;
+    def->enum_values.push_back("0");
+    def->enum_labels.push_back("default");
     def->default_value = new ConfigOptionFloatOrPercent(0, false);
 
     def = this->add("infill_first", coBool);
@@ -598,17 +679,20 @@ PrintConfigDef::PrintConfigDef()
     def->sidetext = "mm or %";
     def->cli = "infill-overlap=s";
     def->ratio_over = "perimeter_extrusion_width";
-    def->default_value = new ConfigOptionFloatOrPercent(15, true);
+    def->default_value = new ConfigOptionFloatOrPercent(55, true);
 
     def = this->add("infill_speed", coFloat);
     def->label = "Infill";
+    def->gui_type = "f_enum_open";
     def->category = "Speed";
-    def->tooltip = "Speed for printing the internal fill. Set to zero for auto.";
+    def->tooltip = "Speed for printing the internal fill.";
     def->sidetext = "mm/s";
     def->cli = "infill-speed=f";
     def->aliases.push_back("print_feed_rate");
     def->aliases.push_back("infill_feed_rate");
     def->min = 0;
+    def->enum_values.push_back("0");
+    def->enum_labels.push_back("auto");
     def->default_value = new ConfigOptionFloat(80);
 
     def = this->add("interface_shells", coBool);
@@ -762,21 +846,28 @@ PrintConfigDef::PrintConfigDef()
 
     def = this->add("perimeter_extrusion_width", coFloatOrPercent);
     def->label = "Perimeters";
+    def->gui_type = "f_enum_open";
     def->category = "Extrusion Width";
     def->tooltip = "Set this to a non-zero value to set a manual extrusion width for perimeters. You may want to use thinner extrudates to get more accurate surfaces. If expressed as percentage (for example 200%) it will be computed over layer height.";
-    def->sidetext = "mm or % (leave 0 for default)";
+    def->sidetext = "mm or %";
     def->cli = "perimeter-extrusion-width=s";
     def->aliases.push_back("perimeters_extrusion_width");
+    def->min = 0;
+    def->enum_values.push_back("0");
+    def->enum_labels.push_back("default");
     def->default_value = new ConfigOptionFloatOrPercent(0, false);
 
     def = this->add("perimeter_speed", coFloat);
     def->label = "Perimeters";
+    def->gui_type = "f_enum_open";
     def->category = "Speed";
-    def->tooltip = "Speed for perimeters (contours, aka vertical shells). Set to zero for auto.";
+    def->tooltip = "Speed for perimeters (contours, aka vertical shells).";
     def->sidetext = "mm/s";
     def->cli = "perimeter-speed=f";
     def->aliases.push_back("perimeter_feed_rate");
     def->min = 0;
+    def->enum_values.push_back("0");
+    def->enum_labels.push_back("auto");
     def->default_value = new ConfigOptionFloat(60);
 
     def = this->add("perimeters", coInt);
@@ -791,9 +882,8 @@ PrintConfigDef::PrintConfigDef()
 
     def = this->add("post_process", coStrings);
     def->label = "Post-processing scripts";
-    def->tooltip = "If you want to process the output G-code through custom scripts, just list their absolute paths here. Separate multiple scripts with a semicolon. Scripts will be passed the absolute path to the G-code file as the first argument, and they can access the Slic3r config settings by reading environment variables.";
+    def->tooltip = "If you want to process the output G-code through custom scripts, just list their absolute paths here. Separate multiple scripts on individual lines. Scripts will be passed the absolute path to the G-code file as the first argument, and they can access the Slic3r config settings by reading environment variables.";
     def->cli = "post-process=s@";
-    def->gui_flags = "serialized";
     def->multiline = true;
     def->full_width = true;
     def->height = 60;
@@ -819,6 +909,15 @@ PrintConfigDef::PrintConfigDef()
     def->cli = "raft-layers=i";
     def->min = 0;
     def->default_value = new ConfigOptionInt(0);
+
+    def = this->add("raft_offset", coFloat);
+    def->label = "Raft offset";
+    def->category = "Support material";
+    def->tooltip = "Horizontal margin between object base layer and raft contour.";
+    def->sidetext = "mm";
+    def->cli = "raft-offset=f";
+    def->min = 0;
+    def->default_value = new ConfigOptionFloat(4);
 
     def = this->add("resolution", coFloat);
     def->label = "Resolution";
@@ -933,7 +1032,7 @@ PrintConfigDef::PrintConfigDef()
     def = this->add("retract_speed", coFloats);
     def->label = "Speed";
     def->full_label = "Retraction Speed";
-    def->tooltip = "The speed for retractions (it only applies to the extruder motor).";
+    def->tooltip = "The speed for retractions (it only applies to the extruder motor). If you use the Firmware Retraction option, please note this value still affects the auto-speed pressure regulator.";
     def->sidetext = "mm/s";
     def->cli = "retract-speed=f@";
     {
@@ -951,9 +1050,11 @@ PrintConfigDef::PrintConfigDef()
     def->enum_values.push_back("random");
     def->enum_values.push_back("nearest");
     def->enum_values.push_back("aligned");
+    def->enum_values.push_back("rear");
     def->enum_labels.push_back("Random");
     def->enum_labels.push_back("Nearest");
     def->enum_labels.push_back("Aligned");
+    def->enum_labels.push_back("Rear");
     def->default_value = new ConfigOptionEnum<SeamPosition>(spAligned);
 
     def = this->add("serial_port", coString);
@@ -1011,13 +1112,16 @@ PrintConfigDef::PrintConfigDef()
     def->default_value = new ConfigOptionInt(5);
 
     def = this->add("small_perimeter_speed", coFloatOrPercent);
-    def->label = "Small perimeters";
+    def->label = "↳ small";
+    def->gui_type = "f_enum_open";
     def->category = "Speed";
-    def->tooltip = "This separate setting will affect the speed of perimeters having radius <= 6.5mm (usually holes). If expressed as percentage (for example: 80%) it will be calculated on the perimeters speed setting above. Set to zero for auto.";
+    def->tooltip = "This separate setting will affect the speed of perimeters having radius <= 6.5mm (usually holes). If expressed as percentage (for example: 80%) it will be calculated on the perimeters speed setting above.";
     def->sidetext = "mm/s or %";
     def->cli = "small-perimeter-speed=s";
     def->ratio_over = "perimeter_speed";
     def->min = 0;
+    def->enum_values.push_back("0");
+    def->enum_labels.push_back("auto");
     def->default_value = new ConfigOptionFloatOrPercent(15, false);
 
     def = this->add("solid_infill_below_area", coFloat);
@@ -1047,22 +1151,29 @@ PrintConfigDef::PrintConfigDef()
     def->default_value = new ConfigOptionInt(0);
 
     def = this->add("solid_infill_extrusion_width", coFloatOrPercent);
-    def->label = "Solid infill";
+    def->label = "↳ solid";
+    def->gui_type = "f_enum_open";
     def->category = "Extrusion Width";
     def->tooltip = "Set this to a non-zero value to set a manual extrusion width for infill for solid surfaces. If expressed as percentage (for example 90%) it will be computed over layer height.";
-    def->sidetext = "mm or % (leave 0 for default)";
+    def->sidetext = "mm or %";
     def->cli = "solid-infill-extrusion-width=s";
+    def->min = 0;
+    def->enum_values.push_back("0");
+    def->enum_labels.push_back("default");
     def->default_value = new ConfigOptionFloatOrPercent(0, false);
 
     def = this->add("solid_infill_speed", coFloatOrPercent);
-    def->label = "Solid infill";
+    def->label = "↳ solid";
+    def->gui_type = "f_enum_open";
     def->category = "Speed";
-    def->tooltip = "Speed for printing solid regions (top/bottom/internal horizontal shells). This can be expressed as a percentage (for example: 80%) over the default infill speed above. Set to zero for auto.";
+    def->tooltip = "Speed for printing solid regions (top/bottom/internal horizontal shells). This can be expressed as a percentage (for example: 80%) over the default infill speed above.";
     def->sidetext = "mm/s or %";
     def->cli = "solid-infill-speed=s";
     def->ratio_over = "infill_speed";
     def->aliases.push_back("solid_infill_feed_rate");
     def->min = 0;
+    def->enum_values.push_back("0");
+    def->enum_labels.push_back("auto");
     def->default_value = new ConfigOptionFloatOrPercent(20, false);
 
     def = this->add("solid_layers", coInt);
@@ -1081,7 +1192,7 @@ PrintConfigDef::PrintConfigDef()
 
     def = this->add("standby_temperature_delta", coInt);
     def->label = "Temperature variation";
-    def->tooltip = "Temperature difference to be applied when an extruder is not active.";
+    def->tooltip = "Temperature difference to be applied when an extruder is not active.  Enables a full-height \"sacrificial\" skirt on which the nozzles are periodically wiped.";
     def->sidetext = "∆°C";
     def->cli = "standby-temperature-delta=i";
     def->min = -500;
@@ -1090,7 +1201,7 @@ PrintConfigDef::PrintConfigDef()
 
     def = this->add("start_gcode", coString);
     def->label = "Start G-code";
-    def->tooltip = "This start procedure is inserted at the beginning, after bed has reached the target temperature and extruder just started heating, and before extruder has finished heating. If Slic3r detects M104 or M190 in your custom codes, such commands will not be prepended automatically so you're free to customize the order of heating commands and other custom actions. Note that you can use placeholder variables for all Slic3r settings, so you can put a \"M109 S[first_layer_temperature]\" command wherever you want.";
+    def->tooltip = "This start procedure is inserted at the beginning, after bed has reached the target temperature and extruder just started heating, and before extruder has finished heating. If Slic3r detects M104, M109, M140 or M190 in your custom codes, such commands will not be prepended automatically so you're free to customize the order of heating commands and other custom actions. Note that you can use placeholder variables for all Slic3r settings, so you can put a \"M109 S[first_layer_temperature]\" command wherever you want.";
     def->cli = "start-gcode=s";
     def->multiline = true;
     def->full_width = true;
@@ -1148,10 +1259,14 @@ PrintConfigDef::PrintConfigDef()
 
     def = this->add("support_material_extrusion_width", coFloatOrPercent);
     def->label = "Support material";
+    def->gui_type = "f_enum_open";
     def->category = "Extrusion Width";
     def->tooltip = "Set this to a non-zero value to set a manual extrusion width for support material. If expressed as percentage (for example 90%) it will be computed over layer height.";
-    def->sidetext = "mm or % (leave 0 for default)";
+    def->sidetext = "mm or %";
     def->cli = "support-material-extrusion-width=s";
+    def->min = 0;
+    def->enum_values.push_back("0");
+    def->enum_labels.push_back("default");
     def->default_value = new ConfigOptionFloatOrPercent(0, false);
 
     def = this->add("support_material_interface_extruder", coInt);
@@ -1181,13 +1296,16 @@ PrintConfigDef::PrintConfigDef()
     def->default_value = new ConfigOptionFloat(0);
 
     def = this->add("support_material_interface_speed", coFloatOrPercent);
-    def->label = "Support material interface";
+    def->label = "↳ interface";
+    def->gui_type = "f_enum_open";
     def->category = "Support material";
     def->tooltip = "Speed for printing support material interface layers. If expressed as percentage (for example 50%) it will be calculated over support material speed.";
     def->sidetext = "mm/s or %";
     def->cli = "support-material-interface-speed=s";
     def->ratio_over = "support_material_speed";
     def->min = 0;
+    def->enum_values.push_back("0");
+    def->enum_labels.push_back("auto");
     def->default_value = new ConfigOptionFloatOrPercent(100, true);
 
     def = this->add("support_material_pattern", coEnum);
@@ -1217,11 +1335,14 @@ PrintConfigDef::PrintConfigDef()
 
     def = this->add("support_material_speed", coFloat);
     def->label = "Support material";
+    def->gui_type = "f_enum_open";
     def->category = "Support material";
     def->tooltip = "Speed for printing support material.";
     def->sidetext = "mm/s";
     def->cli = "support-material-speed=f";
     def->min = 0;
+    def->enum_values.push_back("0");
+    def->enum_labels.push_back("auto");
     def->default_value = new ConfigOptionFloat(60);
 
     def = this->add("support_material_threshold", coInt);
@@ -1260,9 +1381,11 @@ PrintConfigDef::PrintConfigDef()
     def->cli = "threads|j=i";
     def->readonly = true;
     def->min = 1;
-    def->max = 16;
-    def->default_value = new ConfigOptionInt(2);
-
+    {
+        unsigned int threads = boost::thread::hardware_concurrency();
+        def->default_value = new ConfigOptionInt(threads > 0 ? threads : 2);
+    }
+    
     def = this->add("toolchange_gcode", coString);
     def->label = "Tool change G-code";
     def->tooltip = "This custom code is inserted right before every extruder change. Note that you can use placeholder variables for all Slic3r settings as well as [previous_extruder], [next_extruder], [previous_retraction] and [next_retraction].";
@@ -1273,21 +1396,28 @@ PrintConfigDef::PrintConfigDef()
     def->default_value = new ConfigOptionString("");
 
     def = this->add("top_infill_extrusion_width", coFloatOrPercent);
-    def->label = "Top solid infill";
+    def->label = "↳ top solid";
+    def->gui_type = "f_enum_open";
     def->category = "Extrusion Width";
     def->tooltip = "Set this to a non-zero value to set a manual extrusion width for infill for top surfaces. You may want to use thinner extrudates to fill all narrow regions and get a smoother finish. If expressed as percentage (for example 90%) it will be computed over layer height.";
-    def->sidetext = "mm or % (leave 0 for default)";
+    def->sidetext = "mm or %";
     def->cli = "top-infill-extrusion-width=s";
+    def->min = 0;
+    def->enum_values.push_back("0");
+    def->enum_labels.push_back("default");
     def->default_value = new ConfigOptionFloatOrPercent(0, false);
 
     def = this->add("top_solid_infill_speed", coFloatOrPercent);
-    def->label = "Top solid infill";
+    def->label = "↳ top solid";
+    def->gui_type = "f_enum_open";
     def->category = "Speed";
-    def->tooltip = "Speed for printing top solid layers (it only applies to the uppermost external layers and not to their internal solid layers). You may want to slow down this to get a nicer surface finish. This can be expressed as a percentage (for example: 80%) over the solid infill speed above. Set to zero for auto.";
+    def->tooltip = "Speed for printing top solid layers (it only applies to the uppermost external layers and not to their internal solid layers). You may want to slow down this to get a nicer surface finish. This can be expressed as a percentage (for example: 80%) over the solid infill speed above.";
     def->sidetext = "mm/s or %";
     def->cli = "top-solid-infill-speed=s";
     def->ratio_over = "solid_infill_speed";
     def->min = 0;
+    def->enum_values.push_back("0");
+    def->enum_labels.push_back("auto");
     def->default_value = new ConfigOptionFloatOrPercent(15, false);
 
     def = this->add("top_solid_layers", coInt);
@@ -1409,5 +1539,108 @@ PrintConfigBase::min_object_distance() const
         ? extruder_clearance_radius
         : duplicate_distance;
 }
+
+CLIConfigDef::CLIConfigDef()
+{
+    ConfigOptionDef* def;
+    
+    def = this->add("cut", coFloat);
+    def->label = "Cut";
+    def->tooltip = "Cut model at the given Z.";
+    def->cli = "cut";
+    def->default_value = new ConfigOptionFloat(0);
+    
+    def = this->add("cut_grid", coFloat);
+    def->label = "Cut";
+    def->tooltip = "Cut model in the XY plane into tiles of the specified max size.";
+    def->cli = "cut-grid";
+    def->default_value = new ConfigOptionPoint();
+    
+    def = this->add("cut_x", coFloat);
+    def->label = "Cut";
+    def->tooltip = "Cut model at the given X.";
+    def->cli = "cut-x";
+    def->default_value = new ConfigOptionFloat(0);
+    
+    def = this->add("cut_y", coFloat);
+    def->label = "Cut";
+    def->tooltip = "Cut model at the given Y.";
+    def->cli = "cut-y";
+    def->default_value = new ConfigOptionFloat(0);
+    
+    def = this->add("export_obj", coBool);
+    def->label = "Export SVG";
+    def->tooltip = "Export the model as OBJ.";
+    def->cli = "export-obj";
+    def->default_value = new ConfigOptionBool(false);
+    
+    def = this->add("export_pov", coBool);
+    def->label = "Export POV";
+    def->tooltip = "Export the model as POV-Ray definition.";
+    def->cli = "export-pov";
+    def->default_value = new ConfigOptionBool(false);
+    
+    def = this->add("export_svg", coBool);
+    def->label = "Export SVG";
+    def->tooltip = "Slice the model and export slices as SVG.";
+    def->cli = "export-svg";
+    def->default_value = new ConfigOptionBool(false);
+    
+    def = this->add("info", coBool);
+    def->label = "Output Model Info";
+    def->tooltip = "Write information about the model to the console.";
+    def->cli = "info";
+    def->default_value = new ConfigOptionBool(false);
+    
+    def = this->add("load", coStrings);
+    def->label = "Load config file";
+    def->tooltip = "Load configuration from the specified file. It can be used more than once to load options from multiple files.";
+    def->cli = "load";
+    def->default_value = new ConfigOptionStrings();
+    
+    def = this->add("output", coString);
+    def->label = "Output File";
+    def->tooltip = "The file where the output will be written (if not specified, it will be based on the input file).";
+    def->cli = "output";
+    def->default_value = new ConfigOptionString("");
+    
+    def = this->add("rotate", coFloat);
+    def->label = "Rotate";
+    def->tooltip = "Rotation angle around the Z axis in degrees (0-360, default: 0).";
+    def->cli = "rotate";
+    def->default_value = new ConfigOptionFloat(0);
+    
+    def = this->add("rotate_x", coFloat);
+    def->label = "Rotate around X";
+    def->tooltip = "Rotation angle around the X axis in degrees (0-360, default: 0).";
+    def->cli = "rotate-x";
+    def->default_value = new ConfigOptionFloat(0);
+    
+    def = this->add("rotate_y", coFloat);
+    def->label = "Rotate around Y";
+    def->tooltip = "Rotation angle around the Y axis in degrees (0-360, default: 0).";
+    def->cli = "rotate-y";
+    def->default_value = new ConfigOptionFloat(0);
+    
+    def = this->add("save", coString);
+    def->label = "Save config file";
+    def->tooltip = "Save configuration to the specified file.";
+    def->cli = "save";
+    def->default_value = new ConfigOptionString();
+    
+    def = this->add("scale", coFloat);
+    def->label = "Scale";
+    def->tooltip = "Scaling factor (default: 1).";
+    def->cli = "scale";
+    def->default_value = new ConfigOptionFloat(1);
+    
+    def = this->add("scale_to_fit", coPoint3);
+    def->label = "Scale to Fit";
+    def->tooltip = "Scale to fit the given volume.";
+    def->cli = "scale-to-fit";
+    def->default_value = new ConfigOptionPoint3(Pointf3(0,0,0));
+}
+
+CLIConfigDef cli_config_def;
 
 }

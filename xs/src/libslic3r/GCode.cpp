@@ -4,6 +4,8 @@
 #include <cstdlib>
 #include <math.h>
 
+#define FLAVOR_IS(val) this->config.gcode_flavor == val
+
 namespace Slic3r {
 
 AvoidCrossingPerimeters::AvoidCrossingPerimeters()
@@ -96,7 +98,7 @@ OozePrevention::pre_toolchange(GCode &gcodegen)
     if (gcodegen.config.standby_temperature_delta.value != 0) {
         // we assume that heating is always slower than cooling, so no need to block
         gcode += gcodegen.writer.set_temperature
-            (this->_get_temp(gcodegen) + gcodegen.config.standby_temperature_delta.value, false);
+            (this->_get_temp(gcodegen) + gcodegen.config.standby_temperature_delta.value, false, gcodegen.writer.extruder()->id);
     }
     
     return gcode;
@@ -108,7 +110,7 @@ OozePrevention::post_toolchange(GCode &gcodegen)
     std::string gcode;
     
     if (gcodegen.config.standby_temperature_delta.value != 0) {
-        gcode += gcodegen.writer.set_temperature(this->_get_temp(gcodegen), true);
+        gcode += gcodegen.writer.set_temperature(this->_get_temp(gcodegen), true, gcodegen.writer.extruder()->id);
     }
     
     return gcode;
@@ -199,7 +201,8 @@ Wipe::wipe(GCode &gcodegen, bool toolchange)
 
 GCode::GCode()
     : placeholder_parser(NULL), enable_loop_clipping(true), enable_cooling_markers(false), layer_count(0),
-        layer_index(-1), layer(NULL), first_layer(false), elapsed_time(0.0), volumetric_speed(0),
+        layer_index(-1), layer(NULL), first_layer(false), elapsed_time(0.0),
+        elapsed_time_bridges(0.0), elapsed_time_external(0.0), volumetric_speed(0),
         _last_pos_defined(false)
 {
 }
@@ -281,11 +284,8 @@ GCode::change_layer(const Layer &layer)
     this->first_layer = (layer.id() == 0);
     
     // avoid computing islands and overhangs if they're not needed
-    if (this->config.avoid_crossing_perimeters) {
-        ExPolygons islands;
-        union_(layer.slices, &islands, true);
-        this->avoid_crossing_perimeters.init_layer_mp(islands);
-    }
+    if (this->config.avoid_crossing_perimeters)
+        this->avoid_crossing_perimeters.init_layer_mp(union_ex(layer.slices, true));
     
     std::string gcode;
     if (this->layer_count > 0) {
@@ -325,7 +325,7 @@ GCode::extrude(ExtrusionLoop loop, std::string description, double speed)
     Point last_pos = this->last_pos();
     if (this->config.spiral_vase) {
         loop.split_at(last_pos);
-    } else if (seam_position == spNearest || seam_position == spAligned) {
+    } else if (seam_position == spNearest || seam_position == spAligned || seam_position == spRear) {
         const Polygon polygon = loop.polygon();
         
         // simplify polygon in order to skip false positives in concave/convex detection
@@ -355,8 +355,13 @@ GCode::extrude(ExtrusionLoop loop, std::string description, double speed)
         }
         
         // retrieve the last start position for this object
-        if (this->layer != NULL && this->_seam_position.count(this->layer->object()) > 0) {
-            last_pos = this->_seam_position[this->layer->object()];
+        if (this->layer != NULL) {
+            if (seam_position == spRear) {
+                last_pos = this->layer->object()->bounding_box().center();
+                last_pos.y += coord_t(3. * this->layer->object()->bounding_box().radius());
+            } else if (this->_seam_position.count(this->layer->object()) > 0) {
+                last_pos = this->_seam_position[this->layer->object()];
+            }
         }
         
         Point point;
@@ -393,7 +398,8 @@ GCode::extrude(ExtrusionLoop loop, std::string description, double speed)
             last_pos = Point(polygon.bounding_box().max.x, centroid.y);
             last_pos.rotate(fmod((float)rand()/16.0, 2.0*PI), centroid);
         }
-        loop.split_at(last_pos);
+        // Find the closest point, avoid overhangs.
+        loop.split_at(last_pos, true);
     }
     
     // clip the path to avoid the extruder to get exactly on the first point of the loop;
@@ -547,11 +553,11 @@ GCode::_extrude(ExtrusionPath path, std::string description, double speed)
             CONFESS("Invalid speed");
         }
     }
-    if (this->first_layer) {
-        speed = this->config.get_abs_value("first_layer_speed", speed);
-    }
     if (this->volumetric_speed != 0 && speed == 0) {
         speed = this->volumetric_speed / path.mm3_per_mm;
+    }
+    if (this->first_layer) {
+        speed = this->config.get_abs_value("first_layer_speed", speed);
     }
     if (this->config.max_volumetric_speed.value > 0) {
         // cap speed with max_volumetric_speed anyway (even if user is not using autospeed)
@@ -560,12 +566,21 @@ GCode::_extrude(ExtrusionPath path, std::string description, double speed)
             this->config.max_volumetric_speed.value / path.mm3_per_mm
         );
     }
+    if (EXTRUDER_CONFIG(filament_max_volumetric_speed) > 0) {
+        // cap speed with max_volumetric_speed anyway (even if user is not using autospeed)
+        speed = std::min(
+            speed,
+            EXTRUDER_CONFIG(filament_max_volumetric_speed) / path.mm3_per_mm
+        );
+    }
     double F = speed * 60;  // convert mm/sec to mm/min
     
     // extrude arc or line
     if (path.is_bridge() && this->enable_cooling_markers)
         gcode += ";_BRIDGE_FAN_START\n";
-    gcode += this->writer.set_speed(F, "", this->enable_cooling_markers ? ";_EXTRUDE_SET_SPEED" : "");
+    std::string comment = ";_EXTRUDE_SET_SPEED";
+    if (path.role == erExternalPerimeter) comment += ";_EXTERNAL_PERIMETER";
+    gcode += this->writer.set_speed(F, "", this->enable_cooling_markers ? comment : "");
     double path_length = 0;
     {
         std::string comment = this->config.gcode_comments ? description : "";
@@ -590,8 +605,12 @@ GCode::_extrude(ExtrusionPath path, std::string description, double speed)
     
     this->set_last_pos(path.last_point());
     
-    if (this->config.cooling)
-        this->elapsed_time += path_length / F * 60;
+    if (this->config.cooling) {
+        float t = path_length / F * 60;
+        this->elapsed_time += t;
+        if (path.is_bridge()) this->elapsed_time_bridges += t;
+        if (path.role == erExternalPerimeter) this->elapsed_time_external += t;
+    }
     
     return gcode;
 }
@@ -632,17 +651,17 @@ GCode::travel_to(const Point &point, ExtrusionRole role, std::string comment)
     
     // use G1 because we rely on paths being straight (G0 may make round paths)
     Lines lines = travel.lines();
-    double path_length = 0;
-    for (Lines::const_iterator line = lines.begin(); line != lines.end(); ++line) {
-	    const double line_length = line->length() * SCALING_FACTOR;
-	    path_length += line_length;
-
-	    gcode += this->writer.travel_to_xy(this->point_to_gcode(line->b), comment);
-    }
-
+    for (Lines::const_iterator line = lines.begin(); line != lines.end(); ++line)
+        gcode += this->writer.travel_to_xy(this->point_to_gcode(line->b), comment);
+    
+    /*  While this makes the estimate more accurate, CoolingBuffer calculates the slowdown
+        factor on the whole elapsed time but only alters non-travel moves, thus the resulting
+        time is still shorter than the configured threshold. We could create a new 
+        elapsed_travel_time but we would still need to account for bridges, retractions, wipe etc.
     if (this->config.cooling)
-        this->elapsed_time += path_length / this->config.get_abs_value("travel_speed");
-
+        this->elapsed_time += unscale(travel.length()) / this->config.get_abs_value("travel_speed");
+    */
+    
     return gcode;
 }
 
@@ -667,15 +686,6 @@ GCode::needs_retraction(const Polyline &travel, ExtrusionRole role)
             && this->layer->any_internal_region_slice_contains(travel)) {
             /*  skip retraction if travel is contained in an internal slice *and*
                 internal infill is enabled (so that stringing is entirely not visible)  */
-            return false;
-        } else if (this->layer->any_bottom_region_slice_contains(travel)
-            && this->layer->upper_layer != NULL
-            && this->layer->upper_layer->slices.contains(travel)
-            && (this->config.bottom_solid_layers.value >= 2 || this->config.fill_density.value > 0)) {
-            /*  skip retraction if travel is contained in an *infilled* bottom slice
-                but only if it's also covered by an *infilled* upper layer's slice
-                so that it's not visible from above (a bottom surface might not have an
-                upper slice in case of a thin membrane)  */
             return false;
         }
     }
@@ -702,8 +712,8 @@ GCode::retract(bool toolchange)
         methods even if we performed wipe, since this will ensure the entire retraction
         length is honored in case wipe path was too short.  */
     gcode += toolchange ? this->writer.retract_for_toolchange() : this->writer.retract();
-    
-    gcode += this->writer.reset_e();
+    if (!(FLAVOR_IS(gcfSmoothie) && this->config.use_firmware_retraction))
+        gcode += this->writer.reset_e();
     if (this->writer.extruder()->retract_length() > 0 || this->config.use_firmware_retraction)
         gcode += this->writer.lift();
     

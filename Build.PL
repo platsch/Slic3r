@@ -15,7 +15,6 @@ my %prereqs = qw(
     File::Basename                  0
     File::Spec                      0
     Getopt::Long                    0
-    Math::PlanePath                 53
     Module::Build::WithXSpp         0.14
     Moo                             1.003001
     POSIX                           0
@@ -30,8 +29,9 @@ my %prereqs = qw(
 );
 my %recommends = qw(
     Class::XSAccessor               0
-    XML::SAX::ExpatXS               0
     Test::Harness                   0
+    Thread::Queue                   0
+    threads::shared                 0
 );
 
 my $sudo    = grep { $_ eq '--sudo' } @ARGV;
@@ -109,14 +109,18 @@ EOF
         if !$cpanm;
     my @cpanm_args = ();
     push @cpanm_args, "--sudo" if $sudo;
-
+    
+    # install local::lib without --local-lib otherwise it's not usable afterwards
+    if (!eval "use local::lib qw(local-lib); 1") {
+        my $res = system $cpanm, @cpanm_args, 'local::lib';
+        warn "Warning: local::lib is required. You might need to run the `cpanm --sudo local::lib` command in order to install it.\n"
+            if $res != 0;
+    }
+    
+    push @cpanm_args, ('--local-lib', 'local-lib');
+    
     # make sure our cpanm is updated (old ones don't support the ~ syntax)
     system $cpanm, @cpanm_args, 'App::cpanminus';
-    
-    # install the Windows-compatible Math::Libm
-    if ($^O eq 'MSWin32' && !eval "use Math::Libm; 1") {
-        system $cpanm, @cpanm_args, 'https://github.com/alexrj/Math-Libm/tarball/master';
-    }
     
     my %modules = (%prereqs, %recommends);
     foreach my $module (sort keys %modules) {
@@ -128,15 +132,6 @@ EOF
             if $module =~ /^(?:OpenGL|Math::PlanePath|Test::Harness)$/;
         
         push @cmd, "$module~$version";
-        if ($module eq 'XML::SAX::ExpatXS' && $^O eq 'MSWin32') {
-            my $mingw = 'C:\dev\CitrusPerl\mingw64';
-            $mingw = 'C:\dev\CitrusPerl\mingw32' if !-d $mingw;
-            if (!-d $mingw) {
-                print "Could not find the MinGW directory at $mingw; skipping XML::SAX::ExpatXS (only needed for faster parsing of AMF files)\n";
-            } else {
-                push @cmd, sprintf('--configure-args="EXPATLIBPATH=%s\lib EXPATINCPATH=%s\include"', $mingw, $mingw);
-            }
-        }
         my $res = system @cmd;
         if ($res != 0) {
             if (exists $prereqs{$module}) {

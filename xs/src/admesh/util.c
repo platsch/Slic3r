@@ -27,7 +27,7 @@
 
 #include "stl.h"
 
-static void stl_rotate(float *x, float *y, float angle);
+static void stl_rotate(float *x, float *y, const double c, const double s);
 static float get_area(stl_facet *facet);
 static float get_volume(stl_file *stl);
 
@@ -170,7 +170,7 @@ stl_scale(stl_file *stl, float factor) {
   stl_scale_versor(stl, versor);
 }
 
-static void calculate_normals(stl_file *stl) {
+void calculate_normals(stl_file *stl) {
   long i;
   float normal[3];
 
@@ -185,17 +185,38 @@ static void calculate_normals(stl_file *stl) {
   }
 }
 
+void stl_transform(stl_file *stl, float *trafo3x4) {
+  int i_face, i_vertex, i, j;
+  if (stl->error)
+    return;
+  for (i_face = 0; i_face < stl->stats.number_of_facets; ++ i_face) {
+    stl_vertex *vertices = stl->facet_start[i_face].vertex;
+    for (i_vertex = 0; i_vertex < 3; ++ i_vertex) {
+      stl_vertex &v_dst = vertices[i_vertex];
+      stl_vertex  v_src = v_dst;
+      v_dst.x = trafo3x4[0] * v_src.x + trafo3x4[1] * v_src.y + trafo3x4[2]  * v_src.z + trafo3x4[3];
+      v_dst.y = trafo3x4[4] * v_src.x + trafo3x4[5] * v_src.y + trafo3x4[6]  * v_src.z + trafo3x4[7];
+      v_dst.z = trafo3x4[8] * v_src.x + trafo3x4[9] * v_src.y + trafo3x4[10] * v_src.z + trafo3x4[11];
+    }
+  }
+  stl_get_size(stl);
+  calculate_normals(stl);
+}
+
 void
 stl_rotate_x(stl_file *stl, float angle) {
   int i;
   int j;
+  double radian_angle = (angle / 180.0) * M_PI;
+  double c = cos(radian_angle);
+  double s = sin(radian_angle);
 
   if (stl->error) return;
 
   for(i = 0; i < stl->stats.number_of_facets; i++) {
     for(j = 0; j < 3; j++) {
       stl_rotate(&stl->facet_start[i].vertex[j].y,
-                 &stl->facet_start[i].vertex[j].z, angle);
+                 &stl->facet_start[i].vertex[j].z, c, s);
     }
   }
   stl_get_size(stl);
@@ -206,13 +227,16 @@ void
 stl_rotate_y(stl_file *stl, float angle) {
   int i;
   int j;
+  double radian_angle = (angle / 180.0) * M_PI;
+  double c = cos(radian_angle);
+  double s = sin(radian_angle);
 
   if (stl->error) return;
 
   for(i = 0; i < stl->stats.number_of_facets; i++) {
     for(j = 0; j < 3; j++) {
       stl_rotate(&stl->facet_start[i].vertex[j].z,
-                 &stl->facet_start[i].vertex[j].x, angle);
+                 &stl->facet_start[i].vertex[j].x, c, s);
     }
   }
   stl_get_size(stl);
@@ -223,13 +247,16 @@ void
 stl_rotate_z(stl_file *stl, float angle) {
   int i;
   int j;
+  double radian_angle = (angle / 180.0) * M_PI;
+  double c = cos(radian_angle);
+  double s = sin(radian_angle);
 
   if (stl->error) return;
 
   for(i = 0; i < stl->stats.number_of_facets; i++) {
     for(j = 0; j < 3; j++) {
       stl_rotate(&stl->facet_start[i].vertex[j].x,
-                 &stl->facet_start[i].vertex[j].y, angle);
+                 &stl->facet_start[i].vertex[j].y, c, s);
     }
   }
   stl_get_size(stl);
@@ -239,17 +266,11 @@ stl_rotate_z(stl_file *stl, float angle) {
 
 
 static void
-stl_rotate(float *x, float *y, float angle) {
-  double r;
-  double theta;
-  double radian_angle;
-
-  radian_angle = (angle / 180.0) * M_PI;
-
-  r = sqrt((*x **x) + (*y **y));
-  theta = atan2(*y, *x);
-  *x = r * cos(theta + radian_angle);
-  *y = r * sin(theta + radian_angle);
+stl_rotate(float *x, float *y, const double c, const double s) {
+  double xold = *x;
+  double yold = *y;
+  *x = c * xold - s * yold;
+  *y = s * xold + c * yold;
 }
 
 extern void

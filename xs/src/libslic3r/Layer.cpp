@@ -3,7 +3,6 @@
 #include "Geometry.hpp"
 #include "Print.hpp"
 
-
 namespace Slic3r {
 
 Layer::Layer(size_t id, PrintObject *object, coordf_t height, coordf_t print_z,
@@ -48,18 +47,6 @@ Layer::set_id(size_t id)
     this->_id = id;
 }
 
-PrintObject*
-Layer::object()
-{
-    return this->_object;
-}
-
-const PrintObject*
-Layer::object() const
-{
-    return this->_object;
-}
-
 
 size_t
 Layer::region_count() const
@@ -72,12 +59,6 @@ Layer::clear_regions()
 {
     for (int i = this->regions.size()-1; i >= 0; --i)
         this->delete_region(i);
-}
-
-LayerRegion*
-Layer::get_region(int idx)
-{
-    return this->regions.at(idx);
 }
 
 LayerRegion*
@@ -124,7 +105,7 @@ Layer::make_slices()
             Polygons region_slices_p = (*layerm)->slices;
             slices_p.insert(slices_p.end(), region_slices_p.begin(), region_slices_p.end());
         }
-        union_(slices_p, &slices);
+        slices = union_ex(slices_p);
     }
     
     this->slices.expolygons.clear();
@@ -176,6 +157,10 @@ Layer::any_bottom_region_slice_contains(const T &item) const
 }
 template bool Layer::any_bottom_region_slice_contains<Polyline>(const Polyline &item) const;
 
+
+// Here the perimeters are created cummulatively for all layer regions sharing the same parameters influencing the perimeters.
+// The perimeter paths and the thin fills (ExtrusionEntityCollection) are assigned to the first compatible layer region.
+// The resulting fill surface is split back among the originating regions.
 void
 Layer::make_perimeters()
 {
@@ -243,8 +228,8 @@ Layer::make_perimeters()
             if (!fill_surfaces.surfaces.empty()) {
                 for (LayerRegionPtrs::iterator l = layerms.begin(); l != layerms.end(); ++l) {
                     ExPolygons expp = intersection_ex(
-                        fill_surfaces,
-                        (*l)->slices
+                        (Polygons) fill_surfaces,
+                        (Polygons) (*l)->slices
                     );
                     (*l)->fill_surfaces.surfaces.clear();
                     
@@ -259,16 +244,21 @@ Layer::make_perimeters()
     }
 }
 
-
-SupportLayer::SupportLayer(size_t id, PrintObject *object, coordf_t height,
-        coordf_t print_z, coordf_t slice_z)
-:   Layer(id, object, height, print_z, slice_z)
+void
+Layer::make_fills()
 {
+    #ifdef SLIC3R_DEBUG
+    printf("Making fills for layer %zu\n", this->id());
+    #endif
+    
+    FOREACH_LAYERREGION(this, it_layerm) {
+        (*it_layerm)->make_fill();
+        
+        #ifndef NDEBUG
+        for (size_t i = 0; i < (*it_layerm)->fills.entities.size(); ++i)
+            assert(dynamic_cast<ExtrusionEntityCollection*>((*it_layerm)->fills.entities[i]) != NULL);
+        #endif
+    }
 }
-
-SupportLayer::~SupportLayer()
-{
-}
-
 
 }

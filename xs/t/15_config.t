@@ -4,7 +4,8 @@ use strict;
 use warnings;
 
 use Slic3r::XS;
-use Test::More tests => 110;
+use Test::More tests => 147;
+use Data::Dumper;
 
 foreach my $config (Slic3r::Config->new, Slic3r::Config::Static::new_FullPrintConfig) {
     $config->set('layer_height', 0.3);
@@ -24,7 +25,48 @@ foreach my $config (Slic3r::Config->new, Slic3r::Config::Static::new_FullPrintCo
     is $config->serialize('notes'), 'foo\nbar', 'serialize string with newline';
     $config->set_deserialize('notes', 'bar\nbaz');
     is $config->get('notes'), "bar\nbaz", 'deserialize string with newline';
-    
+
+    foreach my $test_data (
+        {
+            name => 'empty',
+            values => [],
+            serialized => ''
+        },
+        {
+            name => 'single empty',
+            values => [''],
+            serialized => '""'
+        },
+        {
+            name => 'single noempty, simple',
+            values => ['RGB'],
+            serialized => 'RGB'
+        },
+        {
+            name => 'multiple noempty, simple',
+            values => ['ABC', 'DEF', '09182745@!#$*(&'],
+            serialized => 'ABC;DEF;09182745@!#$*(&'
+        },
+        {
+            name => 'multiple, simple, some empty',
+            values => ['ABC', 'DEF', '', '09182745@!#$*(&', ''],
+            serialized => 'ABC;DEF;;09182745@!#$*(&;'
+        },
+        {
+            name => 'complex',
+            values => ['some "quoted" notes', "yet\n some notes", "whatever \n notes", ''],
+            serialized => '"some \"quoted\" notes";"yet\n some notes";"whatever \n notes";'
+        }
+        )
+    {    
+        $config->set('filament_notes', $test_data->{values});
+        is $config->serialize('filament_notes'), $test_data->{serialized}, 'serialize multi-string value ' . $test_data->{name};
+        $config->set_deserialize('filament_notes', '');
+        is_deeply $config->get('filament_notes'), [], 'deserialize multi-string value - empty ' . $test_data->{name};
+        $config->set_deserialize('filament_notes', $test_data->{serialized});
+        is_deeply $config->get('filament_notes'), $test_data->{values}, 'deserialize complex multi-string value ' . $test_data->{name};
+    }
+
     $config->set('first_layer_height', 0.3);
     ok abs($config->get('first_layer_height') - 0.3) < 1e-4, 'set/get absolute floatOrPercent';
     is $config->serialize('first_layer_height'), '0.3', 'serialize absolute floatOrPercent';
@@ -55,8 +97,8 @@ foreach my $config (Slic3r::Config->new, Slic3r::Config::Static::new_FullPrintCo
     $config->set_deserialize('gcode_flavor', 'machinekit');
     is $config->get('gcode_flavor'), 'machinekit', 'deserialize enum (gcode_flavor)';
     
-    $config->set_deserialize('fill_pattern', 'line');
-    is $config->get('fill_pattern'), 'line', 'deserialize enum (fill_pattern)';
+    $config->set_deserialize('fill_pattern', 'stars');
+    is $config->get('fill_pattern'), 'stars', 'deserialize enum (fill_pattern)';
     
     $config->set_deserialize('support_material_pattern', 'pillars');
     is $config->get('support_material_pattern'), 'pillars', 'deserialize enum (support_material_pattern)';
@@ -157,12 +199,12 @@ foreach my $config (Slic3r::Config->new, Slic3r::Config::Static::new_FullPrintCo
 
 {
     my $config = Slic3r::Config->new;
-    $config->set('fill_pattern', 'line');
+    $config->set('fill_pattern', 'stars');
 
     my $config2 = Slic3r::Config->new;
     $config2->set('fill_pattern', 'hilbertcurve');
     
-    is $config->get('fill_pattern'), 'line', 'no interferences between DynamicConfig objects';
+    is $config->get('fill_pattern'), 'stars', 'no interferences between DynamicConfig objects';
 }
 
 {
@@ -198,6 +240,15 @@ foreach my $config (Slic3r::Config->new, Slic3r::Config::Static::new_FullPrintCo
     $config->set('retract_layer_change', [1,0]);
     $config->normalize;
     is_deeply $config->get('retract_layer_change'), [0,0], 'retract_layer_change is disabled with spiral_vase';
+}
+
+{
+    use Cwd qw(abs_path);
+    use File::Basename qw(dirname);
+    my $class = Slic3r::Config->new;
+    my $path = abs_path($0);
+    my $config = $class->_load(dirname($path)."/inc/22_config_bad_config_options.ini");
+    ok 1, 'did not crash on reading invalid items in config';
 }
 
 __END__

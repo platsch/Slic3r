@@ -1,5 +1,9 @@
 #include "Model.hpp"
 #include "Geometry.hpp"
+#include "IO.hpp"
+#include <iostream>
+#include <boost/algorithm/string/predicate.hpp>
+#include <boost/filesystem.hpp>
 
 namespace Slic3r {
 
@@ -34,6 +38,31 @@ Model::~Model()
 {
     this->clear_objects();
     this->clear_materials();
+}
+
+Model
+Model::read_from_file(std::string input_file)
+{
+    Model model;
+    
+    if (boost::algorithm::iends_with(input_file, ".stl")) {
+        IO::STL::read(input_file, &model);
+    } else if (boost::algorithm::iends_with(input_file, ".obj")) {
+        IO::OBJ::read(input_file, &model);
+    } else if (boost::algorithm::iends_with(input_file, ".amf")
+            || boost::algorithm::iends_with(input_file, ".amf.xml")) {
+        IO::AMF::read(input_file, &model);
+    } else {
+        throw std::runtime_error("Unknown file format");
+    }
+    
+    if (model.objects.empty())
+        throw std::runtime_error("The supplied file couldn't be read because it's empty");
+    
+    for (ModelObjectPtrs::const_iterator o = model.objects.begin(); o != model.objects.end(); ++o)
+        (*o)->input_file = input_file;
+    
+    return model;
 }
 
 ModelObject*
@@ -160,6 +189,13 @@ Model::bounding_box() const
 }
 
 void
+Model::repair()
+{
+    for (ModelObjectPtrs::const_iterator o = this->objects.begin(); o != this->objects.end(); ++o)
+        (*o)->repair();
+}
+
+void
 Model::center_instances_around_point(const Pointf &point)
 {
     BoundingBoxf3 bb = this->bounding_box();
@@ -215,21 +251,22 @@ Model::raw_mesh() const
     return mesh;
 }
 
-Pointfs
-Model::_arrange(const Pointfs &sizes, coordf_t dist, const BoundingBoxf* bb) const
+bool
+Model::_arrange(const Pointfs &sizes, coordf_t dist, const BoundingBoxf* bb, Pointfs &out) const
 {
     // we supply unscaled data to arrange()
     return Slic3r::Geometry::arrange(
         sizes.size(),               // number of parts
         BoundingBoxf(sizes).max,    // width and height of a single cell
         dist,                       // distance between cells
-        bb                          // bounding box of the area to fill
+        bb,                         // bounding box of the area to fill
+        out                         // output positions
     );
 }
 
 /*  arrange objects preserving their instance count
     but altering their instance positions */
-void
+bool
 Model::arrange_objects(coordf_t dist, const BoundingBoxf* bb)
 {
     // get the (transformed) size of each instance so that we take
@@ -241,7 +278,9 @@ Model::arrange_objects(coordf_t dist, const BoundingBoxf* bb)
         }
     }
     
-    Pointfs positions = this->_arrange(instance_sizes, dist, bb);
+    Pointfs positions;
+    if (! this->_arrange(instance_sizes, dist, bb, positions))
+        return false;
     
     for (ModelObjectPtrs::const_iterator o = this->objects.begin(); o != this->objects.end(); ++o) {
         for (ModelInstancePtrs::const_iterator i = (*o)->instances.begin(); i != (*o)->instances.end(); ++i) {
@@ -250,6 +289,7 @@ Model::arrange_objects(coordf_t dist, const BoundingBoxf* bb)
         }
         (*o)->invalidate_bounding_box();
     }
+    return true;
 }
 
 /*  duplicate the entire model preserving instance relative positions */
@@ -257,7 +297,9 @@ void
 Model::duplicate(size_t copies_num, coordf_t dist, const BoundingBoxf* bb)
 {
     Pointfs model_sizes(copies_num-1, this->bounding_box().size());
-    Pointfs positions = this->_arrange(model_sizes, dist, bb);
+    Pointfs positions;
+    if (! this->_arrange(model_sizes, dist, bb, positions))
+        CONFESS("Cannot duplicate part as the resulting objects would not fit on the print bed.\n");
     
     // note that this will leave the object count unaltered
     
@@ -311,6 +353,13 @@ Model::duplicate_objects_grid(size_t x, size_t y, coordf_t dist)
     }
 }
 
+void
+Model::print_info() const
+{
+    for (ModelObjectPtrs::const_iterator o = this->objects.begin(); o != this->objects.end(); ++o)
+        (*o)->print_info();
+}
+
 ModelMaterial::ModelMaterial(Model *model) : model(model) {}
 ModelMaterial::ModelMaterial(Model *model, const ModelMaterial &other)
     : attributes(other.attributes), config(other.config), model(model)
@@ -324,7 +373,7 @@ ModelMaterial::apply(const t_model_material_attributes &attributes)
 
 
 ModelObject::ModelObject(Model *model)
-    : model(model), _bounding_box_valid(false)
+    : _bounding_box_valid(false), model(model)
 {}
 
 ModelObject::ModelObject(Model *model, const ModelObject &other, bool copy_volumes)
@@ -467,8 +516,24 @@ ModelObject::invalidate_bounding_box()
 void
 ModelObject::update_bounding_box()
 {
-    this->_bounding_box = this->mesh().bounding_box();
+//    this->_bounding_box = this->mesh().bounding_box();
+    BoundingBoxf3 raw_bbox;
+    for (ModelVolumePtrs::const_iterator v = this->volumes.begin(); v != this->volumes.end(); ++v) {
+        if ((*v)->modifier) continue;
+        raw_bbox.merge((*v)->mesh.bounding_box());
+    }
+    BoundingBoxf3 bb;
+    for (ModelInstancePtrs::const_iterator i = this->instances.begin(); i != this->instances.end(); ++i)
+        bb.merge((*i)->transform_bounding_box(raw_bbox));
+    this->_bounding_box = bb;
     this->_bounding_box_valid = true;
+}
+
+void
+ModelObject::repair()
+{
+    for (ModelVolumePtrs::const_iterator v = this->volumes.begin(); v != this->volumes.end(); ++v)
+        (*v)->mesh.repair();
 }
 
 // flattens all volumes and instances into a single mesh
@@ -479,7 +544,7 @@ ModelObject::mesh() const
     TriangleMesh raw_mesh = this->raw_mesh();
     
     for (ModelInstancePtrs::const_iterator i = this->instances.begin(); i != this->instances.end(); ++i) {
-        TriangleMesh m = raw_mesh;
+        TriangleMesh m(raw_mesh);
         (*i)->transform_mesh(&m);
         mesh.merge(m);
     }
@@ -503,12 +568,8 @@ ModelObject::raw_bounding_box() const
     BoundingBoxf3 bb;
     for (ModelVolumePtrs::const_iterator v = this->volumes.begin(); v != this->volumes.end(); ++v) {
         if ((*v)->modifier) continue;
-        TriangleMesh mesh = (*v)->mesh;
-        
         if (this->instances.empty()) CONFESS("Can't call raw_bounding_box() with no instances");
-        this->instances.front()->transform_mesh(&mesh, true);
-        
-        bb.merge(mesh.bounding_box());
+        bb.merge(this->instances.front()->transform_mesh_bounding_box(&(*v)->mesh, true));
     }
     return bb;
 }
@@ -517,9 +578,12 @@ ModelObject::raw_bounding_box() const
 BoundingBoxf3
 ModelObject::instance_bounding_box(size_t instance_idx) const
 {
-    TriangleMesh mesh = this->raw_mesh();
-    this->instances[instance_idx]->transform_mesh(&mesh);
-    return mesh.bounding_box();
+    BoundingBoxf3 bb;
+    for (ModelVolumePtrs::const_iterator v = this->volumes.begin(); v != this->volumes.end(); ++v) {
+        if ((*v)->modifier) continue;
+        bb.merge(this->instances[instance_idx]->transform_mesh_bounding_box(&(*v)->mesh, true));
+    }
+    return bb;
 }
 
 void
@@ -527,7 +591,10 @@ ModelObject::center_around_origin()
 {
     // calculate the displacements needed to 
     // center this object around the origin
-    BoundingBoxf3 bb = this->raw_mesh().bounding_box();
+	BoundingBoxf3 bb;
+	for (ModelVolumePtrs::const_iterator v = this->volumes.begin(); v != this->volumes.end(); ++v)
+		if (! (*v)->modifier)
+			bb.merge((*v)->mesh.bounding_box());
     
     // first align to origin on XYZ
     Vectorf3 vector(-bb.min.x, -bb.min.y, -bb.min.z);
@@ -569,8 +636,15 @@ ModelObject::translate(coordf_t x, coordf_t y, coordf_t z)
 }
 
 void
+ModelObject::scale(float factor)
+{
+    this->scale(Pointf3(factor, factor, factor));
+}
+
+void
 ModelObject::scale(const Pointf3 &versor)
 {
+    if (versor.x == 1 && versor.y == 1 && versor.z == 1) return;
     for (ModelVolumePtrs::const_iterator v = this->volumes.begin(); v != this->volumes.end(); ++v) {
         (*v)->mesh.scale(versor);
     }
@@ -581,8 +655,23 @@ ModelObject::scale(const Pointf3 &versor)
 }
 
 void
+ModelObject::scale_to_fit(const Sizef3 &size)
+{
+    Sizef3 orig_size = this->bounding_box().size();
+    float factor = fminf(
+        size.x / orig_size.x,
+        fminf(
+            size.y / orig_size.y,
+            size.z / orig_size.z
+        )
+    );
+    this->scale(factor);
+}
+
+void
 ModelObject::rotate(float angle, const Axis &axis)
 {
+    if (angle == 0) return;
     for (ModelVolumePtrs::const_iterator v = this->volumes.begin(); v != this->volumes.end(); ++v) {
         (*v)->mesh.rotate(angle, axis);
     }
@@ -595,6 +684,24 @@ ModelObject::mirror(const Axis &axis)
 {
     for (ModelVolumePtrs::const_iterator v = this->volumes.begin(); v != this->volumes.end(); ++v) {
         (*v)->mesh.mirror(axis);
+    }
+    this->origin_translation = Pointf3(0,0,0);
+    this->invalidate_bounding_box();
+}
+
+void
+ModelObject::transform_by_instance(const ModelInstance &instance, bool dont_translate)
+{
+    this->rotate(instance.rotation, Z);
+    this->scale(instance.scaling_factor);
+    if (!dont_translate)
+        this->translate(instance.offset.x, instance.offset.y, 0);
+    
+    for (ModelInstancePtrs::iterator i = this->instances.begin(); i != this->instances.end(); ++i) {
+        (*i)->rotation -= instance.rotation;
+        (*i)->scaling_factor /= instance.scaling_factor;
+        if (!dont_translate)
+            (*i)->offset.translate(-instance.offset.x, -instance.offset.y);
     }
     this->origin_translation = Pointf3(0,0,0);
     this->invalidate_bounding_box();
@@ -632,13 +739,15 @@ ModelObject::needed_repair() const
 }
 
 void
-ModelObject::cut(coordf_t z, Model* model) const
+ModelObject::cut(Axis axis, coordf_t z, Model* model) const
 {
     // clone this one to duplicate instances, materials etc.
     ModelObject* upper = model->add_object(*this);
     ModelObject* lower = model->add_object(*this);
     upper->clear_volumes();
     lower->clear_volumes();
+    upper->input_file = "";
+    lower->input_file = "";
     
     for (ModelVolumePtrs::const_iterator v = this->volumes.begin(); v != this->volumes.end(); ++v) {
         ModelVolume* volume = *v;
@@ -647,10 +756,16 @@ ModelObject::cut(coordf_t z, Model* model) const
             upper->add_volume(*volume);
             lower->add_volume(*volume);
         } else {
-            TriangleMeshSlicer tms(&volume->mesh);
             TriangleMesh upper_mesh, lower_mesh;
-            // TODO: shouldn't we use object bounding box instead of per-volume bb?
-            tms.cut(z + volume->mesh.bounding_box().min.z, &upper_mesh, &lower_mesh);
+            
+            if (axis == X) {
+                TriangleMeshSlicer<X>(&volume->mesh).cut(z, &upper_mesh, &lower_mesh);
+            } else if (axis == Y) {
+                TriangleMeshSlicer<Y>(&volume->mesh).cut(z, &upper_mesh, &lower_mesh);
+            } else if (axis == Z) {
+                TriangleMeshSlicer<Z>(&volume->mesh).cut(z, &upper_mesh, &lower_mesh);
+            }
+            
             upper_mesh.repair();
             lower_mesh.repair();
             upper_mesh.reset_repair_stats();
@@ -688,6 +803,7 @@ ModelObject::split(ModelObjectPtrs* new_objects)
         (*mesh)->repair();
         
         ModelObject* new_object = this->model->add_object(*this, false);
+        new_object->input_file  = "";
         ModelVolume* new_volume = new_object->add_volume(**mesh);
         new_volume->name        = volume->name;
         new_volume->config      = volume->config;
@@ -701,6 +817,49 @@ ModelObject::split(ModelObjectPtrs* new_objects)
     return;
 }
 
+void
+ModelObject::print_info() const
+{
+    using namespace std;
+    cout << fixed;
+    cout << "[" << boost::filesystem::path(this->input_file).filename().string() << "]" << endl;
+    
+    TriangleMesh mesh = this->raw_mesh();
+    mesh.check_topology();
+    BoundingBoxf3 bb = mesh.bounding_box();
+    Sizef3 size = bb.size();
+    cout << "size_x = " << size.x << endl;
+    cout << "size_y = " << size.y << endl;
+    cout << "size_z = " << size.z << endl;
+    cout << "min_x = " << bb.min.x << endl;
+    cout << "min_y = " << bb.min.y << endl;
+    cout << "min_z = " << bb.min.z << endl;
+    cout << "max_x = " << bb.max.x << endl;
+    cout << "max_y = " << bb.max.y << endl;
+    cout << "max_z = " << bb.max.z << endl;
+    cout << "number_of_facets = " << mesh.stl.stats.number_of_facets  << endl;
+    cout << "manifold = "   << (mesh.is_manifold() ? "yes" : "no") << endl;
+    
+    mesh.repair();  // this calculates number_of_parts
+    if (mesh.needed_repair()) {
+        mesh.repair();
+        if (mesh.stl.stats.degenerate_facets > 0)
+            cout << "degenerate_facets = "  << mesh.stl.stats.degenerate_facets << endl;
+        if (mesh.stl.stats.edges_fixed > 0)
+            cout << "edges_fixed = "        << mesh.stl.stats.edges_fixed       << endl;
+        if (mesh.stl.stats.facets_removed > 0)
+            cout << "facets_removed = "     << mesh.stl.stats.facets_removed    << endl;
+        if (mesh.stl.stats.facets_added > 0)
+            cout << "facets_added = "       << mesh.stl.stats.facets_added      << endl;
+        if (mesh.stl.stats.facets_reversed > 0)
+            cout << "facets_reversed = "    << mesh.stl.stats.facets_reversed   << endl;
+        if (mesh.stl.stats.backwards_edges > 0)
+            cout << "backwards_edges = "    << mesh.stl.stats.backwards_edges   << endl;
+    }
+    cout << "number_of_parts =  " << mesh.stl.stats.number_of_parts << endl;
+    cout << "volume = "           << mesh.volume()                  << endl;
+}
+
 
 ModelVolume::ModelVolume(ModelObject* object, const TriangleMesh &mesh)
 :   mesh(mesh), modifier(false), object(object)
@@ -711,6 +870,21 @@ ModelVolume::ModelVolume(ModelObject* object, const ModelVolume &other)
     modifier(other.modifier), object(object)
 {
     this->material_id(other.material_id());
+}
+
+ModelVolume& ModelVolume::operator= (ModelVolume other)
+{
+    this->swap(other);
+    return *this;
+}
+
+void
+ModelVolume::swap(ModelVolume &other)
+{
+    std::swap(this->name,       other.name);
+    std::swap(this->mesh,       other.mesh);
+    std::swap(this->config,     other.config);
+    std::swap(this->modifier,   other.modifier);
 }
 
 t_model_material_id
@@ -760,6 +934,20 @@ ModelInstance::ModelInstance(ModelObject *object, const ModelInstance &other)
 :   rotation(other.rotation), scaling_factor(other.scaling_factor), offset(other.offset), object(object)
 {}
 
+ModelInstance& ModelInstance::operator= (ModelInstance other)
+{
+    this->swap(other);
+    return *this;
+}
+
+void
+ModelInstance::swap(ModelInstance &other)
+{
+    std::swap(this->rotation,       other.rotation);
+    std::swap(this->scaling_factor, other.scaling_factor);
+    std::swap(this->offset,         other.offset);
+}
+
 void
 ModelInstance::transform_mesh(TriangleMesh* mesh, bool dont_translate) const
 {
@@ -767,6 +955,63 @@ ModelInstance::transform_mesh(TriangleMesh* mesh, bool dont_translate) const
     mesh->scale(this->scaling_factor);              // scale around mesh origin
     if (!dont_translate)
         mesh->translate(this->offset.x, this->offset.y, 0);
+}
+
+BoundingBoxf3 ModelInstance::transform_mesh_bounding_box(const TriangleMesh* mesh, bool dont_translate) const
+{
+    // rotate around mesh origin
+    double c = cos(this->rotation);
+    double s = sin(this->rotation);
+    BoundingBoxf3 bbox;
+    for (int i = 0; i < mesh->stl.stats.number_of_facets; ++ i) {
+        const stl_facet &facet = mesh->stl.facet_start[i];
+        for (int j = 0; j < 3; ++ j) {
+            stl_vertex v = facet.vertex[j];
+            double xold = v.x;
+            double yold = v.y;
+            v.x = float(c * xold - s * yold);
+            v.y = float(s * xold + c * yold);
+            v.x *= float(this->scaling_factor);
+            v.y *= float(this->scaling_factor);
+            v.z *= float(this->scaling_factor);
+            if (!dont_translate) {
+                v.x += this->offset.x;
+                v.y += this->offset.y;
+            }
+            bbox.merge(Pointf3(v.x, v.y, v.z));
+        }
+    }
+    return bbox;
+}
+
+BoundingBoxf3 ModelInstance::transform_bounding_box(const BoundingBoxf3 &bbox, bool dont_translate) const
+{
+    // rotate around mesh origin
+    double c = cos(this->rotation);
+    double s = sin(this->rotation);
+    Pointf3 pts[4] = {
+        bbox.min,
+        bbox.max,
+        Pointf3(bbox.min.x, bbox.max.y, bbox.min.z),
+        Pointf3(bbox.max.x, bbox.min.y, bbox.max.z)
+    };
+    BoundingBoxf3 out;
+    for (int i = 0; i < 4; ++ i) {
+        Pointf3 &v = pts[i];
+        double xold = v.x;
+        double yold = v.y;
+        v.x = float(c * xold - s * yold);
+        v.y = float(s * xold + c * yold);
+        v.x *= this->scaling_factor;
+        v.y *= this->scaling_factor;
+        v.z *= this->scaling_factor;
+        if (!dont_translate) {
+            v.x += this->offset.x;
+            v.y += this->offset.y;
+        }
+        out.merge(v);
+    }
+    return out;
 }
 
 void

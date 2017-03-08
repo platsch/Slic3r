@@ -13,18 +13,6 @@
 
 namespace Slic3r {
 
-Extruder*
-GCodeWriter::extruder()
-{
-    return this->_extruder;
-}
-
-std::string
-GCodeWriter::extrusion_axis() const
-{
-    return this->_extrusion_axis;
-}
-
 void
 GCodeWriter::apply_print_config(const PrintConfig &print_config)
 {
@@ -35,9 +23,8 @@ GCodeWriter::apply_print_config(const PrintConfig &print_config)
 void
 GCodeWriter::set_extruders(const std::vector<unsigned int> &extruder_ids)
 {
-    for (std::vector<unsigned int>::const_iterator i = extruder_ids.begin(); i != extruder_ids.end(); ++i) {
+    for (std::vector<unsigned int>::const_iterator i = extruder_ids.begin(); i != extruder_ids.end(); ++i)
         this->extruders.insert( std::pair<unsigned int,Extruder>(*i, Extruder(*i, &this->config)) );
-    }
     
     /*  we enable support for multiple extruder if any extruder greater than 0 is used
         (even if prints only uses that one) since we need to output Tx commands
@@ -54,7 +41,7 @@ GCodeWriter::preamble()
         gcode << "G21 ; set units to millimeters\n";
         gcode << "G90 ; use absolute coordinates\n";
     }
-    if (FLAVOR_IS(gcfRepRap) || FLAVOR_IS(gcfTeacup)) {
+    if (FLAVOR_IS(gcfRepRap) || FLAVOR_IS(gcfTeacup) || FLAVOR_IS(gcfRepetier) || FLAVOR_IS(gcfSmoothie)) {
         if (this->config.use_relative_e_distances) {
             gcode << "M83 ; use relative distances for extrusion\n";
         } else {
@@ -78,11 +65,9 @@ GCodeWriter::postamble() const
 std::string
 GCodeWriter::set_temperature(unsigned int temperature, bool wait, int tool) const
 {
-    if (wait && (FLAVOR_IS(gcfMakerWare) || FLAVOR_IS(gcfSailfish)))
-        return "";
     
     std::string code, comment;
-    if (wait && FLAVOR_IS_NOT(gcfTeacup)) {
+    if (wait && FLAVOR_IS_NOT(gcfTeacup) && FLAVOR_IS_NOT(gcfMakerWare) && FLAVOR_IS_NOT(gcfSailfish)) {
         code = "M109";
         comment = "set temperature and wait for it to be reached";
     } else {
@@ -105,6 +90,9 @@ GCodeWriter::set_temperature(unsigned int temperature, bool wait, int tool) cons
     
     if (FLAVOR_IS(gcfTeacup) && wait)
         gcode << "M116 ; wait for temperature to be reached\n";
+    
+    if (wait && tool !=-1 && (FLAVOR_IS(gcfMakerWare) || FLAVOR_IS(gcfSailfish)))
+        gcode << "M6 T" << tool << " ; wait for temperature to be reached\n";
     
     return gcode.str();
 }
@@ -185,7 +173,14 @@ GCodeWriter::set_acceleration(unsigned int acceleration)
     this->_last_acceleration = acceleration;
     
     std::ostringstream gcode;
-    gcode << "M204 S" << acceleration;
+    if (FLAVOR_IS(gcfRepetier)) {
+        gcode << "M201 X" << acceleration << " Y" << acceleration;
+        if (this->config.gcode_comments) gcode << " ; adjust acceleration";
+        gcode << "\n";
+        gcode << "M202 X" << acceleration << " Y" << acceleration;
+    } else {
+        gcode << "M204 S" << acceleration;
+    }
     if (this->config.gcode_comments) gcode << " ; adjust acceleration";
     gcode << "\n";
     
@@ -441,7 +436,7 @@ GCodeWriter::_retract(double length, double restart_extra, const std::string &co
         length = length * area;
         restart_extra = restart_extra * area;
     }
-    
+
     double dE = this->_extruder->retract(length, restart_extra);
     if (dE != 0) {
         if (this->config.use_firmware_retraction) {
@@ -521,12 +516,6 @@ GCodeWriter::unlift()
         this->_lifted = 0;
     }
     return gcode;
-}
-
-Pointf3
-GCodeWriter::get_position() const
-{
-    return this->_pos;
 }
 
 }

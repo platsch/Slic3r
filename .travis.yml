@@ -1,5 +1,5 @@
 language: perl
-install: true
+install: export LDLOADLIBS=-lstdc++
 script: perl ./Build.PL
 perl:
   - "5.14"
@@ -11,11 +11,18 @@ branches:
     - stable
 sudo: false
 cache:
-    - apt
+  apt: true
+  directories:
+    - local-lib
 addons:
   apt:
     sources:
     - boost-latest
+    - ubuntu-toolchain-r-test
     packages:
     - libboost-thread1.55-dev
     - libboost-system1.55-dev
+    - libboost-filesystem1.55-dev
+    - liblocal-lib-perl
+    - g++-4.9
+env: CC=g++-4.9

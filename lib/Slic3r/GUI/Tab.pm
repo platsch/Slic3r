@@ -106,7 +106,10 @@ sub new {
         $self->_on_presets_changed;
     });
     
+    # C++ instance DynamicPrintConfig
     $self->{config} = Slic3r::Config->new;
+    # Initialize the DynamicPrintConfig by default keys/values.
+    # Possible %params keys: no_controller
     $self->build(%params);
     $self->update_tree;
     $self->_update;
@@ -445,7 +448,7 @@ sub set_value {
 package Slic3r::GUI::Tab::Print;
 use base 'Slic3r::GUI::Tab';
 
-use List::Util qw(first);
+use List::Util qw(first any);
 use Wx qw(:icon :dialog :id);
 
 sub name { 'print' }
@@ -460,7 +463,7 @@ sub build {
         top_solid_layers bottom_solid_layers
         extra_perimeters avoid_crossing_perimeters thin_walls overhangs
         seam_position external_perimeters_first
-        fill_density fill_pattern external_fill_pattern
+        fill_density fill_pattern external_fill_pattern fill_gaps
         infill_every_layers infill_only_where_needed
         solid_infill_every_layers fill_angle solid_infill_below_area 
         only_retract_when_crossing_perimeters infill_first
@@ -474,7 +477,7 @@ sub build {
         perimeter_acceleration infill_acceleration bridge_acceleration 
         first_layer_acceleration default_acceleration
         skirts skirt_distance skirt_height min_skirt_length
-        brim_width
+        brim_connections_width brim_width
         support_material support_material_threshold support_material_enforce_layers
         raft_layers
         support_material_pattern support_material_spacing support_material_angle
@@ -548,6 +551,7 @@ sub build {
         }
         {
             my $optgroup = $page->new_optgroup('Advanced');
+            $optgroup->append_single_option_line('fill_gaps');
             $optgroup->append_single_option_line('solid_infill_every_layers');
             $optgroup->append_single_option_line('fill_angle');
             $optgroup->append_single_option_line('solid_infill_below_area');
@@ -568,6 +572,7 @@ sub build {
         {
             my $optgroup = $page->new_optgroup('Brim');
             $optgroup->append_single_option_line('brim_width');
+            $optgroup->append_single_option_line('brim_connections_width');
         }
     }
     
@@ -605,10 +610,10 @@ sub build {
             $optgroup->append_single_option_line('infill_speed');
             $optgroup->append_single_option_line('solid_infill_speed');
             $optgroup->append_single_option_line('top_solid_infill_speed');
+            $optgroup->append_single_option_line('gap_fill_speed');
             $optgroup->append_single_option_line('support_material_speed');
             $optgroup->append_single_option_line('support_material_interface_speed');
             $optgroup->append_single_option_line('bridge_speed');
-            $optgroup->append_single_option_line('gap_fill_speed');
             $optgroup->append_single_option_line('conductive_wire_speed');
         }
         {
@@ -732,7 +737,7 @@ sub build {
             );
             my $option = $optgroup->get_option('notes');
             $option->full_width(1);
-            $option->height(150);
+            $option->height(250);
             $optgroup->append_single_option_line($option);
         }
     }
@@ -755,13 +760,14 @@ sub _update {
     
     my $config = $self->{config};
     
-    if ($config->spiral_vase && !($config->perimeters == 1 && $config->top_solid_layers == 0 && $config->fill_density == 0)) {
+    if ($config->spiral_vase && !($config->perimeters == 1 && $config->top_solid_layers == 0 && $config->fill_density == 0 && $config->infill_only_where_needed == 0 && $config->support_material == 0)) {
         my $dialog = Wx::MessageDialog->new($self,
             "The Spiral Vase mode requires:\n"
             . "- one perimeter\n"
             . "- no top solid layers\n"
             . "- 0% fill density\n"
             . "- no support material\n"
+            . "- no infill where necessary\n"
             . "\nShall I adjust those settings in order to enable Spiral Vase?",
             'Spiral Vase', wxICON_WARNING | wxYES | wxNO);
         if ($dialog->ShowModal() == wxID_YES) {
@@ -770,12 +776,42 @@ sub _update {
             $new_conf->set("top_solid_layers", 0);
             $new_conf->set("fill_density", 0);
             $new_conf->set("support_material", 0);
+            $new_conf->set("infill_only_where_needed", 0);
             $self->load_config($new_conf);
         } else {
             my $new_conf = Slic3r::Config->new;
             $new_conf->set("spiral_vase", 0);
             $self->load_config($new_conf);
         }
+    }
+
+    if ($config->support_material) {
+        # Ask only once.
+        if (! $self->{support_material_overhangs_queried}) {
+            $self->{support_material_overhangs_queried} = 1;
+            if ($config->overhangs != 1) {
+                my $dialog = Wx::MessageDialog->new($self,
+                    "Supports work better, if the following feature is enabled:\n"
+                    . "- Detect bridging perimeters\n"
+                    . "\nShall I adjust those settings for supports?",
+                    'Support Generator', wxICON_WARNING | wxYES | wxNO | wxCANCEL);
+                my $answer = $dialog->ShowModal();
+                my $new_conf = Slic3r::Config->new;
+                if ($answer == wxID_YES) {
+                    # Enable "detect bridging perimeters".
+                    $new_conf->set("overhangs", 1);
+                } elsif ($answer == wxID_NO) {
+                    # Do nothing, leave supports on and "detect bridging perimeters" off.
+                } elsif ($answer == wxID_CANCEL) {
+                    # Disable supports.
+                    $new_conf->set("support_material", 0);
+                    $self->{support_material_overhangs_queried} = 0;
+                }
+                $self->load_config($new_conf);
+            }
+        }
+    } else {
+        $self->{support_material_overhangs_queried} = 0;
     }
     
     if ($config->fill_density == 100
@@ -787,7 +823,7 @@ sub _update {
         
         my $new_conf = Slic3r::Config->new;
         if ($dialog->ShowModal() == wxID_YES) {
-            $new_conf->set("fill_pattern", 1);
+            $new_conf->set("fill_pattern", 'rectilinear');
         } else {
             $new_conf->set("fill_density", 40);
         }
@@ -815,11 +851,18 @@ sub _update {
     $self->get_field($_)->toggle($have_infill || $have_solid_infill)
         for qw(fill_angle infill_extrusion_width infill_speed bridge_speed);
     
-    $self->get_field('gap_fill_speed')->toggle($have_perimeters && $have_infill);
+    $self->get_field('fill_gaps')->toggle($have_perimeters && $have_infill);
+    $self->get_field('gap_fill_speed')->toggle($have_perimeters && $have_infill && $config->fill_gaps);
     
     my $have_top_solid_infill = $config->top_solid_layers > 0;
     $self->get_field($_)->toggle($have_top_solid_infill)
         for qw(top_infill_extrusion_width top_solid_infill_speed);
+    
+    my $have_autospeed = any { $config->get("${_}_speed") eq '0' }
+        qw(perimeter external_perimeter small_perimeter
+        infill solid_infill top_solid_infill gap_fill support_material
+        support_material_interface);
+    $self->get_field('max_print_speed')->toggle($have_autospeed);
     
     my $have_default_acceleration = $config->default_acceleration > 0;
     $self->get_field($_)->toggle($have_default_acceleration)
@@ -829,7 +872,7 @@ sub _update {
     $self->get_field($_)->toggle($have_skirt)
         for qw(skirt_distance skirt_height);
     
-    my $have_brim = $config->brim_width > 0;
+    my $have_brim = $config->brim_width > 0 || $config->brim_connections_width;
     # perimeter_extruder uses the same logic as in Print::extruders()
     $self->get_field('perimeter_extruder')->toggle($have_perimeters || $have_brim);
     
@@ -869,7 +912,7 @@ sub build {
     my $self = shift;
     
     $self->init_config_options(qw(
-        filament_colour filament_diameter extrusion_multiplier
+        filament_colour filament_diameter filament_notes filament_max_volumetric_speed extrusion_multiplier
         temperature first_layer_temperature bed_temperature first_layer_bed_temperature
         fan_always_on cooling
         min_fan_speed max_fan_speed bridge_fan_speed disable_fan_first_layers
@@ -950,6 +993,27 @@ sub build {
             $optgroup->append_single_option_line('min_print_speed');
         }
     }
+
+    {
+        my $page = $self->add_options_page('Advanced', 'wrench.png');
+        {
+            my $optgroup = $page->new_optgroup('Print speed override');
+            $optgroup->append_single_option_line('filament_max_volumetric_speed', 0);
+        }
+    }
+
+    {
+        my $page = $self->add_options_page('Notes', 'note.png');
+        {
+            my $optgroup = $page->new_optgroup('Notes',
+                label_width => 0,
+            );
+            my $option = $optgroup->get_option('filament_notes', 0);
+            $option->full_width(1);
+            $option->height(250);
+            $optgroup->append_single_option_line($option);
+        }
+    }
 }
 
 sub _update {
@@ -1006,7 +1070,7 @@ sub build {
     my (%params) = @_;
     
     $self->init_config_options(qw(
-        bed_shape z_offset
+        bed_shape z_offset has_heatbed
         gcode_flavor use_relative_e_distances
         serial_port serial_speed
         octoprint_host octoprint_apikey
@@ -1073,6 +1137,7 @@ sub build {
                 );
                 $optgroup->append_single_option_line($option);
             }
+            $optgroup->append_single_option_line('has_heatbed');
             $optgroup->on_change(sub {
                 my ($opt_id) = @_;
                 if ($opt_id eq 'extruders_count') {
@@ -1148,13 +1213,24 @@ sub build {
                 }
                 
                 EVT_BUTTON($self, $btn, sub {
-                    my $dlg = Slic3r::GUI::BonjourBrowser->new($self);
-                    if ($dlg->ShowModal == wxID_OK) {
-                        my $value = $dlg->GetValue . ":" . $dlg->GetPort;
-                        $self->{config}->set('octoprint_host', $value);
-                        $self->update_dirty;
-                        $self->_on_value_change('octoprint_host', $value);
-                        $self->reload_config;
+                    # look for devices
+                    my $entries;
+                    {
+                        my $res = Net::Bonjour->new('http');
+                        $res->discover;
+                        $entries = [ $res->entries ];
+                    }
+                    if (@{$entries}) {
+                        my $dlg = Slic3r::GUI::BonjourBrowser->new($self, $entries);
+                        if ($dlg->ShowModal == wxID_OK) {
+                            my $value = $dlg->GetValue . ":" . $dlg->GetPort;
+                            $self->{config}->set('octoprint_host', $value);
+                            $self->update_dirty;
+                            $self->_on_value_change('octoprint_host', $value);
+                            $self->reload_config;
+                        }
+                    } else {
+                        Wx::MessageDialog->new($self, 'No Bonjour device found', 'Device Browser', wxOK | wxICON_INFORMATION)->ShowModal;
                     }
                 });
                 
@@ -1401,7 +1477,12 @@ sub _update {
         
         # some options only apply when not using firmware retraction
         $self->get_field($_, $i)->toggle($retraction && !$config->use_firmware_retraction)
-            for qw(retract_speed retract_restart_extra wipe);
+            for qw(retract_restart_extra wipe);
+        
+        # retraction speed is also used by auto-speed pressure regulator, even when
+        # user enabled firmware retraction
+        $self->get_field('retract_speed', $i)->toggle($retraction);
+        
         if ($config->use_firmware_retraction && $config->get_at('wipe', $i)) {
             my $dialog = Wx::MessageDialog->new($self,
                 "The Wipe option is not available when using the Firmware Retraction mode.\n"

@@ -20,6 +20,7 @@
  *           https://github.com/admesh/admesh/issues
  */
 
+#include <float.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -27,14 +28,12 @@
 
 #include "stl.h"
 
-#if !defined(SEEK_SET)
-#define SEEK_SET 0
-#define SEEK_CUR 1
-#define SEEK_END 2
+#ifndef SEEK_SET
+#error "SEEK_SET not defined"
 #endif
 
 void
-stl_open(stl_file *stl, char *file) {
+stl_open(stl_file *stl, const char *file) {
   stl_initialize(stl);
   stl_count_facets(stl, file);
   stl_allocate(stl);
@@ -55,6 +54,8 @@ stl_initialize(stl_file *stl) {
   stl->stats.number_of_parts = 0;
   stl->stats.original_num_facets = 0;
   stl->stats.number_of_facets = 0;
+  stl->stats.bounding_diameter = 0;
+  stl->stats.shortest_edge = FLT_MAX;
   stl->stats.facets_malloced = 0;
   stl->stats.volume = -1.0;
 
@@ -65,7 +66,7 @@ stl_initialize(stl_file *stl) {
 }
 
 void
-stl_count_facets(stl_file *stl, char *file) {
+stl_count_facets(stl_file *stl, const char *file) {
   long           file_size;
   int            header_num_facets;
   int            num_facets;
@@ -277,10 +278,7 @@ stl_read(stl_file *stl, int first_facet, int first) {
       /* Read a single facet from a binary .STL file */
     {
       /* we assume little-endian architecture! */
-      if (fread(&facet.normal, sizeof(stl_normal), 1, stl->fp) \
-          + fread(&facet.vertex, sizeof(stl_vertex), 3, stl->fp) \
-          + fread(&facet.extra, sizeof(char), 2, stl->fp) != 6) {
-        perror("Cannot read facet");
+      if (fread(&facet, 1, SIZEOF_STL_FACET, stl->fp) != SIZEOF_STL_FACET) {
         stl->error = 1;
         return;
       }
@@ -304,9 +302,24 @@ stl_read(stl_file *stl, int first_facet, int first) {
         return;
       }
     }
-    /* Write the facet into memory. */
-    stl->facet_start[i] = facet;
 
+#if 0
+      // Report close to zero vertex coordinates. Due to the nature of the floating point numbers,
+      // close to zero values may be represented with singificantly higher precision than the rest of the vertices.
+      // It may be worth to round these numbers to zero during loading to reduce the number of errors reported
+      // during the STL import.
+      for (size_t j = 0; j < 3; ++ j) {
+        if (facet.vertex[j].x > -1e-12f && facet.vertex[j].x < 1e-12f)
+            printf("stl_read: facet %d.x = %e\r\n", j, facet.vertex[j].x);
+        if (facet.vertex[j].y > -1e-12f && facet.vertex[j].y < 1e-12f)
+            printf("stl_read: facet %d.y = %e\r\n", j, facet.vertex[j].y);
+        if (facet.vertex[j].z > -1e-12f && facet.vertex[j].z < 1e-12f)
+            printf("stl_read: facet %d.z = %e\r\n", j, facet.vertex[j].z);
+      }
+#endif
+
+    /* Write the facet into memory. */
+    memcpy(stl->facet_start+i, &facet, SIZEOF_STL_FACET);
     stl_facet_stats(stl, facet, first);
     first = 0;
   }
