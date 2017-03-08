@@ -710,9 +710,10 @@ GCode::retract(bool toolchange)
     if (this->writer.extruder() == NULL)
         return gcode;
     
-    // air pressure extruder, no retraction possible
-    if(EXTRUDER_CONFIG(pneumatic_extruder))
-    	return gcode;
+    // air pressure extruder, no retraction possible...
+    // ... but we need it for z-lifting!
+    //if(EXTRUDER_CONFIG(pneumatic_extruder))
+    //	return gcode;
 
     // wipe (if it's enabled for this extruder and we have a stored wipe path)
     if (EXTRUDER_CONFIG(wipe) && this->wipe.has_path()) {
@@ -738,8 +739,8 @@ GCode::unretract()
     std::string gcode;
 
     // air pressure extruder, no retraction possible
-    if(EXTRUDER_CONFIG(pneumatic_extruder))
-        return gcode;
+    //if(EXTRUDER_CONFIG(pneumatic_extruder))
+    //    return gcode;
 
     gcode += this->writer.unlift();
     gcode += this->writer.unretract();
