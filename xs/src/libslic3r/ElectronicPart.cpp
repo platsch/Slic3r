@@ -331,6 +331,7 @@ std::string ElectronicPart::getPlaceGcode(double print_z, std::string automaticG
         }
         if(this->placingMethod == PM_MANUAL) {
             gcode << ";Manually place part nr " << this->partID << "\n";
+            gcode << "M117 Insert component " << this->partID << " " << this->name << "\n";
             //gcode << "M363 P" << this->partID << "\n";
             gcode << manualGcode << "\n";
             // TODO: implement placeholder variable replacement
