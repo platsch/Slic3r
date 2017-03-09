@@ -140,6 +140,7 @@ class StaticPrintConfig : public PrintConfigBase, public StaticConfig
 class PrintObjectConfig : public virtual StaticPrintConfig
 {
     public:
+	ConfigOptionString              conductive_pnp_manual_gcode;
 	ConfigOptionFloat               conductive_wire_channel_width;
 	ConfigOptionFloat               conductive_wire_extrusion_overlap;
     ConfigOptionFloatOrPercent      conductive_wire_extrusion_width;
@@ -176,6 +177,7 @@ class PrintObjectConfig : public virtual StaticPrintConfig
     }
     
     virtual ConfigOption* optptr(const t_config_option_key &opt_key, bool create = false) {
+        OPT_PTR(conductive_pnp_manual_gcode);
     	OPT_PTR(conductive_wire_channel_width);
     	OPT_PTR(conductive_wire_extrusion_overlap);
     	OPT_PTR(conductive_wire_extrusion_width);

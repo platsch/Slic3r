@@ -71,7 +71,7 @@ class ElectronicPart
     TriangleMesh getPartMesh();
     TriangleMesh getMesh();
     Polygon* getHullPolygon(double z_lower, double z_upper);
-    std::string getPlaceGcode(double print_z);
+    std::string getPlaceGcode(double print_z, std::string automaticGcode = "", std::string manualGcode = "");
     std::string getPlaceDescription(Pointf offset);
     void resetPrintedStatus(){this->printed = false;};
 

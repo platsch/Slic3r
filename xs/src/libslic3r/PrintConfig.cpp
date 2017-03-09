@@ -116,6 +116,15 @@ PrintConfigDef::PrintConfigDef()
     def->cli = "complete-objects!";
     def->default_value = new ConfigOptionBool(false);
 
+    def = this->add("conductive_pnp_manual_gcode", coString);
+    def->label = "Gcode";
+    def->tooltip = "This gcode is used for manual SMD-placing actions. Disable extruder, lower printbed, wait for user interaction etc.";
+    def->cli = "conductive_pnp_manual_gcode=s";
+    def->multiline = true;
+    def->full_width = true;
+    def->height = 120;
+    def->default_value = new ConfigOptionString("G91\nG1 Z10 F2000\nG90\nM0\n");
+
     def = this->add("conductive_wire_channel_width", coFloat);
     def->label = "Channel width";
     def->tooltip = "The absolute amount a channel for a conductive wire will be expanded additional to the extrusion width.";
