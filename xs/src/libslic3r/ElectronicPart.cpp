@@ -318,22 +318,25 @@ void ElectronicPart::setPlacingMethod(PlacingMethod method)
  * print_z is the current print layer, a part will only be printed if it's upper surface
  * will be below the current print layer after placing.
  */
-std::string ElectronicPart::getPlaceGcode(double print_z)
+std::string ElectronicPart::getPlaceGcode(double print_z, std::string automaticGcode, std::string manualGcode)
 {
 	std::ostringstream gcode;
 
     if(this->placed && !this->printed && this->position.z + this->size[2] <= print_z) {
         this->printed = true;
         if(this->placingMethod == PM_AUTOMATIC) {
-        	gcode << ";Automatically place part nr " << this->partID << "\n";
-        	gcode << "M361 P" << this->partID << "\n";
+            gcode << ";Automatically place part nr " << this->partID << "\n";
+            gcode << "M361 P" << this->partID << "\n";
+            gcode << automaticGcode << "\n";
         }
         if(this->placingMethod == PM_MANUAL) {
-        	gcode << ";Manually place part nr " << this->partID << "\n";
-        	gcode << "M363 P" << this->partID << "\n";
+            gcode << ";Manually place part nr " << this->partID << "\n";
+            //gcode << "M363 P" << this->partID << "\n";
+            gcode << manualGcode << "\n";
+            // TODO: implement placeholder variable replacement
         }
         if(this->placingMethod == PM_NONE) {
-			gcode << ";Placing of part nr " << this->partID << " is disabled\n";
+		    gcode << ";Placing of part nr " << this->partID << " is disabled\n";
 		}
     }
     return gcode.str();

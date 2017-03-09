@@ -497,7 +497,8 @@ sub build {
         top_infill_extrusion_width support_material_extrusion_width conductive_wire_extrusion_width
         infill_overlap bridge_flow_ratio
         xy_size_compensation threads resolution
-        conductive_wire_channel_width conductive_wire_extrusion_overlap conductive_wire_first_extrusion_overlap conductive_wire_overlap_min_extrusion_length conductive_wire_slope_overlap
+        conductive_wire_channel_width conductive_wire_extrusion_overlap conductive_wire_first_extrusion_overlap
+        conductive_wire_overlap_min_extrusion_length conductive_wire_slope_overlap conductive_pnp_manual_gcode
     ));
     $self->{config}->set('print_settings_id', '');
     
@@ -751,6 +752,15 @@ sub build {
             $optgroup->append_single_option_line('conductive_wire_first_extrusion_overlap');
             $optgroup->append_single_option_line('conductive_wire_overlap_min_extrusion_length');
             $optgroup->append_single_option_line('conductive_wire_slope_overlap');
+        }
+        {
+	        my $optgroup = $page->new_optgroup('Manual SMD placing G-code',
+	            label_width => 0,
+	        );
+            my $option = $optgroup->get_option('conductive_pnp_manual_gcode');
+            $option->full_width(1);
+            $option->height(150);
+            $optgroup->append_single_option_line($option);
         }
     }
 }

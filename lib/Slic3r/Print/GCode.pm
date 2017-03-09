@@ -252,7 +252,7 @@ sub export {
     my $pnp_gcode = "";
     foreach my $object (@{$self->objects}) { # TODO: Shifted copies???
 	    foreach my $part (@{$object->schematic->getPartlist}) {
-	        $pnp_gcode .= $part->getPlaceGcode(99999999);
+	        $pnp_gcode .= $part->getPlaceGcode(99999999, "", $object->config->conductive_pnp_manual_gcode);
 	    }
 	}
 	if($pnp_gcode ne "") {
@@ -628,7 +628,7 @@ sub process_layer {
         # place electronic parts for this layer
         my $placing_gcode = "";
         foreach my $part (@{$layer->object->schematic->getPartlist}) {
-        	$placing_gcode .= $part->getPlaceGcode($layer->print_z);
+            $placing_gcode .= $part->getPlaceGcode($layer->print_z, "", $layer->object->config->conductive_pnp_manual_gcode);
         }
         if(length($placing_gcode) > 0) {
         	# retract current extruder befor switching to vacuum nozzle
