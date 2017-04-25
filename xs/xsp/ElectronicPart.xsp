@@ -37,7 +37,7 @@
     Clone<TriangleMesh> getFootprintMesh();
     Clone<TriangleMesh> getPartMesh();
     Clone<TriangleMesh> getMesh();
-    Ref<Polygon> getHullPolygon(double z_lower, double z_upper);
+    Ref<Polygon> getHullPolygon(double z_lower, double z_upper, double hull_offset);
     std::string getPlaceGcode(double print_z, std::string automaticGcode, std::string manualGcode);
     std::string getPlaceDescription(Pointf* offset)
     	%code{% RETVAL = THIS->getPlaceDescription(*offset); %};

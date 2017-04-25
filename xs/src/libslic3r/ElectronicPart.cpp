@@ -259,7 +259,7 @@ TriangleMesh ElectronicPart::getMesh()
 	return partMesh;
 }
 
-Polygon* ElectronicPart::getHullPolygon(double z_lower, double z_upper)
+Polygon* ElectronicPart::getHullPolygon(double z_lower, double z_upper, double hull_offset)
 {
 	// part affected?
 	if((z_upper-this->position.z > EPSILON)  && z_lower < (this->position.z + this->size[2])) {
@@ -291,8 +291,7 @@ Polygon* ElectronicPart::getHullPolygon(double z_lower, double z_upper)
 		this->hullPolygon = Slic3r::Geometry::convex_hull(points);
 
 		// apply margin to have some space between part an extruded plastic
-		// !!!!!! Offset must be imported from config!!!!
-		this->hullPolygon =  offset(Polygons(this->hullPolygon), scale_(0.5), 100000, ClipperLib::jtSquare).front();
+		this->hullPolygon =  offset(Polygons(this->hullPolygon), scale_(hull_offset), 100000, ClipperLib::jtSquare).front();
 
 		// rotate polygon
 		this->hullPolygon.rotate(Geometry::deg2rad(this->rotation.z), Point(0,0));

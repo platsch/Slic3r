@@ -116,6 +116,14 @@ PrintConfigDef::PrintConfigDef()
     def->cli = "complete-objects!";
     def->default_value = new ConfigOptionBool(false);
 
+    def = this->add("conductive_cavity_offset", coFloat);
+    def->label = "Part cavity offset";
+    def->tooltip = "Expand cavities for smd-parts by this amount to ensure sufficient space for placing";
+    def->sidetext = "mm";
+    def->cli = "conductive-cavity-offset=f";
+    def->min = 0;
+    def->default_value = new ConfigOptionFloat(0.5);
+
     def = this->add("conductive_pnp_manual_gcode", coString);
     def->label = "Gcode";
     def->tooltip = "This gcode is used for manual SMD-placing actions. Disable extruder, lower printbed, wait for user interaction etc.";

@@ -382,7 +382,7 @@ sub process_electronic_parts {
                 foreach my $part (@{$electronicPartList}) {
                     # only if this part is affected
                     if($part->isPlaced) {
-                        my $polygon = $part->getHullPolygon($layer->print_z - $layer->height, $layer->print_z);
+                        my $polygon = $part->getHullPolygon($layer->print_z - $layer->height, $layer->print_z, $self->config->conductive_cavity_offset);
                     
                         if($polygon->is_valid) {
                             $polygon->translate($bb_offset->[0], $bb_offset->[1]);
