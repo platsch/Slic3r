@@ -1,5 +1,12 @@
+//#define DEBUG_RECTILINEAR
+#ifdef DEBUG_RECTILINEAR
+    #undef NDEBUG
+    #include "../SVG.hpp"
+#endif
+
 #include "../ClipperUtils.hpp"
 #include "../ExPolygon.hpp"
+#include "../Flow.hpp"
 #include "../PolylineCollection.hpp"
 #include "../Surface.hpp"
 #include <algorithm>
@@ -7,17 +14,16 @@
 
 #include "FillRectilinear.hpp"
 
-//#define DEBUG_RECTILINEAR
-#ifdef DEBUG_RECTILINEAR
-    #include "../SVG.hpp"
-#endif
-
 namespace Slic3r {
 
 void
 FillRectilinear::_fill_single_direction(ExPolygon expolygon,
     const direction_t &direction, coord_t x_shift, Polylines* out)
 {
+    // Remove almost collinear points (vertical ones might break this algorithm
+    // because of rounding).
+    expolygon.remove_vertical_collinear_points(1);
+    
     // rotate polygons so that we can work with vertical lines here
     expolygon.rotate(-direction.first);
     
@@ -32,13 +38,18 @@ FillRectilinear::_fill_single_direction(ExPolygon expolygon,
     if (bounding_box.size().x < min_spacing) return;
     
     // Due to integer rounding, rotated polygons might not preserve verticality
-    // (i.e. when rotating by PI/2 two points having the same x coordinate 
-    // they might get different y coordinates), thus the first line will be skipped.
-    bounding_box.offset(-1);
+    // (i.e. when rotating by PI/2 two points having the same y coordinate 
+    // they might get different x coordinates), thus the first line will be skipped.
+    // Reducing by 1 is not enough, as we observed normal squares being off by about 30
+    // units along x between points supposed to be vertically aligned (coming from an 
+    // axis-aligned polygon edge). We need to be very tolerant here, especially when
+    // making solid infill where lack of lines is visible.
+    bounding_box.min.x += SCALED_EPSILON;
+    bounding_box.max.x -= SCALED_EPSILON;
     
     // define flow spacing according to requested density
     if (this->density > 0.9999f && !this->dont_adjust) {
-        line_spacing = this->adjust_solid_spacing(bounding_box.size().x, line_spacing);
+        line_spacing = Flow::solid_spacing(bounding_box.size().x, line_spacing);
         this->_spacing = unscale(line_spacing);
     } else {
         // extend bounding box so that our pattern will be aligned with other layers
@@ -57,6 +68,27 @@ FillRectilinear::_fill_single_direction(ExPolygon expolygon,
     // the upper endpoint of an intersection line, and vice versa.
     // Whenever between two intersection points we find vertices of the original polygon,
     // store them in the 'skipped' member of the latter point.
+    
+    struct IntersectionPoint : Point {
+        enum ipType { ipTypeLower, ipTypeUpper, ipTypeMiddle };
+        ipType type;
+        
+        // skipped contains the polygon points accumulated between the previous intersection
+        // point and the current one, in the original polygon winding order (does not contain
+        // either points)
+        Points skipped;
+        
+        // next contains a polygon portion connecting this point to the first intersection
+        // point found following the polygon in any direction but having:
+        // x > this->x || (x == this->x && y > this->y)
+        // (it doesn't contain *this but it contains the target intersection point)
+        Points next;
+        
+        IntersectionPoint() : Point() {};
+        IntersectionPoint(coord_t x, coord_t y, ipType _type) : Point(x,y), type(_type) {};
+    };
+    typedef std::map<coord_t,IntersectionPoint> vertical_t; // <y,point>
+    typedef std::map<coord_t,vertical_t>        grid_t;     // <x,<y,point>>
     
     grid_t grid;
     {
@@ -308,7 +340,12 @@ FillRectilinear::_fill_single_direction(ExPolygon expolygon,
         // Get the first lower point.
         vertical_t::iterator it = v.begin();  // minimum x,y
         IntersectionPoint p = it->second;
-        assert(p.type == IntersectionPoint::ipTypeLower);
+        if (p.type != IntersectionPoint::ipTypeLower) {
+            // Degenerate polygon, this shouldn't happen.
+            // We used to have an assert here, but let's be tolerant.
+            grid.erase(p.x);
+            continue;
+        }
         
         // Start our polyline.
         Polyline polyline;
@@ -319,17 +356,32 @@ FillRectilinear::_fill_single_direction(ExPolygon expolygon,
             // Complete the vertical line by finding the corresponding upper or lower point.
             if (p.type == IntersectionPoint::ipTypeUpper) {
                 // find first point along c.x with y < c.y
-                assert(it != grid[p.x].begin());
+                if (it == grid[p.x].begin()) {
+                    // Degenerate polygon, this shouldn't happen.
+                    // We used to have an assert here, but let's be tolerant.
+                    grid.erase(p.x);
+                    break;
+                }
                 --it;
             } else {
                 // find first point along c.x with y > c.y
                 ++it;
-                assert(it != grid[p.x].end());
+                if (it == grid[p.x].end()) {
+                    // Degenerate polygon, this shouldn't happen.
+                    // We used to have an assert here, but let's be tolerant.
+                    grid.erase(p.x);
+                    break;
+                }
             }
             
             // Append the point to our polyline.
             IntersectionPoint b = it->second;
-            assert(b.type != p.type);
+            if (b.type == p.type) {
+                // Degenerate polygon, this shouldn't happen.
+                // We used to have an assert here, but let's be tolerant.
+                grid.erase(p.x);
+                break;
+            }
             polyline.append(b);
             polyline.points.back().y += this->endpoints_overlap * (b.type == IntersectionPoint::ipTypeUpper ? 1 : -1);
 
@@ -377,8 +429,12 @@ FillRectilinear::_fill_single_direction(ExPolygon expolygon,
             
             // If the connection brought us to another x coordinate, we expect the point 
             // type to be the same.
-            assert((p.type == b.type && p.x > b.x)
-                || (p.type != b.type && p.x == b.x));
+            if (!(p.type == b.type && p.x > b.x) && !(p.type != b.type && p.x == b.x)) {
+                // Degenerate polygon, this shouldn't happen.
+                // We used to have an assert here, but let's be tolerant.
+                grid.erase(p.x);
+                break;
+            }
         }
         
         // Yay, we have a polyline!
@@ -469,7 +525,7 @@ void FillCubic::_fill_surface_single(
     direction_t direction2 = direction;
     
     const coord_t range = scale_(this->min_spacing / this->density);
-    const coord_t x_shift = abs(( (coord_t)(scale_(this->z) + range) % (coord_t)(range * 2)) - range);
+    const coord_t x_shift = (coord_t)(scale_(this->z) + range) % (coord_t)(range*3);
     
     fill2._fill_single_direction(expolygon, direction2, -x_shift, out);
     

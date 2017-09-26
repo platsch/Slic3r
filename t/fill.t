@@ -2,7 +2,7 @@ use Test::More;
 use strict;
 use warnings;
 
-plan tests => 92;
+plan tests => 95;
 
 BEGIN {
     use FindBin;
@@ -10,10 +10,10 @@ BEGIN {
     use local::lib "$FindBin::Bin/../local-lib";
 }
 
-use List::Util qw(first sum);
+use List::Util qw(first sum max);
 use Slic3r;
 use Slic3r::Geometry qw(PI X Y scaled_epsilon scale unscale convex_hull);
-use Slic3r::Geometry::Clipper qw(union diff diff_ex offset offset2_ex diff_pl);
+use Slic3r::Geometry::Clipper qw(union diff diff_ex offset offset2_ex diff_pl union_ex);
 use Slic3r::Surface qw(:types);
 use Slic3r::Test;
 
@@ -22,7 +22,7 @@ sub scale_points (@) { map [scale $_->[X], scale $_->[Y]], @_ }
 {
     my $print = Slic3r::Print->new;
     my $surface_width = 250;
-    my $distance = Slic3r::Filler::adjust_solid_spacing($surface_width, 47);
+    my $distance = Slic3r::Flow::solid_spacing($surface_width, 47);
     is $distance, 50, 'adjusted solid distance';
     is $surface_width % $distance, 0, 'adjusted solid distance';
 }
@@ -85,6 +85,23 @@ sub scale_points (@) { map [scale $_->[X], scale $_->[Y]], @_ }
             ok(!@{diff_pl($paths->arrayref, offset(\@$e, +scaled_epsilon*10))},
                 'paths don\'t cross hole') or done_testing, exit;
         }
+    }
+    
+    # rotated square
+    $filler->set_angle(PI/4);
+    $filler->set_dont_adjust(0);
+    $filler->set_min_spacing(0.654498);
+    $filler->set_endpoints_overlap(unscale(359974));
+    $filler->set_density(1);
+    $filler->set_layer_id(66);
+    $filler->set_z(20.15);
+    {
+        my $e = Slic3r::ExPolygon->new(
+            Slic3r::Polygon->new([25771516,14142125],[14142138,25771515],[2512749,14142131],[14142125,2512749]),
+        );
+        my $paths = $test->($e);
+        is(scalar @$paths, 1, 'one continuous path') or done_testing, exit;
+        ok abs($paths->[0]->length - scale(3*100 + 2*50)) - scaled_epsilon, 'path has expected length';
     }
 }
 
@@ -371,6 +388,48 @@ for my $pattern (qw(rectilinear honeycomb hilbertcurve concentric)) {
     $diff = offset2_ex($diff, -$grow_d, +$grow_d);
     $diff = [ grep { $_->area > 2*(($grow_d*2)**2) } @$diff ];
     is scalar(@$diff), 0, 'no missing parts in solid shell when fill_density is 0';
+}
+
+{
+    # GH: #2697
+    my $config = Slic3r::Config->new_from_defaults;
+    $config->set('perimeter_extrusion_width', 0.72);
+    $config->set('top_infill_extrusion_width', 0.1);
+    $config->set('infill_extruder', 2);         # in order to distinguish infill
+    $config->set('solid_infill_extruder', 2);   # in order to distinguish infill
+    
+    my $print = Slic3r::Test::init_print('20mm_cube', config => $config);
+    my %infill = ();  # Z => [ Line, Line ... ]
+    my %other  = ();  # Z => [ Line, Line ... ]
+    my $tool = undef;
+    Slic3r::GCode::Reader->new->parse(Slic3r::Test::gcode($print), sub {
+        my ($self, $cmd, $args, $info) = @_;
+        
+        if ($cmd =~ /^T(\d+)/) {
+            $tool = $1;
+        } elsif ($cmd eq 'G1' && $info->{extruding} && $info->{dist_XY} > 0) {
+            my $z = 1 * $self->Z;
+            my $line = Slic3r::Line->new_scale(
+                [ $self->X, $self->Y ],
+                [ $info->{new_X}, $info->{new_Y} ],
+            );
+            if ($tool == $config->infill_extruder-1) {
+                $infill{$z} //= [];
+                push @{$infill{$z}}, $line;
+            } else {
+                $other{$z} //= [];
+                push @{$other{$z}}, $line;
+            }
+        }
+    });
+    my $top_z = max(keys %infill);
+    my $top_infill_grow_d = scale($config->top_infill_extrusion_width)/2;
+    my $top_infill = union([ map @{$_->grow($top_infill_grow_d)}, @{ $infill{$top_z} } ]);
+    my $perimeters_grow_d = scale($config->perimeter_extrusion_width)/2;
+    my $perimeters = union([ map @{$_->grow($perimeters_grow_d)}, @{ $other{$top_z} } ]);
+    my $covered = union_ex([ @$top_infill, @$perimeters ]);
+    my @holes = map @{$_->holes}, @$covered;
+    ok sum(map unscale unscale $_->area*-1, @holes) < 1, 'no gaps between top solid infill and perimeters';
 }
 
 __END__

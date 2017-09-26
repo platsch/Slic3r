@@ -29,6 +29,10 @@ enum GCodeFlavor {
     gcfRepRap, gcfTeacup, gcfMakerWare, gcfSailfish, gcfMach3, gcfMachinekit, gcfNoExtrusion, gcfSmoothie, gcfRepetier,
 };
 
+enum HostType {
+    htOctoprint, htDuet,
+};
+
 enum InfillPattern {
     ipRectilinear, ipGrid, ipAlignedRectilinear,
     ipTriangles, ipStars, ipCubic, 
@@ -55,6 +59,13 @@ template<> inline t_config_enum_values ConfigOptionEnum<GCodeFlavor>::get_enum_v
     keys_map["machinekit"]      = gcfMachinekit;
     keys_map["no-extrusion"]    = gcfNoExtrusion;
     keys_map["smoothie"]    = gcfSmoothie;
+    return keys_map;
+}
+
+template<> inline t_config_enum_values ConfigOptionEnum<HostType>::get_enum_values() {
+    t_config_enum_values keys_map;
+    keys_map["octoprint"]           = htOctoprint;
+    keys_map["duet"]                = htDuet;
     return keys_map;
 }
 
@@ -103,7 +114,7 @@ class PrintConfigDef : public ConfigDef
 
 // The one and only global definition of SLic3r configuration options.
 // This definition is constant.
-extern PrintConfigDef print_config_def;
+extern const PrintConfigDef print_config_def;
 
 // Slic3r configuration storage with print_config_def assigned.
 class PrintConfigBase : public virtual ConfigBase
@@ -112,8 +123,11 @@ class PrintConfigBase : public virtual ConfigBase
     PrintConfigBase() {
         this->def = &print_config_def;
     };
-    
+    bool set_deserialize(t_config_option_key opt_key, std::string str, bool append = false);
     double min_object_distance() const;
+    
+    protected:
+    void _handle_legacy(t_config_option_key &opt_key, std::string &value) const;
 };
 
 // Slic3r dynamic configuration, used to override the configuration 
@@ -140,13 +154,15 @@ class StaticPrintConfig : public PrintConfigBase, public StaticConfig
 class PrintObjectConfig : public virtual StaticPrintConfig
 {
     public:
-	ConfigOptionFloat               conductive_cavity_offset;
-	ConfigOptionString              conductive_pnp_manual_gcode;
-	ConfigOptionFloat               conductive_wire_channel_width;
-	ConfigOptionFloat               conductive_wire_extrusion_overlap;
+	ConfigOptionBool                adaptive_slicing;
+	ConfigOptionPercent             adaptive_slicing_quality;
+    ConfigOptionFloat               conductive_cavity_offset;
+    ConfigOptionString              conductive_pnp_manual_gcode;
+    ConfigOptionFloat               conductive_wire_channel_width;
+    ConfigOptionFloat               conductive_wire_extrusion_overlap;
     ConfigOptionFloatOrPercent      conductive_wire_extrusion_width;
-	ConfigOptionFloat               conductive_wire_first_extrusion_overlap;
-	ConfigOptionFloat               conductive_wire_overlap_min_extrusion_length;
+    ConfigOptionFloat               conductive_wire_first_extrusion_overlap;
+    ConfigOptionFloat               conductive_wire_overlap_min_extrusion_length;
     ConfigOptionFloat               conductive_wire_slope_overlap;
     ConfigOptionBool                dont_support_bridges;
     ConfigOptionFloatOrPercent      extrusion_width;
@@ -154,10 +170,13 @@ class PrintObjectConfig : public virtual StaticPrintConfig
     ConfigOptionBool                infill_only_where_needed;
     ConfigOptionBool                interface_shells;
     ConfigOptionFloat               layer_height;
+    ConfigOptionBool                match_horizontal_surfaces;
     ConfigOptionInt                 raft_layers;
+    ConfigOptionFloat               regions_overlap;
     ConfigOptionEnum<SeamPosition>  seam_position;
     ConfigOptionBool                support_material;
     ConfigOptionInt                 support_material_angle;
+    ConfigOptionBool                support_material_buildplate_only;
     ConfigOptionFloat               support_material_contact_distance;
     ConfigOptionInt                 support_material_enforce_layers;
     ConfigOptionInt                 support_material_extruder;
@@ -169,7 +188,7 @@ class PrintObjectConfig : public virtual StaticPrintConfig
     ConfigOptionEnum<SupportMaterialPattern> support_material_pattern;
     ConfigOptionFloat               support_material_spacing;
     ConfigOptionFloat               support_material_speed;
-    ConfigOptionInt                 support_material_threshold;
+    ConfigOptionFloatOrPercent      support_material_threshold;
     ConfigOptionFloat               xy_size_compensation;
     
     PrintObjectConfig(bool initialize = true) : StaticPrintConfig() {
@@ -178,6 +197,8 @@ class PrintObjectConfig : public virtual StaticPrintConfig
     }
     
     virtual ConfigOption* optptr(const t_config_option_key &opt_key, bool create = false) {
+        OPT_PTR(adaptive_slicing);
+        OPT_PTR(adaptive_slicing_quality);
         OPT_PTR(conductive_cavity_offset);
         OPT_PTR(conductive_pnp_manual_gcode);
     	OPT_PTR(conductive_wire_channel_width);
@@ -192,10 +213,13 @@ class PrintObjectConfig : public virtual StaticPrintConfig
         OPT_PTR(infill_only_where_needed);
         OPT_PTR(interface_shells);
         OPT_PTR(layer_height);
+        OPT_PTR(match_horizontal_surfaces);
         OPT_PTR(raft_layers);
+        OPT_PTR(regions_overlap);
         OPT_PTR(seam_position);
         OPT_PTR(support_material);
         OPT_PTR(support_material_angle);
+        OPT_PTR(support_material_buildplate_only);
         OPT_PTR(support_material_contact_distance);
         OPT_PTR(support_material_enforce_layers);
         OPT_PTR(support_material_extruder);
@@ -218,12 +242,12 @@ class PrintObjectConfig : public virtual StaticPrintConfig
 class PrintRegionConfig : public virtual StaticPrintConfig
 {
     public:
+    ConfigOptionEnum<InfillPattern> bottom_infill_pattern;
     ConfigOptionInt                 bottom_solid_layers;
     ConfigOptionFloat               bridge_flow_ratio;
     ConfigOptionFloat               bridge_speed;
     ConfigOptionInt                 conductive_wire_extruder;
     ConfigOptionFloat               conductive_wire_speed;
-    ConfigOptionEnum<InfillPattern> external_fill_pattern;
     ConfigOptionFloatOrPercent      external_perimeter_extrusion_width;
     ConfigOptionFloatOrPercent      external_perimeter_speed;
     ConfigOptionBool                external_perimeters_first;
@@ -232,7 +256,7 @@ class PrintRegionConfig : public virtual StaticPrintConfig
     ConfigOptionPercent             fill_density;
     ConfigOptionBool                fill_gaps;
     ConfigOptionEnum<InfillPattern> fill_pattern;
-    ConfigOptionFloat               gap_fill_speed;
+    ConfigOptionFloatOrPercent      gap_fill_speed;
     ConfigOptionInt                 infill_extruder;
     ConfigOptionFloatOrPercent      infill_extrusion_width;
     ConfigOptionInt                 infill_every_layers;
@@ -251,6 +275,7 @@ class PrintRegionConfig : public virtual StaticPrintConfig
     ConfigOptionFloatOrPercent      solid_infill_speed;
     ConfigOptionBool                thin_walls;
     ConfigOptionFloatOrPercent      top_infill_extrusion_width;
+    ConfigOptionEnum<InfillPattern> top_infill_pattern;
     ConfigOptionInt                 top_solid_layers;
     ConfigOptionFloatOrPercent      top_solid_infill_speed;
     
@@ -260,12 +285,12 @@ class PrintRegionConfig : public virtual StaticPrintConfig
     }
     
     virtual ConfigOption* optptr(const t_config_option_key &opt_key, bool create = false) {
+        OPT_PTR(bottom_infill_pattern);
         OPT_PTR(bottom_solid_layers);
         OPT_PTR(bridge_flow_ratio);
         OPT_PTR(bridge_speed);
         OPT_PTR(conductive_wire_extruder);
         OPT_PTR(conductive_wire_speed);
-        OPT_PTR(external_fill_pattern);
         OPT_PTR(external_perimeter_extrusion_width);
         OPT_PTR(external_perimeter_speed);
         OPT_PTR(external_perimeters_first);
@@ -293,6 +318,7 @@ class PrintRegionConfig : public virtual StaticPrintConfig
         OPT_PTR(solid_infill_speed);
         OPT_PTR(thin_walls);
         OPT_PTR(top_infill_extrusion_width);
+        OPT_PTR(top_infill_pattern);
         OPT_PTR(top_solid_infill_speed);
         OPT_PTR(top_solid_layers);
         
@@ -305,17 +331,24 @@ class GCodeConfig : public virtual StaticPrintConfig
 {
     public:
     ConfigOptionString              before_layer_gcode;
+    ConfigOptionString              between_objects_gcode;
     ConfigOptionString              end_gcode;
+    ConfigOptionStrings             end_filament_gcode;
     ConfigOptionString              extrusion_axis;
     ConfigOptionFloats              extrusion_multiplier;
     ConfigOptionFloats              filament_diameter;
+    ConfigOptionFloats              filament_density;
+    ConfigOptionFloats              filament_cost;
     ConfigOptionFloats              filament_max_volumetric_speed;
+    ConfigOptionStrings             filament_notes;
     ConfigOptionBool                gcode_comments;
     ConfigOptionEnum<GCodeFlavor>   gcode_flavor;
     ConfigOptionString              layer_gcode;
     ConfigOptionFloat               max_print_speed;
     ConfigOptionFloat               max_volumetric_speed;
+    ConfigOptionString              notes;
     ConfigOptionFloat               pressure_advance;
+    ConfigOptionString              printer_notes;
     ConfigOptionFloats              retract_length;
     ConfigOptionFloats              retract_length_toolchange;
     ConfigOptionFloats              retract_lift;
@@ -325,6 +358,7 @@ class GCodeConfig : public virtual StaticPrintConfig
     ConfigOptionFloats              retract_restart_extra_toolchange;
     ConfigOptionFloats              retract_speed;
     ConfigOptionString              start_gcode;
+    ConfigOptionStrings             start_filament_gcode;
     ConfigOptionString              toolchange_gcode;
     ConfigOptionFloat               travel_speed;
     ConfigOptionBool                use_firmware_retraction;
@@ -338,17 +372,24 @@ class GCodeConfig : public virtual StaticPrintConfig
     
     virtual ConfigOption* optptr(const t_config_option_key &opt_key, bool create = false) {
         OPT_PTR(before_layer_gcode);
+        OPT_PTR(between_objects_gcode);
         OPT_PTR(end_gcode);
+        OPT_PTR(end_filament_gcode);
         OPT_PTR(extrusion_axis);
         OPT_PTR(extrusion_multiplier);
         OPT_PTR(filament_diameter);
+        OPT_PTR(filament_density);
+        OPT_PTR(filament_cost);
         OPT_PTR(filament_max_volumetric_speed);
+        OPT_PTR(filament_notes);
         OPT_PTR(gcode_comments);
         OPT_PTR(gcode_flavor);
         OPT_PTR(layer_gcode);
         OPT_PTR(max_print_speed);
         OPT_PTR(max_volumetric_speed);
+        OPT_PTR(notes);
         OPT_PTR(pressure_advance);
+        OPT_PTR(printer_notes);
         OPT_PTR(retract_length);
         OPT_PTR(retract_length_toolchange);
         OPT_PTR(retract_lift);
@@ -358,6 +399,7 @@ class GCodeConfig : public virtual StaticPrintConfig
         OPT_PTR(retract_restart_extra_toolchange);
         OPT_PTR(retract_speed);
         OPT_PTR(start_gcode);
+        OPT_PTR(start_filament_gcode);
         OPT_PTR(toolchange_gcode);
         OPT_PTR(travel_speed);
         OPT_PTR(use_firmware_retraction);
@@ -402,7 +444,6 @@ class PrintConfig : public GCodeConfig
     ConfigOptionBool                fan_always_on;
     ConfigOptionInt                 fan_below_layer_time;
     ConfigOptionStrings             filament_colour;
-    ConfigOptionStrings             filament_notes;
     ConfigOptionFloat               first_layer_acceleration;
     ConfigOptionInt                 first_layer_bed_temperature;
     ConfigOptionFloatOrPercent      first_layer_extrusion_width;
@@ -411,11 +452,13 @@ class PrintConfig : public GCodeConfig
     ConfigOptionBool                gcode_arcs;
     ConfigOptionFloat               infill_acceleration;
     ConfigOptionBool                infill_first;
+    ConfigOptionFloat               interior_brim_width;
     ConfigOptionInt                 max_fan_speed;
+    ConfigOptionFloats              max_layer_height;
     ConfigOptionInt                 min_fan_speed;
+    ConfigOptionFloats              min_layer_height;
     ConfigOptionFloat               min_print_speed;
     ConfigOptionFloat               min_skirt_length;
-    ConfigOptionString              notes;
     ConfigOptionFloats              nozzle_diameter;
     ConfigOptionBool                only_retract_when_crossing_perimeters;
     ConfigOptionBool                ooze_prevention;
@@ -436,6 +479,7 @@ class PrintConfig : public GCodeConfig
     ConfigOptionFloat               vibration_limit;
     ConfigOptionBools               wipe;
     ConfigOptionFloat               z_offset;
+    ConfigOptionFloat               z_steps_per_mm;
     
     PrintConfig(bool initialize = true) : GCodeConfig(false) {
         if (initialize)
@@ -462,7 +506,6 @@ class PrintConfig : public GCodeConfig
         OPT_PTR(fan_always_on);
         OPT_PTR(fan_below_layer_time);
         OPT_PTR(filament_colour);
-        OPT_PTR(filament_notes);
         OPT_PTR(first_layer_acceleration);
         OPT_PTR(first_layer_bed_temperature);
         OPT_PTR(first_layer_extrusion_width);
@@ -471,11 +514,13 @@ class PrintConfig : public GCodeConfig
         OPT_PTR(gcode_arcs);
         OPT_PTR(infill_acceleration);
         OPT_PTR(infill_first);
+        OPT_PTR(interior_brim_width);
         OPT_PTR(max_fan_speed);
+        OPT_PTR(max_layer_height);
         OPT_PTR(min_fan_speed);
+        OPT_PTR(min_layer_height);
         OPT_PTR(min_print_speed);
         OPT_PTR(min_skirt_length);
-        OPT_PTR(notes);
         OPT_PTR(nozzle_diameter);
         OPT_PTR(only_retract_when_crossing_perimeters);
         OPT_PTR(ooze_prevention);
@@ -496,6 +541,7 @@ class PrintConfig : public GCodeConfig
         OPT_PTR(vibration_limit);
         OPT_PTR(wipe);
         OPT_PTR(z_offset);
+        OPT_PTR(z_steps_per_mm);
         
         // look in parent class
         ConfigOption* opt;
@@ -508,7 +554,8 @@ class PrintConfig : public GCodeConfig
 class HostConfig : public virtual StaticPrintConfig
 {
     public:
-    ConfigOptionString              octoprint_host;
+    ConfigOptionEnum<HostType>      host_type;
+    ConfigOptionString              print_host;
     ConfigOptionString              octoprint_apikey;
     ConfigOptionString              serial_port;
     ConfigOptionInt                 serial_speed;
@@ -519,7 +566,8 @@ class HostConfig : public virtual StaticPrintConfig
     }
     
     virtual ConfigOption* optptr(const t_config_option_key &opt_key, bool create = false) {
-        OPT_PTR(octoprint_host);
+        OPT_PTR(host_type);
+        OPT_PTR(print_host);
         OPT_PTR(octoprint_apikey);
         OPT_PTR(serial_port);
         OPT_PTR(serial_speed);
@@ -571,18 +619,6 @@ class SLAPrintConfig
     ConfigOptionFloat               support_material_spacing;
     ConfigOptionInt                 threads;
     
-    SLAPrintConfig() : StaticPrintConfig() {
-        this->set_defaults();
-        
-        // override some defaults
-        this->fill_density.value                = 100;
-        this->fill_pattern.value                = ipGrid;
-        this->infill_extrusion_width.value      = 0.5;
-        this->infill_extrusion_width.percent    = false;
-        this->perimeter_extrusion_width.value   = 1;
-        this->perimeter_extrusion_width.percent = false;
-    };
-    
     virtual ConfigOption* optptr(const t_config_option_key &opt_key, bool create = false) {
         OPT_PTR(fill_angle);
         OPT_PTR(fill_density);
@@ -608,7 +644,7 @@ class CLIConfigDef : public ConfigDef
     CLIConfigDef();
 };
 
-extern CLIConfigDef cli_config_def;
+extern const CLIConfigDef cli_config_def;
 
 class CLIConfig
     : public virtual ConfigBase, public StaticConfig
@@ -621,6 +657,7 @@ class CLIConfig
     ConfigOptionBool                export_obj;
     ConfigOptionBool                export_pov;
     ConfigOptionBool                export_svg;
+    ConfigOptionBool                export_3mf;
     ConfigOptionBool                info;
     ConfigOptionStrings             load;
     ConfigOptionString              output;
@@ -630,6 +667,7 @@ class CLIConfig
     ConfigOptionString              save;
     ConfigOptionFloat               scale;
     ConfigOptionPoint3              scale_to_fit;
+    ConfigOptionBool                threads;
     
     CLIConfig() : ConfigBase(), StaticConfig() {
         this->def = &cli_config_def;
@@ -644,6 +682,7 @@ class CLIConfig
         OPT_PTR(export_obj);
         OPT_PTR(export_pov);
         OPT_PTR(export_svg);
+        OPT_PTR(export_3mf);
         OPT_PTR(info);
         OPT_PTR(load);
         OPT_PTR(output);
@@ -653,6 +692,7 @@ class CLIConfig
         OPT_PTR(save);
         OPT_PTR(scale);
         OPT_PTR(scale_to_fit);
+        OPT_PTR(threads);
         
         return NULL;
     };

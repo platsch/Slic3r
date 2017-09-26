@@ -12,8 +12,10 @@
 IV
 _constant()
   ALIAS:
+    STEP_LAYERS             = posLayers
     STEP_SLICE              = posSlice
     STEP_PERIMETERS         = posPerimeters
+    STEP_DETECT_SURFACES    = posDetectSurfaces
     STEP_PREPARE_INFILL     = posPrepareInfill
     STEP_INFILL             = posInfill
     STEP_SUPPORTMATERIAL    = posSupportMaterial
@@ -59,6 +61,8 @@ _constant()
     Points copies();
     t_layer_height_ranges layer_height_ranges()
         %code%{ RETVAL = THIS->layer_height_ranges; %};
+    Ref<LayerHeightSpline> layer_height_spline()
+        %code%{ RETVAL = &THIS->layer_height_spline; %};
     Ref<Point3> size()
         %code%{ RETVAL = &THIS->size; %};
     Clone<BoundingBox> bounding_box();
@@ -114,7 +118,6 @@ _constant()
     Ref<SupportLayer> add_support_layer(int id, coordf_t height, coordf_t print_z);
     void delete_support_layer(int idx);
     
-    bool invalidate_state_by_config_options(std::vector<std::string> opt_keys);
     bool invalidate_step(PrintObjectStep step);
     bool invalidate_all_steps();
     bool step_done(PrintObjectStep step)
@@ -123,12 +126,13 @@ _constant()
         %code%{ THIS->state.set_done(step); %};
     void set_step_started(PrintObjectStep step)
         %code%{ THIS->state.set_started(step); %};
-    
+
     void make_electronic_wires();
-   
-    void detect_surfaces_type();
+    
+    %name{_detect_surfaces_type} void detect_surfaces_type();
     void process_external_surfaces();
     void bridge_over_infill();
+    void _slice();
     SV* _slice_region(size_t region_id, std::vector<double> z, bool modifier)
         %code%{
             std::vector<float> z_f(z.begin(), z.end());
@@ -191,7 +195,6 @@ _constant()
     size_t region_count()
         %code%{ RETVAL = THIS->regions.size(); %};
     
-    bool invalidate_state_by_config_options(std::vector<std::string> opt_keys);
     bool invalidate_step(PrintStep step);
     bool invalidate_all_steps();
     bool step_done(PrintStep step)
@@ -227,6 +230,7 @@ _constant()
                 RETVAL.push_back(*e);
             }
         %};
+    int brim_extruder();
     void clear_filament_stats()
         %code%{
             THIS->filament_stats.clear();
@@ -259,6 +263,12 @@ _constant()
     void add_model_object(ModelObject* model_object, int idx = -1);
     bool apply_config(DynamicPrintConfig* config)
         %code%{ RETVAL = THIS->apply_config(*config); %};
+    bool apply_static_config(StaticPrintConfig* config)
+        %code%{
+            DynamicPrintConfig dpc;
+            dpc.apply(*config);
+            RETVAL = THIS->apply_config(dpc);
+        %};
     bool has_infinite_skirt();
     bool has_skirt();
     std::string _validate()
@@ -288,6 +298,27 @@ Print::total_extruded_volume(...)
             THIS->total_extruded_volume = (double)SvNV(ST(1));
         }
         RETVAL = THIS->total_extruded_volume;
+    OUTPUT:
+        RETVAL
+
+
+double
+Print::total_weight(...)
+    CODE:
+        if (items > 1) {
+            THIS->total_weight = (double)SvNV(ST(1));
+        }
+        RETVAL = THIS->total_weight;
+    OUTPUT:
+        RETVAL
+
+double
+Print::total_cost(...)
+    CODE:
+        if (items > 1) {
+            THIS->total_cost = (double)SvNV(ST(1));
+        }
+        RETVAL = THIS->total_cost;
     OUTPUT:
         RETVAL
 

@@ -21,16 +21,6 @@ sub new {
         label_width => 200,
     );
     $optgroup->append_single_option_line(Slic3r::GUI::OptionsGroup::Option->new(
-        opt_id      => 'mode',
-        type        => 'select',
-        label       => 'Mode',
-        tooltip     => 'Choose between a simpler, basic mode and an expert mode with more options and more complicated interface.',
-        labels      => ['Simple','Expert'],
-        values      => ['simple','expert'],
-        default     => $Slic3r::GUI::Settings->{_}{mode},
-        width       => 100,
-    ));
-    $optgroup->append_single_option_line(Slic3r::GUI::OptionsGroup::Option->new(
         opt_id      => 'version_check',
         type        => 'bool',
         label       => 'Check for updates',
@@ -53,6 +43,13 @@ sub new {
         default     => $Slic3r::GUI::Settings->{_}{autocenter},
     ));
     $optgroup->append_single_option_line(Slic3r::GUI::OptionsGroup::Option->new(
+        opt_id      => 'invert_zoom',
+        type        => 'bool',
+        label       => 'Invert zoom in previews',
+        tooltip     => 'If this is enabled, Slic3r will invert the direction of mouse-wheel zoom in preview panes.',
+        default     => $Slic3r::GUI::Settings->{_}{invert_zoom},
+    ));
+    $optgroup->append_single_option_line(Slic3r::GUI::OptionsGroup::Option->new(
         opt_id      => 'background_processing',
         type        => 'bool',
         label       => 'Background processing',
@@ -61,11 +58,18 @@ sub new {
         readonly    => !$Slic3r::have_threads,
     ));
     $optgroup->append_single_option_line(Slic3r::GUI::OptionsGroup::Option->new(
-        opt_id      => 'no_controller',
+        opt_id      => 'threads',
+        type        => 'i',
+        label       => 'Threads',
+        tooltip     => $Slic3r::Config::Options->{threads}{tooltip},
+        default     => $Slic3r::GUI::Settings->{_}{threads},
+    ));
+    $optgroup->append_single_option_line(Slic3r::GUI::OptionsGroup::Option->new(
+        opt_id      => 'tabbed_preset_editors',
         type        => 'bool',
-        label       => 'Disable USB/serial connection',
-        tooltip     => 'Disable communication with the printer over a serial / USB cable. This simplifies the user interface in case the printer is never attached to the computer.',
-        default     => $Slic3r::GUI::Settings->{_}{no_controller},
+        label       => 'Display profile editors as tabs',
+        tooltip     => 'When opening a profile editor, it will be shown in a dialog or in a tab according to this option.',
+        default     => $Slic3r::GUI::Settings->{_}{tabbed_preset_editors},
     ));
     
     my $sizer = Wx::BoxSizer->new(wxVERTICAL);
@@ -84,7 +88,7 @@ sub new {
 sub _accept {
     my $self = shift;
     
-    if ($self->{values}{mode} || defined($self->{values}{no_controller})) {
+    if ($self->{values}{mode}) {
         Slic3r::GUI::warning_catcher($self)->("You need to restart Slic3r to make the changes effective.");
     }
     

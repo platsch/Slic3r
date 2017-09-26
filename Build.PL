@@ -10,8 +10,9 @@ my %prereqs = qw(
     Devel::CheckLib                 0
     Encode                          0
     Encode::Locale                  1.05
+    ExtUtils::CppGuess              0
     ExtUtils::MakeMaker             6.80
-    ExtUtils::ParseXS               3.22
+    ExtUtils::ParseXS               3.35
     File::Basename                  0
     File::Spec                      0
     Getopt::Long                    0
@@ -129,7 +130,7 @@ EOF
         
         # temporary workaround for upstream bug in test
         push @cmd, '--notest'
-            if $module =~ /^(?:OpenGL|Math::PlanePath|Test::Harness)$/;
+            if $module =~ /^(?:OpenGL|Math::PlanePath|Test::Harness|IO::Scalar)$/;
         
         push @cmd, "$module~$version";
         my $res = system @cmd;

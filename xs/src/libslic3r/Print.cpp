@@ -73,12 +73,6 @@ Print::clear_objects()
     this->clear_regions();
 }
 
-PrintObject*
-Print::get_object(size_t idx)
-{
-    return objects.at(idx);
-}
-
 void
 Print::delete_object(size_t idx)
 {
@@ -153,89 +147,103 @@ Print::delete_region(size_t idx)
 }
 
 bool
-Print::invalidate_state_by_config_options(const std::vector<t_config_option_key> &opt_keys)
+Print::invalidate_state_by_config(const PrintConfigBase &config)
 {
+    const t_config_option_keys diff = this->config.diff(config);
+    
     std::set<PrintStep> steps;
     std::set<PrintObjectStep> osteps;
+    bool all = false;
     
     // this method only accepts PrintConfig option keys
-    for (std::vector<t_config_option_key>::const_iterator opt_key = opt_keys.begin(); opt_key != opt_keys.end(); ++opt_key) {
-        if (*opt_key == "skirts"
-            || *opt_key == "skirt_height"
-            || *opt_key == "skirt_distance"
-            || *opt_key == "min_skirt_length"
-            || *opt_key == "ooze_prevention") {
+    for (const t_config_option_key &opt_key : diff) {
+        if (opt_key == "skirts"
+            || opt_key == "skirt_height"
+            || opt_key == "skirt_distance"
+            || opt_key == "min_skirt_length"
+            || opt_key == "ooze_prevention") {
             steps.insert(psSkirt);
-        } else if (*opt_key == "brim_width"
-            || *opt_key == "brim_connections_width") {
+        } else if (opt_key == "brim_width") {
             steps.insert(psBrim);
             steps.insert(psSkirt);
-        } else if (*opt_key == "nozzle_diameter"
-            || *opt_key == "resolution") {
+            osteps.insert(posSupportMaterial);
+        } else if (opt_key == "brim_width"
+            || opt_key == "interior_brim_width"
+            || opt_key == "brim_connections_width") {
+            steps.insert(psBrim);
+            steps.insert(psSkirt);
+        } else if (opt_key == "nozzle_diameter") {
+                osteps.insert(posLayers);
+        } else if (opt_key == "resolution"
+            || opt_key == "z_steps_per_mm") {
             osteps.insert(posSlice);
-        } else if (*opt_key == "avoid_crossing_perimeters"
-            || *opt_key == "bed_shape"
-            || *opt_key == "bed_temperature"
-            || *opt_key == "bridge_acceleration"
-            || *opt_key == "bridge_fan_speed"
-            || *opt_key == "complete_objects"
-            || *opt_key == "cooling"
-            || *opt_key == "default_acceleration"
-            || *opt_key == "disable_fan_first_layers"
-            || *opt_key == "duplicate_distance"
-            || *opt_key == "end_gcode"
-            || *opt_key == "extruder_clearance_height"
-            || *opt_key == "extruder_clearance_radius"
-            || *opt_key == "extruder_offset"
-            || *opt_key == "extrusion_axis"
-            || *opt_key == "extrusion_multiplier"
-            || *opt_key == "fan_always_on"
-            || *opt_key == "fan_below_layer_time"
-            || *opt_key == "filament_diameter"
-            || *opt_key == "first_layer_acceleration"
-            || *opt_key == "first_layer_bed_temperature"
-            || *opt_key == "first_layer_speed"
-            || *opt_key == "first_layer_temperature"
-            || *opt_key == "gcode_arcs"
-            || *opt_key == "gcode_comments"
-            || *opt_key == "gcode_flavor"
-            || *opt_key == "infill_acceleration"
-            || *opt_key == "infill_first"
-            || *opt_key == "layer_gcode"
-            || *opt_key == "min_fan_speed"
-            || *opt_key == "max_fan_speed"
-            || *opt_key == "min_print_speed"
-            || *opt_key == "notes"
-            || *opt_key == "only_retract_when_crossing_perimeters"
-            || *opt_key == "output_filename_format"
-            || *opt_key == "perimeter_acceleration"
-            || *opt_key == "post_process"
-            || *opt_key == "pressure_advance"
-            || *opt_key == "retract_before_travel"
-            || *opt_key == "retract_layer_change"
-            || *opt_key == "retract_length"
-            || *opt_key == "retract_length_toolchange"
-            || *opt_key == "retract_lift"
-            || *opt_key == "retract_lift_above"
-            || *opt_key == "retract_lift_below"
-            || *opt_key == "retract_restart_extra"
-            || *opt_key == "retract_restart_extra_toolchange"
-            || *opt_key == "retract_speed"
-            || *opt_key == "slowdown_below_layer_time"
-            || *opt_key == "spiral_vase"
-            || *opt_key == "standby_temperature_delta"
-            || *opt_key == "start_gcode"
-            || *opt_key == "temperature"
-            || *opt_key == "threads"
-            || *opt_key == "toolchange_gcode"
-            || *opt_key == "travel_speed"
-            || *opt_key == "use_firmware_retraction"
-            || *opt_key == "use_relative_e_distances"
-            || *opt_key == "vibration_limit"
-            || *opt_key == "wipe"
-            || *opt_key == "z_offset") {
+        } else if (opt_key == "avoid_crossing_perimeters"
+            || opt_key == "bed_shape"
+            || opt_key == "bed_temperature"
+            || opt_key == "between_objects_gcode"
+            || opt_key == "bridge_acceleration"
+            || opt_key == "bridge_fan_speed"
+            || opt_key == "complete_objects"
+            || opt_key == "cooling"
+            || opt_key == "default_acceleration"
+            || opt_key == "disable_fan_first_layers"
+            || opt_key == "duplicate_distance"
+            || opt_key == "end_gcode"
+            || opt_key == "extruder_clearance_height"
+            || opt_key == "extruder_clearance_radius"
+            || opt_key == "extruder_offset"
+            || opt_key == "extrusion_axis"
+            || opt_key == "extrusion_multiplier"
+            || opt_key == "fan_always_on"
+            || opt_key == "fan_below_layer_time"
+            || opt_key == "filament_colour"
+            || opt_key == "filament_diameter"
+            || opt_key == "filament_notes"
+            || opt_key == "first_layer_acceleration"
+            || opt_key == "first_layer_bed_temperature"
+            || opt_key == "first_layer_speed"
+            || opt_key == "first_layer_temperature"
+            || opt_key == "gcode_arcs"
+            || opt_key == "gcode_comments"
+            || opt_key == "gcode_flavor"
+            || opt_key == "infill_acceleration"
+            || opt_key == "infill_first"
+            || opt_key == "layer_gcode"
+            || opt_key == "min_fan_speed"
+            || opt_key == "max_fan_speed"
+            || opt_key == "min_print_speed"
+            || opt_key == "notes"
+            || opt_key == "only_retract_when_crossing_perimeters"
+            || opt_key == "output_filename_format"
+            || opt_key == "perimeter_acceleration"
+            || opt_key == "post_process"
+            || opt_key == "pressure_advance"
+            || opt_key == "printer_notes"
+            || opt_key == "retract_before_travel"
+            || opt_key == "retract_layer_change"
+            || opt_key == "retract_length"
+            || opt_key == "retract_length_toolchange"
+            || opt_key == "retract_lift"
+            || opt_key == "retract_lift_above"
+            || opt_key == "retract_lift_below"
+            || opt_key == "retract_restart_extra"
+            || opt_key == "retract_restart_extra_toolchange"
+            || opt_key == "retract_speed"
+            || opt_key == "slowdown_below_layer_time"
+            || opt_key == "spiral_vase"
+            || opt_key == "standby_temperature_delta"
+            || opt_key == "start_gcode"
+            || opt_key == "temperature"
+            || opt_key == "threads"
+            || opt_key == "toolchange_gcode"
+            || opt_key == "travel_speed"
+            || opt_key == "use_firmware_retraction"
+            || opt_key == "use_relative_e_distances"
+            || opt_key == "vibration_limit"
+            || opt_key == "wipe"
+            || opt_key == "z_offset") {
             // these options only affect G-code export, so nothing to invalidate
-        } else if (*opt_key == "first_layer_extrusion_width") {
+        } else if (opt_key == "first_layer_extrusion_width") {
             osteps.insert(posPerimeters);
             osteps.insert(posInfill);
             osteps.insert(posSupportMaterial);
@@ -243,18 +251,31 @@ Print::invalidate_state_by_config_options(const std::vector<t_config_option_key>
             steps.insert(psBrim);
         } else {
             // for legacy, if we can't handle this option let's invalidate all steps
-            return this->invalidate_all_steps();
+            all = true;
+            break;
         }
     }
     
+    if (!diff.empty())
+        this->config.apply(config, true);
+    
     bool invalidated = false;
-    for (std::set<PrintStep>::const_iterator step = steps.begin(); step != steps.end(); ++step) {
-        if (this->invalidate_step(*step)) invalidated = true;
-    }
-    for (std::set<PrintObjectStep>::const_iterator ostep = osteps.begin(); ostep != osteps.end(); ++ostep) {
-        FOREACH_OBJECT(this, object) {
-            if ((*object)->invalidate_step(*ostep)) invalidated = true;
-        }
+    if (all) {
+        if (this->invalidate_all_steps())
+            invalidated = true;
+        
+        for (PrintObject* object : this->objects)
+            if (object->invalidate_all_steps())
+                invalidated = true;
+    } else {
+        for (const PrintStep &step : steps)
+            if (this->invalidate_step(step))
+                invalidated = true;
+    
+        for (const PrintObjectStep &ostep : osteps)
+            for (PrintObject* object : this->objects)
+                if (object->invalidate_step(ostep))
+                    invalidated = true;
     }
     
     return invalidated;
@@ -308,7 +329,10 @@ Print::object_extruders() const
     FOREACH_REGION(this, region) {
         // these checks reflect the same logic used in the GUI for enabling/disabling
         // extruder selection fields
-        if ((*region)->config.perimeters.value > 0 || this->config.brim_width.value > 0 || this->config.brim_connections_width.value > 0)
+        if ((*region)->config.perimeters.value > 0
+            || this->config.brim_width.value > 0
+            || this->config.interior_brim_width.value > 0
+            || this->config.brim_connections_width.value > 0)
             extruders.insert((*region)->config.perimeter_extruder - 1);
         
         if ((*region)->config.fill_density.value > 0)
@@ -355,6 +379,17 @@ Print::extruders() const
     extruders.insert(s_extruders.begin(), s_extruders.end());
     
     return extruders;
+}
+
+size_t
+Print::brim_extruder() const
+{
+    size_t e = this->get_region(0)->config.perimeter_extruder;
+    for (const PrintObject* object : this->objects) {
+        if (object->config.raft_layers > 0)
+            e = object->config.support_material_extruder;
+    }
+    return e;
 }
 
 void
@@ -478,20 +513,12 @@ Print::apply_config(DynamicPrintConfig config)
     // apply variables to placeholder parser
     this->placeholder_parser.apply_config(config);
     
-    bool invalidated = false;
-    
     // handle changes to print config
-    t_config_option_keys print_diff = this->config.diff(config);
-    if (!print_diff.empty()) {
-        this->config.apply(config, true);
-        
-        if (this->invalidate_state_by_config_options(print_diff))
-            invalidated = true;
-    }
+    bool invalidated = this->invalidate_state_by_config(config);
     
     // handle changes to object config defaults
     this->default_object_config.apply(config, true);
-    FOREACH_OBJECT(this, obj_ptr) {
+    for (PrintObject* object : this->objects) {
         // we don't assume that config contains a full ObjectConfig,
         // so we base it on the current print-wise default
         PrintObjectConfig new_config = this->default_object_config;
@@ -499,19 +526,14 @@ Print::apply_config(DynamicPrintConfig config)
         
         // we override the new config with object-specific options
         {
-            DynamicPrintConfig model_object_config = (*obj_ptr)->model_object()->config;
+            DynamicPrintConfig model_object_config = object->model_object()->config;
             model_object_config.normalize();
             new_config.apply(model_object_config, true);
         }
         
         // check whether the new config is different from the current one
-        t_config_option_keys diff = (*obj_ptr)->config.diff(new_config);
-        if (!diff.empty()) {
-            (*obj_ptr)->config.apply(new_config, true);
-            
-            if ((*obj_ptr)->invalidate_state_by_config_options(diff))
-                invalidated = true;
-        }
+        if (object->invalidate_state_by_config(new_config))
+            invalidated = true;
     }
     
     // handle changes to regions config defaults
@@ -560,14 +582,8 @@ Print::apply_config(DynamicPrintConfig config)
                 // if we're here and the new region config is different from the old
                 // one, we need to apply the new config and invalidate all objects
                 // (possible optimization: only invalidate objects using this region)
-                t_config_option_keys region_config_diff = region->config.diff(new_config);
-                if (!region_config_diff.empty()) {
-                    region->config.apply(new_config);
-                    FOREACH_OBJECT(this, o) {
-                        if ((*o)->invalidate_state_by_config_options(region_config_diff))
-                            invalidated = true;
-                    }
-                }
+                if (region->invalidate_state_by_config(new_config))
+                    invalidated = true;
             }
         }
         other_region_configs.insert(other_region_configs.end(), this_region_configs.begin(), this_region_configs.end());
@@ -669,7 +685,7 @@ Print::validate() const
     if (this->config.spiral_vase) {
         size_t total_copies_count = 0;
         FOREACH_OBJECT(this, i_object) total_copies_count += (*i_object)->copies().size();
-        if (total_copies_count > 1)
+        if (total_copies_count > 1 && !this->config.complete_objects.getBool())
             return "The Spiral Vase option can only be used when printing a single object.";
         if (this->regions.size() > 1)
             return "The Spiral Vase option can only be used when printing single material objects.";
@@ -748,6 +764,7 @@ Print::skirt_first_layer_height() const
     return this->objects.front()->config.get_abs_value("first_layer_height");
 }
 
+// This will throw an exception when called without PrintObjects
 Flow
 Print::brim_flow() const
 {
@@ -759,15 +776,21 @@ Print::brim_flow() const
        extruders and take the one with, say, the smallest index.
        The same logic should be applied to the code that selects the extruder during G-code
        generation as well. */
-    return Flow::new_from_config_width(
+    Flow flow = Flow::new_from_config_width(
         frPerimeter,
         width, 
         this->config.nozzle_diameter.get_at(this->regions.front()->config.perimeter_extruder-1),
         this->skirt_first_layer_height(),
         0
     );
+    
+    // Adjust extrusion width in order to fill the total brim width with an integer number of lines.
+    flow.set_solid_spacing(this->config.brim_width.value);
+    
+    return flow;
 }
 
+// This will throw an exception when called without PrintObjects
 Flow
 Print::skirt_flow() const
 {
@@ -798,41 +821,39 @@ Print::_make_brim()
     // checking whether we need to generate them
     this->brim.clear();
     
-    if (this->config.brim_width == 0 && this->config.brim_connections_width == 0) {
+    if (this->objects.empty()
+        || (this->config.brim_width == 0
+            && this->config.interior_brim_width == 0
+            && this->config.brim_connections_width == 0)) {
         this->state.set_done(psBrim);
         return;
     }
     
     // brim is only printed on first layer and uses perimeter extruder
-    const double first_layer_height = this->skirt_first_layer_height();
     const Flow flow  = this->brim_flow();
     const double mm3_per_mm = flow.mm3_per_mm();
     
     const coord_t grow_distance = flow.scaled_width()/2;
     Polygons islands;
     
-    FOREACH_OBJECT(this, object) {
-        const Layer &layer0 = *(*object)->get_layer(0);
+    for (PrintObject* object : this->objects) {
+        const Layer* layer0 = object->get_layer(0);
         
-        Polygons object_islands = layer0.slices.contours();
+        Polygons object_islands = layer0->slices.contours();
         
-        if (!(*object)->support_layers.empty()) {
-            const SupportLayer &support_layer0 = *(*object)->get_support_layer(0);
+        if (!object->support_layers.empty()) {
+            const SupportLayer* support_layer0 = object->get_support_layer(0);
             
-            for (ExtrusionEntitiesPtr::const_iterator it = support_layer0.support_fills.entities.begin();
-                it != support_layer0.support_fills.entities.end(); ++it)
-                append_to(object_islands, offset((*it)->as_polyline(), grow_distance));
+            for (const ExtrusionEntity* e : support_layer0->support_fills.entities)
+                append_to(object_islands, offset(e->as_polyline(), grow_distance));
             
-            for (ExtrusionEntitiesPtr::const_iterator it = support_layer0.support_interface_fills.entities.begin();
-                it != support_layer0.support_interface_fills.entities.end(); ++it)
-                append_to(object_islands, offset((*it)->as_polyline(), grow_distance));
+            for (const ExtrusionEntity* e : support_layer0->support_interface_fills.entities)
+                append_to(object_islands, offset(e->as_polyline(), grow_distance));
         }
-        for (Points::const_iterator copy = (*object)->_shifted_copies.begin(); copy != (*object)->_shifted_copies.end();
-            ++copy) {
-            for (Polygons::const_iterator p = object_islands.begin(); p != object_islands.end(); ++p) {
-                Polygon p2 = *p;
-                p2.translate(*copy);
-                islands.push_back(p2);
+        for (const Point &copy : object->_shifted_copies) {
+            for (Polygon p : object_islands) {
+                p.translate(copy);
+                islands.push_back(p);
             }
         }
     }
@@ -846,8 +867,8 @@ Print::_make_brim()
         // perimeters because here we're offsetting outwards)
         append_to(loops, offset2(
             islands,
-            flow.scaled_spacing() * (i + 0.5),
-            flow.scaled_spacing() * -1.0,
+            flow.scaled_width() + flow.scaled_spacing() * (i - 1.5 + 0.5),
+            flow.scaled_spacing() * -0.5,
             100000,
             ClipperLib::jtSquare
         ));
@@ -856,24 +877,24 @@ Print::_make_brim()
     {
         Polygons chained = union_pt_chained(loops);
         for (Polygons::const_reverse_iterator p = chained.rbegin(); p != chained.rend(); ++p) {
-            ExtrusionPath path(erSkirt, mm3_per_mm, flow.width, first_layer_height);
+            ExtrusionPath path(erSkirt, mm3_per_mm, flow.width, flow.height);
             path.polyline = p->split_at_first_point();
             this->brim.append(ExtrusionLoop(path));
         }
     }
     
     if (this->config.brim_connections_width > 0) {
-        // get islands to connects
-        for (Polygons::iterator p = islands.begin(); p != islands.end(); ++p)
-            *p = Geometry::convex_hull(p->points);
+        // get islands to connect
+        for (Polygon &p : islands)
+            p = Geometry::convex_hull(p.points);
         
         islands = offset(islands, flow.scaled_spacing() * (num_loops-0.2), 10000, jtSquare);
         
         // compute centroid for each island
         Points centroids;
         centroids.reserve(islands.size());
-        for (Polygons::const_iterator p = islands.begin(); p != islands.end(); ++p)
-            centroids.push_back(p->centroid());
+        for (const Polygon &p : islands)
+            centroids.push_back(p.centroid());
         
         // in order to check visibility we need to account for the connections width,
         // so let's use grown islands
@@ -891,7 +912,7 @@ Print::_make_brim()
             }
         }
         
-        std::auto_ptr<Fill> filler(Fill::new_from_type(ipRectilinear));
+        std::unique_ptr<Fill> filler(Fill::new_from_type(ipRectilinear));
         filler->min_spacing  = flow.spacing();
         filler->dont_adjust  = true;
         filler->density      = 1;
@@ -912,11 +933,52 @@ Print::_make_brim()
                 
                 const Polylines paths = filler->fill_surface(Surface(stBottom, *ex));
                 for (Polylines::const_iterator pl = paths.begin(); pl != paths.end(); ++pl) {
-                    ExtrusionPath path(erSkirt, mm3_per_mm, flow.width, first_layer_height);
+                    ExtrusionPath path(erSkirt, mm3_per_mm, flow.width, flow.height);
                     path.polyline = *pl;
                     this->brim.append(path);
                 }
             }
+        }
+    }
+    
+    if (this->config.interior_brim_width > 0) {
+        // collect all island holes to fill
+        Polygons holes;
+        for (const PrintObject* object : this->objects) {
+            const Layer &layer0 = *object->get_layer(0);
+            
+            Polygons o_holes = layer0.slices.holes();
+            
+            // When we have no infill on this layer, consider the internal part
+            // of the model as a hole.
+            for (const LayerRegion* layerm : layer0.regions) {
+                if (layerm->fills.empty())
+                    append_to(o_holes, (Polygons)layerm->fill_surfaces);
+            }
+            
+            for (const Point &copy : object->_shifted_copies) {
+                for (Polygon p : o_holes) {
+                    p.translate(copy);
+                    holes.push_back(p);
+                }
+            }
+        }
+        
+        Polygons loops;
+        const int num_loops = floor(this->config.interior_brim_width / flow.width + 0.5);
+        for (int i = 1; i <= num_loops; ++i) {
+            append_to(loops, offset2(
+                holes,
+                -flow.scaled_spacing() * (i + 0.5),
+                flow.scaled_spacing()
+            ));
+        }
+        
+        loops = union_pt_chained(loops);
+        for (const Polygon &p : loops) {
+            ExtrusionPath path(erSkirt, mm3_per_mm, flow.width, flow.height);
+            path.polyline = p.split_at_first_point();
+            this->brim.append(ExtrusionLoop(path));
         }
     }
     

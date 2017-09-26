@@ -52,33 +52,6 @@ sub set_material {
     return $material;
 }
 
-sub looks_like_multipart_object {
-    my ($self) = @_;
-    
-    return 0 if $self->objects_count == 1;
-    return 0 if any { $_->volumes_count > 1 } @{$self->objects};
-    return 0 if any { @{$_->config->get_keys} > 1 } @{$self->objects};
-    
-    my %heights = map { $_ => 1 } map $_->mesh->bounding_box->z_min, map @{$_->volumes}, @{$self->objects};
-    return scalar(keys %heights) > 1;
-}
-
-sub convert_multipart_object {
-    my ($self) = @_;
-    
-    my @objects = @{$self->objects};
-    my $object = $self->add_object(
-        input_file          => $objects[0]->input_file,
-    );
-    foreach my $v (map @{$_->volumes}, @objects) {
-        my $volume = $object->add_volume($v);
-        $volume->set_name($v->object->name);
-    }
-    $object->add_instance($_) for map @{$_->instances}, @objects;
-    
-    $self->delete_object($_) for reverse 0..($self->objects_count-2);
-}
-
 # Extends C++ class Slic3r::ModelMaterial
 package Slic3r::Model::Material;
 
@@ -155,10 +128,18 @@ sub add_instance {
         
         $new_instance->set_rotation($args{rotation})
             if defined $args{rotation};
+        $new_instance->set_x_rotation($args{x_rotation})
+            if defined $args{x_rotation};
+        $new_instance->set_y_rotation($args{y_rotation})
+            if defined $args{y_rotation};
         $new_instance->set_scaling_factor($args{scaling_factor})
             if defined $args{scaling_factor};
+        $new_instance->set_scaling_vector($args{scaling_vector})
+            if defined $args{scaling_vector};
         $new_instance->set_offset($args{offset})
             if defined $args{offset};
+        $new_instance->set_z_translation($args{z_translation})
+            if defined $args{z_translation};
         
         return $new_instance;
     }

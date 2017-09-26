@@ -39,13 +39,14 @@ Extruder::extrude(double dE)
     return dE;
 }
 
-/* This method makes sure the extruder is retracted by the specified amount
+/** This method makes sure the extruder is retracted by the specified amount
    of filament and returns the amount of filament retracted.
    If the extruder is already retracted by the same or a greater amount, 
    this method is a no-op.
    The restart_extra argument sets the extra length to be used for
    unretraction. If we're actually performing a retraction, any restart_extra
-   value supplied will overwrite the previous one if any. */
+   value supplied will overwrite the previous one if any. 
+*/
 double
 Extruder::retract(double length, double restart_extra)
 {
@@ -109,6 +110,18 @@ double
 Extruder::filament_diameter() const
 {
     return this->config->filament_diameter.get_at(this->id);
+}
+
+double
+Extruder::filament_density() const
+{
+    return this->config->filament_density.get_at(this->id);
+}
+
+double
+Extruder::filament_cost() const
+{
+    return this->config->filament_cost.get_at(this->id);
 }
 
 double

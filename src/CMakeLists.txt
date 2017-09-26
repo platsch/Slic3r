@@ -2,7 +2,7 @@ cmake_minimum_required (VERSION 2.8)
 project (slic3r)
 
 # only on newer GCCs: -ftemplate-backtrace-limit=0
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -DM_PI=3.14159265358979323846 -D_GLIBCXX_USE_C99 -DHAS_BOOL -DNOGDI -DBOOST_ASIO_DISABLE_KQUEUE")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -DM_PI=3.14159265358979323846 -D_GLIBCXX_USE_C99 -DHAS_BOOL -DNOGDI -DBOOST_ASIO_DISABLE_KQUEUE")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -DSLIC3R_DEBUG")
 
 if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.7.0)
@@ -14,7 +14,8 @@ endif(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.7.0)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 IF(CMAKE_HOST_APPLE)
-    set(CMAKE_EXE_LINKER_FLAGS "-framework IOKit -framework CoreFoundation")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++ -DBOOST_THREAD_DONT_USE_CHRONO -DBOOST_NO_CXX11_RVALUE_REFERENCES -DBOOST_THREAD_USES_MOVE")
+    set(CMAKE_EXE_LINKER_FLAGS "-framework IOKit -framework CoreFoundation -lc++")
 ELSE(CMAKE_HOST_APPLE)
     set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++")
 ENDIF(CMAKE_HOST_APPLE)
@@ -54,11 +55,15 @@ add_library(libslic3r STATIC
     ${LIBDIR}/libslic3r/Flow.cpp
     ${LIBDIR}/libslic3r/GCode.cpp
     ${LIBDIR}/libslic3r/GCode/CoolingBuffer.cpp
+    ${LIBDIR}/libslic3r/GCode/SpiralVase.cpp
+    ${LIBDIR}/libslic3r/GCodeReader.cpp
     ${LIBDIR}/libslic3r/GCodeSender.cpp
+    ${LIBDIR}/libslic3r/GCodeTimeEstimator.cpp
     ${LIBDIR}/libslic3r/GCodeWriter.cpp
     ${LIBDIR}/libslic3r/Geometry.cpp
     ${LIBDIR}/libslic3r/IO.cpp
     ${LIBDIR}/libslic3r/IO/AMF.cpp
+    ${LIBDIR}/libslic3r/IO/TMF.cpp
     ${LIBDIR}/libslic3r/Layer.cpp
     ${LIBDIR}/libslic3r/LayerRegion.cpp
     ${LIBDIR}/libslic3r/LayerRegionFill.cpp
@@ -81,7 +86,9 @@ add_library(libslic3r STATIC
     ${LIBDIR}/libslic3r/SurfaceCollection.cpp
     ${LIBDIR}/libslic3r/SVG.cpp
     ${LIBDIR}/libslic3r/TriangleMesh.cpp
+    ${LIBDIR}/libslic3r/Zip/ZipArchive.cpp
 )
+
 add_library(admesh STATIC
     ${LIBDIR}/admesh/connect.c
     ${LIBDIR}/admesh/normals.c
@@ -90,6 +97,8 @@ add_library(admesh STATIC
     ${LIBDIR}/admesh/stlinit.c
     ${LIBDIR}/admesh/util.c
 )
+set_property(TARGET admesh PROPERTY C_STANDARD 99)
+
 add_library(clipper STATIC ${LIBDIR}/clipper.cpp)
 add_library(expat STATIC
     ${LIBDIR}/expat/xmlparse.c
@@ -132,17 +141,29 @@ include_directories(${Boost_INCLUDE_DIRS})
 IF(CMAKE_HOST_UNIX)
     #set(Boost_LIBRARIES bsystem bthread bfilesystem)
 ENDIF(CMAKE_HOST_UNIX)
+
+target_link_libraries (slic3r libslic3r admesh clipper expat polypartition poly2tri ${Boost_LIBRARIES})
+
 IF(wxWidgets_FOUND)
     MESSAGE("wx found!")
     INCLUDE("${wxWidgets_USE_FILE}")
     add_library(slic3r_gui STATIC ${LIBDIR}/slic3r/GUI/3DScene.cpp ${LIBDIR}/slic3r/GUI/GUI.cpp)
     #only build GUI lib if building with wx
-    target_link_libraries (slic3r slic3r_gui libslic3r admesh clipper expat polypartition poly2tri ${Boost_LIBRARIES} ${wxWidgets_LIBRARIES})
+    target_link_libraries (slic3r slic3r-gui ${wxWidgets_LIBRARIES})
 ELSE(wxWidgets_FOUND)
     # For convenience. When we cannot continue, inform the user
     MESSAGE("wx not found!")
-    target_link_libraries (slic3r libslic3r admesh clipper expat polypartition poly2tri ${Boost_LIBRARIES})
     #skip gui when no wx included
 ENDIF(wxWidgets_FOUND)
+
+# Windows needs a compiled component for Boost.nowide
+IF (WIN32)
+    add_library(boost-nowide STATIC 
+        ${LIBDIR}/boost/nowide/iostream.cpp
+    )
+
+    target_link_libraries(slic3r boost-nowide)
+    target_link_libraries(extrude-tin boost-nowide)
+ENDIF(WIN32)
 
 target_link_libraries (extrude-tin libslic3r admesh clipper expat polypartition poly2tri ${Boost_LIBRARIES})

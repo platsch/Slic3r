@@ -42,7 +42,11 @@ warn "Running Slic3r under Perl 5.16 is neither supported nor recommended\n"
 
 use FindBin;
 # Path to the images.
-our $var = sub { decode_path($FindBin::Bin) . "/var/" . $_[0] };
+my $varpath = decode_path($FindBin::Bin) . "/var";
+if ($^O eq 'darwin' && !-d $varpath) {
+    $varpath = decode_path($FindBin::Bin) . "/../Resources/var";
+}
+our $var = sub { "$varpath/$_[0]" };
 
 use Moo 1.003001;
 
@@ -56,7 +60,6 @@ use Slic3r::GCode::ArcFitting;
 use Slic3r::GCode::MotionPlanner;
 use Slic3r::GCode::PressureRegulator;
 use Slic3r::GCode::Reader;
-use Slic3r::GCode::SpiralVase;
 use Slic3r::GCode::VibrationLimit;
 use Slic3r::Geometry qw(PI);
 use Slic3r::Geometry::Clipper;
@@ -100,11 +103,14 @@ sub spawn_thread {
     my $parent_tid = threads->tid;
     lock @threads;
     
+    # Set up a default handler for preventing crashes in case signals are received before
+    # thread sets its handlers.
+    $SIG{'STOP'} = sub {};
+    
     @_ = ();
     my $thread = threads->create(sub {
         @my_threads = ();
         
-        Slic3r::debugf "Starting thread %d (parent: %d)...\n", threads->tid, $parent_tid;
         local $SIG{'KILL'} = sub {
             Slic3r::debugf "Exiting thread %d...\n", threads->tid;
             $parallel_sema->up if $parallel_sema;
@@ -116,6 +122,7 @@ sub spawn_thread {
             $pause_sema->down;
             $pause_sema->up;
         };
+        Slic3r::debugf "Starting thread %d (parent: %d)...\n", threads->tid, $parent_tid;
         $cb->();
     });
     push @my_threads, $thread->tid;
@@ -222,6 +229,7 @@ sub thread_cleanup {
     *Slic3r::Geometry::BoundingBoxf::DESTROY = sub {};
     *Slic3r::Geometry::BoundingBoxf3::DESTROY = sub {};
     *Slic3r::Layer::PerimeterGenerator::DESTROY = sub {};
+    *Slic3r::LayerHeightSpline::DESTROY     = sub {};
     *Slic3r::Line::DESTROY                  = sub {};
     *Slic3r::Linef3::DESTROY                = sub {};
     *Slic3r::Model::DESTROY                 = sub {};
@@ -297,6 +305,8 @@ sub resume_all_threads {
 sub encode_path {
     my ($path) = @_;
     
+    return undef if !defined $path;
+    
     $path = Unicode::Normalize::NFC($path);
     $path = Encode::encode(locale_fs => $path);
     
@@ -306,6 +316,8 @@ sub encode_path {
 # Convert a path coded by a file system locale to Unicode.
 sub decode_path {
     my ($path) = @_;
+    
+    return undef if !defined $path;
     
     $path = Encode::decode(locale_fs => $path)
         unless utf8::is_utf8($path);

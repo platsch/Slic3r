@@ -148,6 +148,33 @@ Polygon::contains(const Point &point) const
     return result;
 }
 
+void
+Polygon::douglas_peucker(double tolerance)
+{
+    this->points.push_back(this->points.front());
+    this->points = MultiPoint::_douglas_peucker(this->points, tolerance);
+    this->points.pop_back();
+}
+
+void
+Polygon::remove_vertical_collinear_points(coord_t tolerance)
+{
+    Points &pp = this->points;
+    pp.push_back(pp.front());
+    for (size_t i = 0; i < pp.size()-1; ++i) {
+        while (i < pp.size()-1) {
+            const Point &p = pp[i];
+            const Point &next = pp[i+1];
+            if (next.x == p.x && std::abs(next.y - p.y) <= tolerance) {
+                pp.erase(pp.begin() + i);
+            } else {
+                break;
+            }
+        }
+    }
+    pp.pop_back();
+}
+
 // this only works on CCW polygons as CW will be ripped out by Clipper's simplify_polygons()
 Polygons
 Polygon::simplify(double tolerance) const
@@ -221,23 +248,24 @@ Polygon::wkt() const
 Points
 Polygon::concave_points(double angle) const
 {
-    Points points;
-    angle = 2*PI - angle;
+    angle = 2*PI - angle + EPSILON;
+    const Points &pp = this->points;
+    Points concave;
     
     // check whether first point forms a concave angle
-    if (this->points.front().ccw_angle(this->points.back(), *(this->points.begin()+1)) <= angle)
-        points.push_back(this->points.front());
+    if (pp.front().ccw_angle(pp.back(), *(pp.begin()+1)) <= angle)
+        concave.push_back(pp.front());
     
     // check whether points 1..(n-1) form concave angles
-    for (Points::const_iterator p = this->points.begin()+1; p != this->points.end()-1; ++p) {
-        if (p->ccw_angle(*(p-1), *(p+1)) <= angle) points.push_back(*p);
-    }
+    for (Points::const_iterator p = pp.begin()+1; p != pp.end()-1; ++p)
+        if (p->ccw_angle(*(p-1), *(p+1)) <= angle)
+            concave.push_back(*p);
     
     // check whether last point forms a concave angle
-    if (this->points.back().ccw_angle(*(this->points.end()-2), this->points.front()) <= angle)
-        points.push_back(this->points.back());
+    if (pp.back().ccw_angle(*(pp.end()-2), pp.front()) <= angle)
+        concave.push_back(pp.back());
     
-    return points;
+    return concave;
 }
 
 // find all convex vertices (i.e. having an internal angle smaller than the supplied angle)
@@ -245,23 +273,24 @@ Polygon::concave_points(double angle) const
 Points
 Polygon::convex_points(double angle) const
 {
-    Points points;
-    angle = 2*PI - angle;
+    angle = 2*PI - angle - EPSILON;
+    const Points &pp = this->points;
+    Points convex;
     
     // check whether first point forms a convex angle
-    if (this->points.front().ccw_angle(this->points.back(), *(this->points.begin()+1)) >= angle)
-        points.push_back(this->points.front());
+    if (pp.front().ccw_angle(pp.back(), *(pp.begin()+1)) >= angle)
+        convex.push_back(pp.front());
     
     // check whether points 1..(n-1) form convex angles
-    for (Points::const_iterator p = this->points.begin()+1; p != this->points.end()-1; ++p) {
-        if (p->ccw_angle(*(p-1), *(p+1)) >= angle) points.push_back(*p);
-    }
+    for (Points::const_iterator p = pp.begin()+1; p != pp.end()-1; ++p)
+        if (p->ccw_angle(*(p-1), *(p+1)) >= angle)
+            convex.push_back(*p);
     
     // check whether last point forms a convex angle
-    if (this->points.back().ccw_angle(*(this->points.end()-2), this->points.front()) >= angle)
-        points.push_back(this->points.back());
+    if (pp.back().ccw_angle(*(pp.end()-2), pp.front()) >= angle)
+        convex.push_back(pp.back());
     
-    return points;
+    return convex;
 }
 
 }

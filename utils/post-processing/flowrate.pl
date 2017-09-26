@@ -16,14 +16,14 @@ while (<>) {
     if (/^G1.*? F([0-9.]+)/) {
         $F = $1;
     }
-    if (/^G1 X([0-9.]+) Y([0-9.]+).*? E([0-9.]+)/) {
+    if (/^G1 X([0-9.-]+) Y([0-9.-]+).*? E([0-9.-]+)/) {
         my ($x, $y, $e) = ($1, $2, $3);
         my $e_length = $e - $E;
         if ($e_length > 0 && defined $X && defined $Y) {
             my $dist = sqrt( (($x-$X)**2) + (($y-$Y)**2) );
             if ($dist > 0) {
                 my $mm_per_mm   = $e_length / $dist;  # dE/dXY
-                my $mm3_per_mm  = ($filament_diameter[$T] ** 2) * PI/4 * $mm_per_mm;
+                my $mm3_per_mm  = (($filament_diameter[$T] // 0) ** 2) * PI/4 * $mm_per_mm;
                 my $vol_speed   = $F/60 * $mm3_per_mm;
                 my $comment = sprintf ' ; dXY = %.3fmm ; dE = %.5fmm ; dE/XY = %.5fmm/mm; volspeed = %.5fmm^3/sec',
                     $dist, $e_length, $mm_per_mm, $vol_speed;

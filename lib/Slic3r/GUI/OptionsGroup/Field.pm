@@ -22,9 +22,7 @@ sub get_value {
 
 sub set_tooltip {
     my ($self, $tooltip) = @_;
-    
-    $self->SetToolTipString($tooltip)
-        if $tooltip && $self->can('SetToolTipString');
+    die "Method not implemented";
 }
 
 sub toggle {
@@ -67,8 +65,14 @@ sub _default_size {
 sub _trigger_wxWindow {
     my ($self) = @_;
     
-    $self->wxWindow->SetToolTipString($self->option->tooltip)
-        if $self->option->tooltip && $self->wxWindow->can('SetToolTipString');
+    $self->set_tooltip($self->option->tooltip);
+}
+
+sub set_tooltip {
+    my ($self, $tooltip) = @_;
+    
+    $self->wxWindow->SetToolTipString($tooltip)
+        if $self->wxWindow->can('SetToolTipString');
 }
 
 sub set_value {
@@ -548,11 +552,16 @@ sub BUILD {
     EVT_TEXT($self->parent, $textctrl, sub {
         my $value = $textctrl->GetValue;
         if ($value =~ /^-?\d+(\.\d*)?$/) {
-            $self->set_value($value);
+            # Update the slider without re-updating the text field being modified.
+            $self->disable_change_event(1);
+            $self->slider->SetValue($value*$self->scale);
+            $self->disable_change_event(0);
+            
             $self->_on_change($self->option->opt_id);
         }
     });
     EVT_KILL_FOCUS($textctrl, sub {
+        $self->_update_textctrl;
         $self->_on_kill_focus($self->option->opt_id, @_);
     });
 }
@@ -571,9 +580,22 @@ sub get_value {
     return $self->slider->GetValue/$self->scale;
 }
 
+# Update internal scaling
+sub set_scale {
+    my ($self, $scale) = @_;
+    $self->disable_change_event(1);
+    my $current_value = $self->get_value;
+    $self->slider->SetRange($self->slider->GetMin / $self->scale * $scale, $self->slider->GetMax / $self->scale * $scale);
+    $self->scale($scale);
+    $self->set_value($current_value);
+    $self->disable_change_event(0);
+}
+
 sub _update_textctrl {
     my ($self) = @_;
-    $self->textctrl->SetLabel($self->get_value);
+    
+    $self->textctrl->ChangeValue($self->get_value);
+    $self->textctrl->SetInsertionPointEnd;
 }
 
 sub enable {

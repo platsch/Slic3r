@@ -10,7 +10,11 @@ sub new {
     my $self = $class->SUPER::new($parent, -1, "SLA/DLP Print", wxDefaultPosition, wxDefaultSize);
     
     $self->config(Slic3r::Config::SLAPrint->new);
-    $self->config->apply_dynamic(wxTheApp->{mainframe}->config);
+    $self->config->apply_dynamic(wxTheApp->{mainframe}->{plater}->config);
+    
+    # Set some defaults
+    $self->config->set('infill_extrusion_width', 0.5)  if $self->config->infill_extrusion_width == 0;
+    $self->config->set('perimeter_extrusion_width', 1) if $self->config->perimeter_extrusion_width == 0;
     
     my $sizer = Wx::BoxSizer->new(wxVERTICAL);
     my $new_optgroup = sub {
@@ -103,8 +107,6 @@ sub _accept {
         return;
     }
     
-    wxTheApp->{mainframe}->load_config($self->config->dynamic);
-    
     $self->EndModal(wxID_OK);
     $self->Close;  # needed on Linux
     
@@ -113,6 +115,9 @@ sub _accept {
     # this double invocation is needed for properly hiding the MainFrame
     $projector->Show;
     $projector->ShowModal;
+    
+    # TODO: diff the new config with the selected presets and prompt the user for
+    # applying the changes to them.
 }
 
 1;

@@ -130,6 +130,14 @@ ExPolygon::has_boundary_point(const Point &point) const
 }
 
 void
+ExPolygon::remove_vertical_collinear_points(coord_t tolerance)
+{
+    this->contour.remove_vertical_collinear_points(tolerance);
+    for (Polygon &p : this->holes)
+        p.remove_vertical_collinear_points(tolerance);
+}
+
+void
 ExPolygon::simplify_p(double tolerance, Polygons* polygons) const
 {
     Polygons pp = this->simplify_p(tolerance);
@@ -442,25 +450,37 @@ ExPolygon::triangulate_pp(Polygons* polygons) const
 void
 ExPolygon::triangulate_p2t(Polygons* polygons) const
 {
-    ExPolygons expp = simplify_polygons_ex(*this, true);
-    
-    for (ExPolygons::const_iterator ex = expp.begin(); ex != expp.end(); ++ex) {
-        // TODO: prevent duplicate points
-
+    for (const ExPolygon &ex : simplify_polygons_ex(*this, true)) {
         // contour
         std::vector<p2t::Point*> ContourPoints;
-        for (Points::const_iterator point = ex->contour.points.begin(); point != ex->contour.points.end(); ++point) {
+        
+        Polygon contour = ex.contour;
+        contour.remove_duplicate_points();
+        for (const Point &point : contour.points) {
             // We should delete each p2t::Point object
-            ContourPoints.push_back(new p2t::Point(point->x, point->y));
+            ContourPoints.push_back(new p2t::Point(point.x, point.y));
         }
         p2t::CDT cdt(ContourPoints);
 
         // holes
-        for (Polygons::const_iterator hole = ex->holes.begin(); hole != ex->holes.end(); ++hole) {
+        for (Polygon hole : ex.holes) {
+            hole.remove_duplicate_points();
             std::vector<p2t::Point*> points;
-            for (Points::const_iterator point = hole->points.begin(); point != hole->points.end(); ++point) {
+            Point prev = hole.points.back();
+            for (Point &point : hole.points) {
+                // Shrink large polygons by reducing each coordinate by 1 in the
+                // general direction of the last point as we wind around
+                // This normally wouldn't work in every case, but our upscaled polygons
+                // have little chance to create new duplicate points with this method.
+                // For information on why this was needed, see:
+                //    https://code.google.com/p/poly2tri/issues/detail?id=90
+                //    https://github.com/raptor/clip2tri
+                (point.x - prev.x) > 0 ? point.x-- : point.x++;
+                (point.y - prev.y) > 0 ? point.y-- : point.y++;
+                prev = point;
+                
                 // will be destructed in SweepContext::~SweepContext
-                points.push_back(new p2t::Point(point->x, point->y));
+                points.push_back(new p2t::Point(point.x, point.y));
             }
             cdt.AddHole(points);
         }
@@ -469,18 +489,17 @@ ExPolygon::triangulate_p2t(Polygons* polygons) const
         cdt.Triangulate();
         std::vector<p2t::Triangle*> triangles = cdt.GetTriangles();
         
-        for (std::vector<p2t::Triangle*>::const_iterator triangle = triangles.begin(); triangle != triangles.end(); ++triangle) {
+        for (p2t::Triangle* triangle : triangles) {
             Polygon p;
             for (int i = 0; i <= 2; ++i) {
-                p2t::Point* point = (*triangle)->GetPoint(i);
+                p2t::Point* point = triangle->GetPoint(i);
                 p.points.push_back(Point(point->x, point->y));
             }
             polygons->push_back(p);
         }
-
-        for(std::vector<p2t::Point*>::iterator it = ContourPoints.begin(); it != ContourPoints.end(); ++it) {
-            delete *it;
-        }
+        
+        for (p2t::Point* it : ContourPoints)
+            delete it;
     }
 }
 
@@ -504,6 +523,14 @@ ExPolygon::dump_perl() const
         ret << "," << h->dump_perl();
     ret << "]";
     return ret.str();
+}
+
+std::ostream&
+operator <<(std::ostream &s, const ExPolygons &expolygons)
+{
+    for (const ExPolygon &e : expolygons)
+        s << e.dump_perl() << std::endl;
+    return s;
 }
 
 }

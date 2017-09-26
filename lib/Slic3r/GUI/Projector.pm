@@ -9,7 +9,7 @@ use Wx::Event qw(EVT_BUTTON EVT_CLOSE EVT_TEXT_ENTER EVT_SPINCTRL EVT_SLIDER);
 use base qw(Wx::Dialog Class::Accessor);
 use utf8;
 
-__PACKAGE__->mk_accessors(qw(config config2 screen controller _optgroups));
+__PACKAGE__->mk_accessors(qw(config config2 manual_control_config screen controller _optgroups));
 
 sub new {
     my ($class, $parent) = @_;
@@ -26,6 +26,12 @@ sub new {
         z_lift                  => 5,
         z_lift_speed            => 8,
         offset                  => [0,0],
+    });
+    $self->manual_control_config({
+        xy_travel_speed         => 130,
+        z_travel_speed          => 10,
+        temperature             => '',
+        bed_temperature         => '',
     });
     
     my $ini = eval { Slic3r::Config->read_ini("$Slic3r::GUI::datadir/DLP.ini") };
@@ -44,7 +50,7 @@ sub new {
     $self->config(Slic3r::Config->new_from_defaults(
         qw(serial_port serial_speed bed_shape start_gcode end_gcode z_offset)
     ));
-    $self->config->apply(wxTheApp->{mainframe}->config);
+    $self->config->apply(wxTheApp->{mainframe}->{plater}->config);
     
     my @optgroups = ();
     {
@@ -74,33 +80,20 @@ sub new {
             
                 return $btn;
             });
-            my $serial_test = sub {
-                my ($parent) = @_;
-            
-                my $btn = $self->{serial_test_btn} = Wx::Button->new($parent, -1,
-                    "Test", wxDefaultPosition, wxDefaultSize, wxBU_LEFT | wxBU_EXACTFIT);
-                $btn->SetFont($Slic3r::GUI::small_font);
-                if ($Slic3r::GUI::have_button_icons) {
-                    $btn->SetBitmap(Wx::Bitmap->new($Slic3r::var->("wrench.png"), wxBITMAP_TYPE_PNG));
-                }
-            
-                EVT_BUTTON($self, $btn, sub {
-                    my $sender = Slic3r::GCode::Sender->new;
-                    my $res = $sender->connect(
-                        $self->{config}->serial_port,
-                        $self->{config}->serial_speed,
-                    );
-                    if ($res && $sender->wait_connected) {
-                        Slic3r::GUI::show_info($self, "Connection to printer works correctly.", "Success!");
-                    } else {
-                        Slic3r::GUI::show_error($self, "Connection failed.");
-                    }
-                });
-                return $btn;
-            };
             $line->append_option($serial_port);
             $line->append_option($optgroup->get_option('serial_speed'));
-            $line->append_widget($serial_test);
+            $line->append_button("Test", "wrench.png", sub {
+                my $sender = Slic3r::GCode::Sender->new;
+                my $res = $sender->connect(
+                    $self->{config}->serial_port,
+                    $self->{config}->serial_speed,
+                );
+                if ($res && $sender->wait_connected) {
+                    Slic3r::GUI::show_info($self, "Connection to printer works correctly.", "Success!");
+                } else {
+                    Slic3r::GUI::show_error($self, "Connection failed.");
+                }
+            }, \$self->{serial_test_btn});
             $optgroup->append_line($line);
         }
     }
@@ -299,7 +292,7 @@ sub new {
                     return;
                 }
                 my $dlg = Slic3r::GUI::Controller::ManualControlDialog->new
-                    ($self, $self->config, $sender);
+                    ($self, $self->config, $sender, $self->manual_control_config);
                 $dlg->ShowModal;
                 $sender->disconnect;
             });
@@ -533,9 +526,6 @@ sub _close {
     }
     wxTheApp->{mainframe}->Show;
     
-    my $printer_tab = wxTheApp->{mainframe}{options_tabs}{printer};
-    $printer_tab->load_config($self->config);
-    
     $self->EndModal(wxID_OK);
 }
 
@@ -568,7 +558,7 @@ sub BUILD {
     # init print
     {
         my $print = Slic3r::SLAPrint->new(wxTheApp->{mainframe}->{plater}->{model});
-        $print->apply_config(wxTheApp->{mainframe}->config);
+        $print->apply_config(wxTheApp->{mainframe}->{plater}->config);
         $self->_print($print);
         $self->screen->print($print);
     
@@ -621,8 +611,12 @@ sub start_print {
         }
         Slic3r::debugf "connected to " . $self->config->serial_port . "\n";
         
+        # TODO: this wait should be handled by GCodeSender
+        sleep 4;
+        
         # send custom start G-code
         $self->sender->send($_, 1) for grep !/^;/, split /\n/, $self->config->start_gcode;
+        $self->sender->("G90", 1); # set absolute positioning
     }
     
     $self->is_printing(1);

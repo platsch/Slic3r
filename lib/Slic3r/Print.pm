@@ -46,15 +46,17 @@ sub process {
     my $start = time;
     my $tmpstart = time;
 
-    $self->status_cb->(20, "Generating perimeters");
-    $_->make_perimeters for @{$self->objects};
-    my $duration = time - $tmpstart;
-    $tmpstart = time;
-    print "make perimeters: $duration s\n";
+    ### No need to call this as we call it as part of prepare_infill()
+    ### until we fix the idempotency issue.
+    ###$self->status_cb->(20, "Generating perimeters");
+    ###$_->make_perimeters for @{$self->objects};
+    #my $duration = time - $tmpstart;
+    #$tmpstart = time;
+    #print "make perimeters: $duration s\n";
     
     $self->status_cb->(70, "Infilling layers");
     $_->infill for @{$self->objects};
-    $duration = time - $tmpstart;
+    my $duration = time - $tmpstart;
     $tmpstart = time;
     print "infill: $duration s\n";
     
@@ -63,7 +65,7 @@ sub process {
     $tmpstart = time;
     print "support: $duration s\n";
     $self->make_skirt;
-    $self->make_brim;  # must come after make_skirt    
+    $self->make_brim;  # must come after make_skirt
     $duration = time - $tmpstart;
     $tmpstart = time;
     print "skirt/brim: $duration s\n";

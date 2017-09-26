@@ -1,0 +1,11 @@
+[Desktop Entry]
+
+Type=Application
+
+Name=APPLICATION_NAME
+
+Comment=Prepare 3D Models for printing
+
+Icon=slic3r
+
+Exec=Slic3r
