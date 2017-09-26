@@ -1463,7 +1463,7 @@ sub load_print_object_toolpaths {
                 }
             }
 
-            if ($object->step_done(STEP_PERIMETERS)) {
+            if (!$layer->isa('Slic3r::Layer::Support') && $object->step_done(STEP_PERIMETERS)) {
                 my $color = $color_by_extruder
                     ? $self->colors->[ ($object->print->default_region_config->conductive_wire_extruder-1) % @{$self->colors} ]
                     : $self->colors->[3];
