@@ -6,7 +6,7 @@ use utf8;
 use Slic3r::Electronics::Filereaders::Eagle;
 use Wx qw(:dialog :id :misc :sizer :systemsettings :notebook wxTAB_TRAVERSAL);
 use Wx::Event qw(EVT_BUTTON EVT_CLOSE);
-use base 'Wx::Frame';
+use base 'Wx::Dialog';
 
 #######################################################################
 # Purpose    : Creates a new Frame for 3DElectronics
@@ -42,10 +42,6 @@ sub new {
     		$self->{parts}->{canvas}->cancel_action;
     	}
     	$e->Skip();
-    });
-    
-    EVT_CLOSE($self, sub { 
-        $self->Hide();
     });
     
     return $self;

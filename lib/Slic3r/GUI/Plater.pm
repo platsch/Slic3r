@@ -1911,6 +1911,7 @@ sub stop_background_process {
     $self->{toolpaths2D}->reload_print if $self->{toolpaths2D};
     $self->{preview3D}->reload_print if $self->{preview3D};
     $self->{AdaptiveLayersDialog}->reload_preview if $self->{AdaptiveLayersDialog};
+    $self->{electronicPartsDlg}->reload_preview if $self->{electronicPartsDlg};
     
     if ($self->{process_thread}) {
         Slic3r::debugf "Killing background process.\n";
@@ -2055,9 +2056,7 @@ sub on_process_completed {
     $self->{toolpaths2D}->reload_print if $self->{toolpaths2D};
     $self->{preview3D}->reload_print if $self->{preview3D};
     $self->{AdaptiveLayersDialog}->reload_preview if $self->{AdaptiveLayersDialog};
-    if($self->{electronicPartsDlg}) {
-    	$self->{electronicPartsDlg}->reload_print if $self->{electronicPartsDlg}->IsShown;
-    }
+    $self->{electronicPartsDlg}->reload_print if $self->{electronicPartsDlg};
     
     # if we have an export filename, start a new thread for exporting G-code
     if ($self->{export_gcode_output_file}) {
@@ -2708,25 +2707,18 @@ sub object_electronics_dialog {
     # can't fix any error which is outside that dialog
     return unless $self->validate_config;
     
-    if($self->{electronicPartsDlg} && ($self->{electronicPartsDlg}->{obj_idx} != $obj_idx)) {
-    	print $self->{electronicPartsDlg}->{obj_idx};
-    	$self->{electronicPartsDlg}->Destroy;
-    	$self->{electronicPartsDlg} = undef;
-    }
-    
-    if(!$self->{electronicPartsDlg}) {
-	    $self->{electronicPartsDlg} = Slic3r::GUI::Plater::ObjectElectronicsDialog->new($self,
-	        $self->{print},
-	        obj_idx			=> $obj_idx,
-	        object          => $self->{objects}[$obj_idx],
-	        model_object    => $model_object,
-	    );
-    }
+    $self->{electronicPartsDlg} = Slic3r::GUI::Plater::ObjectElectronicsDialog->new($self,
+        $self->{print},
+        obj_idx         => $obj_idx,
+        object          => $self->{objects}[$obj_idx],
+        model_object    => $model_object,
+    );
     
     # Why is the background process paused?
-    $self->pause_background_process;    
-    $self->{electronicPartsDlg}->Show;
-    $self->resume_background_process;
+    #$self->pause_background_process;
+    $self->{electronicPartsDlg}->ShowModal;
+    $self->{electronicPartsDlg} = undef;
+    #$self->resume_background_process;
 }
 
 sub object_list_changed {
@@ -2771,7 +2763,7 @@ sub selection_changed {
     
     if ($self->{htoolbar}) {
         $self->{htoolbar}->EnableTool($_, $have_sel)
-            for (TB_REMOVE, TB_MORE, TB_FEWER, TB_45CW, TB_45CCW, TB_SCALE, TB_SPLIT, TB_CUT, TB_LAYERS, TB_SETTINGS);
+            for (TB_REMOVE, TB_MORE, TB_FEWER, TB_45CW, TB_45CCW, TB_SCALE, TB_SPLIT, TB_CUT, TB_LAYERS, TB_SETTINGS, TB_ELECTRONICS);
     }
     
     if ($self->{object_info_size}) { # have we already loaded the info pane?
