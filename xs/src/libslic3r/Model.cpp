@@ -431,6 +431,7 @@ ModelObject::ModelObject(Model *model, const ModelObject &other, bool copy_volum
     layer_height_ranges(other.layer_height_ranges),
     part_number(other.part_number),
     layer_height_spline(other.layer_height_spline),
+    _schematic(other._schematic),
     origin_translation(other.origin_translation),
     _bounding_box(other._bounding_box),
     _bounding_box_valid(other._bounding_box_valid),
@@ -462,6 +463,7 @@ ModelObject::swap(ModelObject &other)
     std::swap(this->config,                 other.config);
     std::swap(this->layer_height_ranges,    other.layer_height_ranges);
     std::swap(this->layer_height_spline,    other.layer_height_spline);
+    std::swap(this->_schematic,             other._schematic);
     std::swap(this->origin_translation,     other.origin_translation);
     std::swap(this->_bounding_box,          other._bounding_box);
     std::swap(this->_bounding_box_valid,    other._bounding_box_valid);

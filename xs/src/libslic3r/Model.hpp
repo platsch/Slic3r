@@ -8,6 +8,7 @@
 #include "Point.hpp"
 #include "TriangleMesh.hpp"
 #include "LayerHeightSpline.hpp"
+#include "Schematic.hpp"
 #include <map>
 #include <string>
 #include <utility>
@@ -270,6 +271,8 @@ class ModelObject
     int part_number; ///< It's used for the 3MF items part numbers in the build element.
     LayerHeightSpline layer_height_spline;     ///< Spline based variations of layer thickness for interactive user manipulation
 
+    Schematic* schematic() { return &this->_schematic; };  ///< return pointer to schematic for UI operations etc
+
     Pointf3 origin_translation;
     ///< This vector accumulates the total translation applied to the object by the
     ///< center_around_origin() method. Callers might want to apply the same translation
@@ -421,6 +424,8 @@ class ModelObject
 
     private:
     Model* model; ///< Parent object, owning this ModelObject.
+
+    Schematic _schematic;  ///< stores electronic parts and routing
 
     /// Constructor
     /// \param model Model the owner Model.

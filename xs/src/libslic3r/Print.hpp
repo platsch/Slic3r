@@ -106,7 +106,7 @@ class PrintObject
     
     Print* print();
     ModelObject* model_object() { return this->_model_object; };
-    Schematic* schematic();
+    Schematic* schematic() { return this->_schematic; };
     
     Points copies() const;
     bool add_copy(const Pointf &point);
@@ -158,7 +158,7 @@ class PrintObject
     private:
     Print* _print;
     ModelObject* _model_object;
-    Schematic _schematic;  // stores electronic parts and routing
+    Schematic* _schematic;  // pointer to electronic parts and routing object in the model_object class
     Points _copies;      // Slic3r::Point objects in scaled G-code coordinates
 
     // TODO: call model_object->get_bounding_box() instead of accepting

@@ -18,8 +18,10 @@ namespace Slic3r {
 class Schematic
 {
     public:
-    Schematic(const Point objectCenter);
+    Schematic();
+    Schematic(const Schematic &other);
     ~Schematic();
+    Schematic& operator=(const Schematic &other);
 	void setFilename(std::string filename);
 	std::string getFilename() const {return this->filename;};
     void addElectronicPart(ElectronicPart* part);
@@ -51,7 +53,6 @@ class Schematic
     ElectronicNets netlist;
     ElectronicParts partlist;
     std::string filename;
-    const Point objectCenter;
     RubberBandPtrs rubberBands;
     NetPointPtrs netPoints;
 

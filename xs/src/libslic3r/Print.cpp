@@ -343,9 +343,9 @@ Print::object_extruders() const
 
         // look for electronic objects and add conductive wire extruder if at least one object exists
         FOREACH_OBJECT(this, object) {
-        	if((*object)->_schematic.getPartlist()->size() > 0) {
-        		extruders.insert((*region)->config.conductive_wire_extruder - 1);
-        	}
+            if((*object)->_schematic->getPartlist()->size() > 0) {
+                extruders.insert((*region)->config.conductive_wire_extruder - 1);
+            }
         }
 
     }

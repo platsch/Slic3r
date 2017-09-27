@@ -11,8 +11,7 @@ PrintObject::PrintObject(Print* print, ModelObject* model_object, const Bounding
 :   typed_slices(false),
     _print(print),
     _model_object(model_object),
-    layer_height_spline(model_object->layer_height_spline),
-    _schematic(Schematic(Point(scale_(modobj_bbox.size().x/2), scale_(modobj_bbox.size().y/2))))
+    layer_height_spline(model_object->layer_height_spline)
 {
     // Compute the translation to be applied to our meshes so that we work with smaller coordinates
     {
@@ -32,6 +31,7 @@ PrintObject::PrintObject(Print* print, ModelObject* model_object, const Bounding
     
     this->reload_model_instances();
     this->layer_height_ranges = model_object->layer_height_ranges;
+    this->_schematic = model_object->schematic();
 }
 
 PrintObject::~PrintObject()
@@ -42,12 +42,6 @@ Print*
 PrintObject::print()
 {
     return this->_print;
-}
-
-Schematic*
-PrintObject::schematic()
-{
-	return &this->_schematic;
 }
 
 Points
@@ -336,7 +330,7 @@ PrintObject::invalidate_all_steps()
  */
 void PrintObject::make_electronic_wires()
 {
-	if(this->_schematic.getPartlist()->size() > 0) {
+	if(this->_schematic->getPartlist()->size() > 0) {
 		// amount of overlap for wire split points to have extrusion ends at wire endpoints
 		coord_t extrusion_overlap = scale_(this->print()->default_object_config.conductive_wire_extrusion_overlap);
 		coord_t first_extrusion_overlap = scale_(this->print()->default_object_config.conductive_wire_first_extrusion_overlap);
@@ -376,7 +370,12 @@ void PrintObject::make_electronic_wires()
 				if(layer != NULL) {
 					z_top = layer->print_z;
 					z_bottom = z_top - layer->height;
-					channels = this->_schematic.getChannels(z_bottom, z_top, extrusion_overlap, first_extrusion_overlap, overlap_min_extrusion_length, layer_overlap);
+					channels = this->_schematic->getChannels(z_bottom, z_top, extrusion_overlap, first_extrusion_overlap, overlap_min_extrusion_length, layer_overlap);
+
+					// translate to objects origin
+					for (Polylines::iterator pl = channels.begin(); pl != channels.end(); ++pl) {
+						pl->translate(this->size.x/2, this->size.y/2);
+					}
 
 					// offset and remove bed or channel
 					if(channels.size() > 0) {

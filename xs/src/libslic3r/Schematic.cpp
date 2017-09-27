@@ -5,13 +5,28 @@ namespace Slic3r {
 
 // electronic parts are placed with respect to the objects bounding box center but the object
 // uses the bounding box min point as origin, so we need to translate them.
-Schematic::Schematic(const Point objectCenter) : objectCenter(objectCenter)
+Schematic::Schematic()
 {
 	this->filename = "Default file";
 }
 
+Schematic::Schematic(const Schematic &other)
+{
+	*this = other;
+}
+
 Schematic::~Schematic()
 {
+}
+
+Schematic& Schematic::operator=(const Schematic &other)
+{
+	this->netlist = other.netlist;
+	this->partlist = other.partlist;
+	this->filename = other.filename;
+	this->rubberBands = other.rubberBands;
+	this->netPoints = other.netPoints;
+	return *this;
 }
 
 void Schematic::addElectronicPart(ElectronicPart* part)
@@ -390,11 +405,6 @@ Polylines Schematic::getChannels(const double z_bottom, const double z_top, coor
 				pls.push_back(*pl);
 			}
 		}
-	}
-
-	// translate to objects origin
-	for (Polylines::iterator pl = pls.begin(); pl != pls.end(); ++pl) {
-		pl->translate(this->objectCenter.x, this->objectCenter.y);
 	}
 
 	return pls;
