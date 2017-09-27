@@ -473,7 +473,7 @@ sub options {
         interface_shells regions_overlap
         extrusion_width first_layer_extrusion_width perimeter_extrusion_width 
         external_perimeter_extrusion_width infill_extrusion_width solid_infill_extrusion_width 
-        top_infill_extrusion_width support_material_extrusion_width
+        top_infill_extrusion_width support_material_extrusion_width conductive_wire_extrusion_width
         infill_overlap bridge_flow_ratio
         xy_size_compensation resolution shortcuts compatible_printers
         conductive_cavity_offset conductive_wire_channel_width conductive_wire_extrusion_overlap conductive_wire_first_extrusion_overlap

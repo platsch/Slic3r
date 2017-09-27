@@ -223,8 +223,8 @@ PrintConfigDef::PrintConfigDef()
     def = this->add("conductive_wire_extrusion_width", coFloatOrPercent);
 	def->label = "Conductive wires";
 	def->category = "Extrusion Width";
-	def->tooltip = "Set this to a non-zero value to set a manual extrusion width for conductive wires. If left zero, no one ones was happens. If expressed as percentage (for example 200%) it will be computed over layer height.";
-	def->sidetext = "mm or % (leave 0 for default)";
+	def->tooltip = "Set this to a non-zero value to set a manual extrusion width for conductive wires. If left zero, no one knows was happens. If expressed as percentage (for example 200%) it will be computed over layer height.";
+	def->sidetext = "mm or %";
 	def->cli = "conductive-wire-extrusion-width=s";
 	def->default_value = new ConfigOptionFloatOrPercent(0.5, false);
 
