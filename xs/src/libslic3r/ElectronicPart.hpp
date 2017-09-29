@@ -27,7 +27,9 @@ struct ElectronicPad {
 	std::string shape;
 };
 
+// Be sure to add new values in ElectronicPart.xsp if changing this enum!
 enum PlacingMethod {PM_AUTOMATIC, PM_MANUAL, PM_NONE};
+static const std::vector<std::string> PlacingMethodStrings = { "Automatic", "Manual", "None" }; // used for serialization to 3ds file
 
 class ElectronicPart;
 typedef std::vector<ElectronicPart*> ElectronicParts;
@@ -66,7 +68,9 @@ class ElectronicPart
     void setPlaced(bool placed) {this->placed = placed;};
     bool isPlaced() {return this->placed;};
     void setPlacingMethod(PlacingMethod method);
+    void setPlacingMethod(const std::string method);
     const PlacingMethod getPlacingMethod() {return this->placingMethod;};
+    const std::string getPlacingMethodString();
     TriangleMesh getFootprintMesh();
     TriangleMesh getPartMesh();
     TriangleMesh getMesh();

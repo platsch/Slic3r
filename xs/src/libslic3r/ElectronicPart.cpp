@@ -211,6 +211,21 @@ Pointf3 ElectronicPart::getAbsPadPositionPerimeter(std::string padName, bool inn
 		return result;
 }
 
+void ElectronicPart::setPlacingMethod(const std::string method)
+{
+	this->placingMethod = PM_NONE;
+	for(int i = 0; i < PlacingMethodStrings.size(); i++) {
+		if(method == PlacingMethodStrings[i]) {
+			this->placingMethod = (PlacingMethod)i;
+		}
+	}
+}
+
+const std::string ElectronicPart::getPlacingMethodString()
+{
+	return PlacingMethodStrings[this->placingMethod];
+}
+
 TriangleMesh ElectronicPart::getFootprintMesh()
 {
 	TriangleMesh mesh;

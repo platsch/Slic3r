@@ -440,6 +440,7 @@ bool Schematic::write3deFile(std::string filename, std::string filebase) {
 		attributes_node.append_attribute("partHeight") = (*part)->getPartHeight();
 		attributes_node.append_attribute("footprintHeight") = (*part)->getFootprintHeight();
 		attributes_node.append_attribute("placed") = (*part)->isPlaced();
+		attributes_node.append_attribute("placingMethod") = (*part)->getPlacingMethodString().c_str();
 
 		pugi::xml_node pos_node = part_node.append_child("position");
 		Pointf3 pos = (*part)->getPosition();
@@ -543,6 +544,7 @@ bool Schematic::load3deFile(std::string filename) {
 				(*part)->setPartHeight(attributes_node.attribute("partHeight").as_double());
 				(*part)->setFootprintHeight(attributes_node.attribute("footprintHeight").as_double());
 				(*part)->setPlaced(attributes_node.attribute("placed").as_bool());
+				(*part)->setPlacingMethod(attributes_node.attribute("placingMethod").as_string());
 
 				pugi::xml_node position_node = part_node.child("position");
 				(*part)->setPosition(position_node.attribute("X").as_double(),
