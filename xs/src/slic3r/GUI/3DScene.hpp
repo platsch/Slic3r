@@ -49,6 +49,8 @@ class _3DScene
     static void _extrusionentity_to_verts_do(const Lines &lines, const std::vector<double> &widths,
         const std::vector<double> &heights, bool closed, double top_z, const Point &copy,
         GLVertexArray* qverts, GLVertexArray* tverts);
+    static void _extrusionpoint_to_verts_do(const Point3 &point3, const double &width, const double height,
+        GLVertexArray* qverts, GLVertexArray* tverts);
 };
 
 }

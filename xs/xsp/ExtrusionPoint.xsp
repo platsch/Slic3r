@@ -1,0 +1,67 @@
+%module{Slic3r::XS};
+
+%{
+#include <xsinit.h>
+#include "libslic3r/ExtrusionEntity.hpp"
+%}
+
+%name{Slic3r::ExtrusionPoint} class ExtrusionPoint {
+    ExtrusionPoint(ExtrusionRole role);
+    ~ExtrusionPoint();
+    Clone<ExtrusionPoint> clone()
+        %code{% RETVAL = THIS; %};
+    void reverse();
+    Clone<Point> first_point();
+    Clone<Point> last_point();
+    double length();
+    bool is_perimeter();
+    bool is_infill();
+    bool is_solid_infill();
+    Polygons grow();
+    double mm3_per_mm();
+    double min_mm3_per_mm();
+    Clone<Polyline> as_polyline();
+
+%{
+
+Ref<Point3>
+ExtrusionPoint::point(...)
+    CODE:
+        if (items > 1) {
+            from_SV_check(ST(1), &THIS->point);
+        }
+        RETVAL = &(THIS->point);
+    OUTPUT:
+        RETVAL
+
+ExtrusionRole
+ExtrusionPoint::role(...)
+    CODE:
+        if (items > 1) {
+            THIS->role = (ExtrusionRole)SvUV(ST(1));
+        }
+        RETVAL = THIS->role;
+    OUTPUT:
+        RETVAL
+
+float
+ExtrusionPoint::width(...)
+    CODE:
+        if (items > 1) {
+            THIS->width = (float)SvNV(ST(1));
+        }
+        RETVAL = THIS->width;
+    OUTPUT:
+        RETVAL
+
+float
+ExtrusionPoint::height(...)
+    CODE:
+        if (items > 1) {
+            THIS->height = (float)SvNV(ST(1));
+        }
+        RETVAL = THIS->height;
+    OUTPUT:
+        RETVAL
+%}
+};

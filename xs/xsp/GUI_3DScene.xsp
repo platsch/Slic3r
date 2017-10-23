@@ -29,5 +29,12 @@ _extrusionentity_to_verts_do(Lines lines, std::vector<double> widths, std::vecto
     CODE:
         _3DScene::_extrusionentity_to_verts_do(lines, widths, heights, closed,
             top_z, *copy, qverts, tverts);
+    OUTPUT:
+
+void
+_extrusionpoint_to_verts_do(Point3* point, double width, double height, GLVertexArray* qverts, GLVertexArray* tverts)
+    CODE:
+        _3DScene::_extrusionpoint_to_verts_do(*point, width, height, qverts, tverts);
+    OUTPUT:
 
 %}
