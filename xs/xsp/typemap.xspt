@@ -290,3 +290,9 @@
     $CVar = (PlacingMethod)SvUV($PerlVar);
   %};
 };
+%typemap{ConnectionMethod}{parsed}{
+  %cpp_type{ConnectionMethod};
+  %precall_code{%
+    $CVar = (ConnectionMethod)SvUV($PerlVar);
+  %};
+};

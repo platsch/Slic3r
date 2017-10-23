@@ -60,7 +60,7 @@ use utf8;
 
 use Slic3r::Print::State ':steps';
 use Slic3r::Electronics::Electronics;
-use Slic3r::ElectronicPart ':PlacingMethods';
+use Slic3r::ElectronicPart qw(:PlacingMethods :ConnectionMethods);
 use Slic3r::GUI::Electronics3DScene;
 use Slic3r::Config;
 use File::Basename qw(basename);
@@ -865,6 +865,15 @@ sub loadPartProperties {
     $prop = $self->{propgrid}->Append(new Wx::EnumProperty("Placing method", "Placing method", $placingMethod, $part->getPlacingMethod));
     $prop->Enable(0) if(!$part->isPlaced);
 
+    # how to connect this part?
+    my $connectionMethod = new Wx::PGChoices();
+    $connectionMethod->Add("None", CM_NONE);
+    $connectionMethod->Add("Layer", CM_LAYER);
+    $connectionMethod->Add("Part", CM_PART);
+
+    $prop = $self->{propgrid}->Append(new Wx::EnumProperty("Connection method", "Connection method", $connectionMethod, $part->getConnectionMethod));
+    $prop->Enable(0) if(!$part->isPlaced);
+
 	# position    
     my $position = $part->getPosition();
     $self->{propgrid}->Append(new Wx::PropertyCategory("Position"));
@@ -898,6 +907,7 @@ sub savePartProperties {
     
 	$part->setPartHeight($self->{propgrid}->GetPropertyValue("Part height")->GetDouble);
 	$part->setPlacingMethod($self->{propgrid}->GetPropertyValue("Placing method")->GetLong);
+	$part->setConnectionMethod($self->{propgrid}->GetPropertyValue("Connection method")->GetLong);
 
 	$part->setPosition($self->{propgrid}->GetPropertyValue("Position.X")->GetDouble,
 		$self->{propgrid}->GetPropertyValue("Position.Y")->GetDouble,

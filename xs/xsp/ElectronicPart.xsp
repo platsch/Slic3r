@@ -34,11 +34,14 @@
     void setPlaced(bool placed);
     void setPlacingMethod(PlacingMethod method);
     PlacingMethod getPlacingMethod();
+    void setConnectionMethod(ConnectionMethod method);
+    ConnectionMethod getConnectionMethod();
     Clone<TriangleMesh> getFootprintMesh();
     Clone<TriangleMesh> getPartMesh();
     Clone<TriangleMesh> getMesh();
     Ref<Polygon> getHullPolygon(double z_lower, double z_upper, double hull_offset);
     std::string getPlaceGcode(double print_z, std::string automaticGcode, std::string manualGcode);
+    Point3s getConnectionPoints(double print_z);
     std::string getPlaceDescription(Pointf* offset)
     	%code{% RETVAL = THIS->getPlaceDescription(*offset); %};
     void resetPrintedStatus();
@@ -53,6 +56,9 @@ _constant()
     PM_AUTOMATIC            = PM_AUTOMATIC
     PM_MANUAL               = PM_MANUAL
     PM_NONE                 = PM_NONE
+    CM_NONE                 = CM_NONE
+    CM_LAYER                = CM_LAYER
+    CM_PART                 = CM_PART
   PROTOTYPE:
   CODE:
     RETVAL = ix;

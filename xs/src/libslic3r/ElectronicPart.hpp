@@ -31,6 +31,9 @@ struct ElectronicPad {
 enum PlacingMethod {PM_AUTOMATIC, PM_MANUAL, PM_NONE};
 static const std::vector<std::string> PlacingMethodStrings = { "Automatic", "Manual", "None" }; // used for serialization to 3ds file
 
+enum ConnectionMethod {CM_NONE, CM_LAYER, CM_PART};
+static const std::vector<std::string> ConnectionMethodStrings = { "None", "Layer", "Part" }; // used for serialization to 3ds file
+
 class ElectronicPart;
 typedef std::vector<ElectronicPart*> ElectronicParts;
 typedef std::vector<ElectronicPad> Padlist;
@@ -67,17 +70,22 @@ class ElectronicPart
     bool isVisible() {return this->visible;};
     void setPlaced(bool placed) {this->placed = placed;};
     bool isPlaced() {return this->placed;};
-    void setPlacingMethod(PlacingMethod method);
+    void setPlacingMethod(PlacingMethod method) {this->placingMethod = method;};;
     void setPlacingMethod(const std::string method);
     const PlacingMethod getPlacingMethod() {return this->placingMethod;};
     const std::string getPlacingMethodString();
+    void setConnectionMethod(ConnectionMethod method) {this->connectionMethod = method;};
+    void setConnectionMethod(const std::string method);
+    const ConnectionMethod getConnectionMethod() {return this->connectionMethod;};
+    const std::string getConnectionMethodString();
     TriangleMesh getFootprintMesh();
     TriangleMesh getPartMesh();
     TriangleMesh getMesh();
     Polygon* getHullPolygon(double z_lower, double z_upper, double hull_offset);
-    std::string getPlaceGcode(double print_z, std::string automaticGcode = "", std::string manualGcode = "");
-    std::string getPlaceDescription(Pointf offset);
-    void resetPrintedStatus(){this->printed = false;};
+    const std::string getPlaceGcode(double print_z, std::string automaticGcode = "", std::string manualGcode = "");
+    Point3s getConnectionPoints(const double print_z);
+    const std::string getPlaceDescription(Pointf offset);
+    void resetPrintedStatus();
 
 	private:
     static unsigned int s_idGenerator;
@@ -90,7 +98,9 @@ class ElectronicPart
 	bool visible;
 	bool placed;
 	PlacingMethod placingMethod;
+	ConnectionMethod connectionMethod;
 	bool printed; // indicates that this part is already included in the GCode
+	bool connected; // indicates that this part is already connected by ink drops in the GCode
 
 	double size[3];
 	Pointf3 position;

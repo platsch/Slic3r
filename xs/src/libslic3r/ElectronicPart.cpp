@@ -27,7 +27,9 @@ ElectronicPart::ElectronicPart(std::string name, std::string library, std::strin
 	this->visible = false;
 	this->placed = false;
 	this->placingMethod = PM_AUTOMATIC;
+	this->connectionMethod = CM_NONE;
 	this->printed = false;
+	this->connected = false;
 }
 
 ElectronicPart::~ElectronicPart()
@@ -223,7 +225,21 @@ void ElectronicPart::setPlacingMethod(const std::string method)
 
 const std::string ElectronicPart::getPlacingMethodString()
 {
-	return PlacingMethodStrings[this->placingMethod];
+    return PlacingMethodStrings[this->placingMethod];
+}
+
+void ElectronicPart::setConnectionMethod(const std::string method)
+{
+	this->connectionMethod = CM_NONE;
+	for(int i = 0; i < ConnectionMethodStrings.size(); i++) {
+		if(method == ConnectionMethodStrings[i]) {
+			this->connectionMethod = (ConnectionMethod)i;
+		}
+	}
+}
+const std::string ElectronicPart::getConnectionMethodString()
+{
+    return ConnectionMethodStrings[this->connectionMethod];
 }
 
 TriangleMesh ElectronicPart::getFootprintMesh()
@@ -320,21 +336,14 @@ Polygon* ElectronicPart::getHullPolygon(double z_lower, double z_upper, double h
 	return &this->hullPolygon;
 }
 
-/* Set placing method (automatic, manual or no placing).
- * Default: automatic.
- */
-void ElectronicPart::setPlacingMethod(PlacingMethod method)
-{
-	this->placingMethod = method;
-}
 
 /* Returns the GCode to place this part and remembers this part as already "printed".
  * print_z is the current print layer, a part will only be printed if it's upper surface
  * will be below the current print layer after placing.
  */
-std::string ElectronicPart::getPlaceGcode(double print_z, std::string automaticGcode, std::string manualGcode)
+const std::string ElectronicPart::getPlaceGcode(double print_z, std::string automaticGcode, std::string manualGcode)
 {
-	std::ostringstream gcode;
+    std::ostringstream gcode;
 
     if(this->placed && !this->printed && this->position.z + this->size[2] <= print_z) {
         this->printed = true;
@@ -351,16 +360,50 @@ std::string ElectronicPart::getPlaceGcode(double print_z, std::string automaticG
             // TODO: implement placeholder variable replacement
         }
         if(this->placingMethod == PM_NONE) {
-		    gcode << ";Placing of part nr " << this->partID << " is disabled\n";
-		}
+            gcode << ";Placing of part nr " << this->partID << " is disabled\n";
+        }
     }
     return gcode.str();
+}
+
+/* Returns a set of points with coordinates of all pads in scaled coordinates
+ * if the connection method is not set to none and if the print_z is
+ * higher than the base or upper surface (depending on the connection method).
+ * Requires resetPrintedStatus() before being executed again.
+ */
+Point3s ElectronicPart::getConnectionPoints(const double print_z)
+{
+    Point3s result;
+    // part affected?
+    if(this->placed && !this->connected) {
+        // matching height?
+        if((this->connectionMethod == CM_LAYER && print_z - this->position.z > EPSILON)
+            || (this->connectionMethod == CM_PART && this->position.z + this->size[2] <= print_z)) {
+
+            for (Padlist::const_iterator pad = this->padlist.begin(); pad != this->padlist.end(); ++pad) {
+                result.push_back(Point3(scale_(pad->position[0]), scale_(pad->position[1]), scale_(pad->position[2])));
+            }
+
+            for (Point3s::iterator it = result.begin(); it != result.end(); ++it) {
+                // rotate points
+                it->rotate_z(Geometry::deg2rad(this->rotation.z));
+
+                // apply object translation
+                it->translate(scale_(this->position.x), scale_(this->position.y), scale_(this->position.z));
+            }
+
+            // remember status
+            this->connected = true;
+        }
+    }
+
+    return result;
 }
 
 /* Returns a description of this part in GCode format.
  * print_z parameter as in getPlaceGcode.
  */
-std::string ElectronicPart::getPlaceDescription(Pointf offset)
+const std::string ElectronicPart::getPlaceDescription(Pointf offset)
 {
 	std::ostringstream gcode;
     if (this->printed) {
@@ -385,6 +428,12 @@ std::string ElectronicPart::getPlaceDescription(Pointf offset)
         gcode << ";</part>\n\n";
     }
     return gcode.str();
+}
+
+void ElectronicPart::resetPrintedStatus()
+{
+    this->printed = false;
+    this->connected = false;
 }
 
 stl_file ElectronicPart::generateCube(double x, double y, double z, double dx, double dy, double dz)
