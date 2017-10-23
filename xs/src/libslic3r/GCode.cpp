@@ -896,6 +896,6 @@ GCode::point3_to_gcode(const Point3 &point)
         p.y,
         unscale(point.z)
     );
-}z
+}
 
 }
