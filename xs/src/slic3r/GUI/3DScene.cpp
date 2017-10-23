@@ -237,10 +237,6 @@ _3DScene::_extrusionpoint_to_verts_do(const Point3 &point, const double &width, 
     Pointf3 p_top = p_bottom;
     p_top.translate(0, 0, height);
 
-    std::cout << "calling _extrusionpoint_to_verts_do" << std::endl;
-    std::cout << "point is: " << p_bottom.wkt() << std::endl;
-    std::cout << "extrude from " << p_bottom.z << " to " << p_top.z << " width: " << width << std::endl;
-
     // generate cubic extrusion path
     double r = width/2;
 
