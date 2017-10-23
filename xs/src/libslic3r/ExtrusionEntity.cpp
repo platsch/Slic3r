@@ -276,4 +276,25 @@ ExtrusionLoop::min_mm3_per_mm() const
     return min_mm3_per_mm;
 }
 
+
+// always compute implicitly as circular area
+double ExtrusionPoint::mm3_per_mm() const
+{
+    return pow(this->width/2, 2) * PI;
+};
+
+Polygons
+ExtrusionPoint::grow() const
+{
+    return offset(this->as_polyline(), +scale_(this->width/2));
+}
+
+Polyline
+ExtrusionPoint::as_polyline() const
+{
+	Polyline pl;
+	pl.append(this->point);
+	return pl;
+}
+
 }

@@ -176,6 +176,48 @@ class ExtrusionLoop : public ExtrusionEntity
     };
 };
 
+
+class ExtrusionPoint : public ExtrusionEntity
+{
+    public:
+    Point3 point;       // 3D point from where the vertical extrusion starts (bottom)
+    ExtrusionRole role;
+    float width;        // extrusion_width
+    float height;     // this is used as vertical length of extrusion
+
+    ExtrusionPoint(ExtrusionRole role = erConductiveWire) : role(role), width(-1), height(-1) {};
+    ~ExtrusionPoint() {};
+    ExtrusionPoint* clone() const { return new ExtrusionPoint (*this); }
+    void reverse() {};
+    Point first_point() const { return this->point; };
+    Point last_point() const  { return this->point; };
+    bool can_reverse() const { return false; }
+    //virtual double length() const;
+    bool is_perimeter() const {
+        return this->role == erPerimeter
+            || this->role == erExternalPerimeter
+            || this->role == erOverhangPerimeter;
+    };
+    bool is_infill() const {
+        return this->role == erBridgeInfill
+            || this->role == erInternalInfill
+            || this->role == erSolidInfill
+            || this->role == erTopSolidInfill;
+    };
+    bool is_solid_infill() const {
+        return this->role == erBridgeInfill
+            || this->role == erSolidInfill
+            || this->role == erTopSolidInfill;
+    };
+    bool is_bridge() const {return false;};
+    Polygons grow() const;
+    double mm3_per_mm() const;
+    double min_mm3_per_mm() const { this->mm3_per_mm(); };
+    Polyline as_polyline() const;
+};
+
+typedef std::vector<ExtrusionPoint> ExtrusionPoints;
+
 }
 
 #endif

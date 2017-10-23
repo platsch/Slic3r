@@ -216,6 +216,7 @@ xsp/Extruder.xsp
 xsp/ExtrusionEntityCollection.xsp
 xsp/ExtrusionLoop.xsp
 xsp/ExtrusionPath.xsp
+xsp/ExtrusionPoint.xsp
 xsp/Filler.xsp
 xsp/Flow.xsp
 xsp/GCode.xsp
