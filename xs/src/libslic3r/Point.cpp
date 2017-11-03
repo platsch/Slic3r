@@ -18,6 +18,12 @@ Point::operator==(const Point& rhs) const
     return this->coincides_with(rhs);
 }
 
+std::ostream&
+operator<<(std::ostream &stm, const Point &point)
+{
+    return stm << "POINT(" << point.x << " " << point.y << ")";
+}
+
 std::string
 Point::wkt() const
 {
