@@ -32,6 +32,7 @@
 #undef recvfrom
 #undef sendto
 #undef pause
+#undef seed
 
 // these need to be included early for Win32 (listing it in Build.PL is not enough)
 #include <ostream>
@@ -48,7 +49,6 @@ extern "C" {
 #undef do_open
 #undef do_close
 #undef bind
-#undef seed
 #undef push
 #undef pop
 #ifdef _MSC_VER

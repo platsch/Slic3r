@@ -439,6 +439,16 @@ if(APPLE)
     )
 endif()
 
+# Catch tests
+enable_testing()
+file(GLOB SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/t/*.cpp")
+add_executable(xs_test ${SOURCE_FILES} ${LIBDIR}/libslic3r/utils.cpp)
+target_link_libraries(xs_test libslic3r libslic3r_gui ZipArchive BSpline admesh ${Boost_LIBRARIES} clipper ${EXPAT_LIBRARIES} polypartition  poly2tri ${wxWidgets_LIBRARIES})
+
+# register tests to cmake, invoke "make test" after building
+include(ParseAndAddCatchTests)
+ParseAndAddCatchTests(xs_test)
+
 # Create a slic3r executable if not on a build server
 if (NOT (DEFINED ENV{TRAVIS} OR DEFINED ENV{APPVEYOR}))
     add_executable(slic3r ${PROJECT_SOURCE_DIR}/src/slic3r.cpp)

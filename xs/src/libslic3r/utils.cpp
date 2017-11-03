@@ -1,4 +1,6 @@
-#include <xsinit.h>
+#ifdef SLIC3RXS
+    #include <xsinit.h>
+#endif
 #include "utils.hpp" 
 #include <regex>
 
@@ -26,6 +28,9 @@ confess_at(const char *file, int line, const char *func,
      call_pv("Carp::confess", G_DISCARD);
      FREETMPS;
      LEAVE;
+    #else
+     // simplified output for c-only library and tests
+     printf("Error in function %s at %s:%d: %s\n", func, file, line, pat);
     #endif
 }
 
