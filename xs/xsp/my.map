@@ -292,7 +292,7 @@ PrintRegionPtrs*    T_PTR_ARRAYREF_PTR
 PrintObjectPtrs*    T_PTR_ARRAYREF_PTR
 LayerPtrs*          T_PTR_ARRAYREF_PTR
 SupportLayerPtrs*   T_PTR_ARRAYREF_PTR
-ElectronicParts*	T_PTR_ARRAYREF_PTR
+ElectronicParts*    T_PTR_ARRAYREF_PTR
 RubberBandPtrs*     T_PTR_ARRAYREF_PTR
 NetPointPtrs*     T_PTR_ARRAYREF_PTR
 

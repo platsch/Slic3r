@@ -19,7 +19,7 @@ Layer::Layer(size_t id, PrintObject *object, coordf_t height, coordf_t print_z,
     slices(),
     _id(id),
     _object(object),
-	dirty(true) // set true at creation for first slicing run
+    dirty(true) // set true at creation for first slicing run
 {
 }
 
@@ -89,14 +89,14 @@ Layer::delete_region(int idx)
 void
 Layer::setDirty(bool dirty)
 {
-	this->dirty = dirty;
+    this->dirty = dirty;
 }
 
 // check whether this layer is dirty and needs re-processing
 bool
 Layer::isDirty()
 {
-	return this->dirty;
+    return this->dirty;
 }
 
 /// Merge all regions' slices to get islands

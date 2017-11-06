@@ -13,20 +13,20 @@
     void addElectronicPart(ElectronicPart* part);
     void addElectronicNet(ElectronicNet* net);
     ElectronicParts* getPartlist()
-    	%code{% RETVAL = THIS->getPartlist(); %};
+        %code{% RETVAL = THIS->getPartlist(); %};
     RubberBandPtrs* getRubberBands();
     NetPointPtrs* getNetPoints();
     Ref<NetPoint> findNearestSplittingPoint(NetPoint* sourceWayPoint, Pointf3* p)
-    	%code{% RETVAL = THIS->findNearestSplittingPoint(sourceWayPoint, *p); %};
+        %code{% RETVAL = THIS->findNearestSplittingPoint(sourceWayPoint, *p); %};
     void addWire(NetPoint* netPoint, Pointf3* p)
-    	%code{% THIS->addWire(netPoint, *p); %};
+        %code{% THIS->addWire(netPoint, *p); %};
     void splitWire(RubberBand* rubberband, Pointf3* p)
-    	%code{% THIS->splitWire(rubberband, *p); %};
+        %code{% THIS->splitWire(rubberband, *p); %};
     bool removeWire(unsigned int rubberBandID)
-    	%code{% RETVAL = THIS->removeWire(rubberBandID); %};
+        %code{% RETVAL = THIS->removeWire(rubberBandID); %};
     bool removeNetPoint(NetPoint* netPoint)
-    	%code{% RETVAL = THIS->removeNetPoint(netPoint); %};
+        %code{% RETVAL = THIS->removeNetPoint(netPoint); %};
     
-    bool write3deFile(std::string filename, std::string filebase);	
+    bool write3deFile(std::string filename, std::string filebase);
     bool load3deFile(std::string filename);
 };

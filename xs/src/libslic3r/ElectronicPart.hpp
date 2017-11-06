@@ -16,15 +16,15 @@
 namespace Slic3r {
 
 struct ElectronicPad {
-	std::string type;
-	std::string pad;
-	std::string pin;
-	std::string gate;
-	double position[3];
-	double rotation[3];
-	double size[3];
-	double drill;
-	std::string shape;
+    std::string type;
+    std::string pad;
+    std::string pin;
+    std::string gate;
+    double position[3];
+    double rotation[3];
+    double size[3];
+    double drill;
+    std::string shape;
 };
 
 // Be sure to add new values in ElectronicPart.xsp if changing this enum!
@@ -79,34 +79,34 @@ class ElectronicPart
     std::string getPlaceDescription(Pointf offset);
     void resetPrintedStatus(){this->printed = false;};
 
-	private:
+    private:
     static unsigned int s_idGenerator;
     unsigned int partID;
-	std::string name;
-	std::string library;
-	std::string deviceset;
-	std::string device;
-	std::string package;
-	bool visible;
-	bool placed;
-	PlacingMethod placingMethod;
-	bool printed; // indicates that this part is already included in the GCode
+    std::string name;
+    std::string library;
+    std::string deviceset;
+    std::string device;
+    std::string package;
+    bool visible;
+    bool placed;
+    PlacingMethod placingMethod;
+    bool printed; // indicates that this part is already included in the GCode
 
-	double size[3];
-	Pointf3 position;
-	Pointf3 rotation; // is it a good idea to use point as representation for a rotation?
-	double origin[3];
-	double footprintHeight; // should be set to the layer height of the object to match exactly one layer in the visualization
+    double size[3];
+    Pointf3 position;
+    Pointf3 rotation; // is it a good idea to use point as representation for a rotation?
+    double origin[3];
+    double footprintHeight; // should be set to the layer height of the object to match exactly one layer in the visualization
 
-	Padlist padlist;
+    Padlist padlist;
 
-	// Internal methods to generate a mesh of the object and footprint
-	stl_file generateCube(double x, double y, double z, double dx, double dy, double dz);
-	stl_file generateCylinder(double x, double y, double z, double r, double h);
-	stl_facet generateFacet(double v1x, double v1y, double v1z, double v2x, double v2y, double v2z, double v3x, double v3y, double v3z);
-	void merge_stl(stl_file* stl1, stl_file* stl2);
+    // Internal methods to generate a mesh of the object and footprint
+    stl_file generateCube(double x, double y, double z, double dx, double dy, double dz);
+    stl_file generateCylinder(double x, double y, double z, double r, double h);
+    stl_facet generateFacet(double v1x, double v1y, double v1z, double v2x, double v2y, double v2z, double v3x, double v3y, double v3z);
+    void merge_stl(stl_file* stl1, stl_file* stl2);
 
-	friend class Schematic;
+    friend class Schematic;
 
 };
 

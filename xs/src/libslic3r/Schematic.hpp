@@ -22,8 +22,8 @@ class Schematic
     Schematic(const Schematic &other);
     ~Schematic();
     Schematic& operator=(const Schematic &other);
-	void setFilename(std::string filename);
-	std::string getFilename() const {return this->filename;};
+    void setFilename(std::string filename);
+    std::string getFilename() const {return this->filename;};
     void addElectronicPart(ElectronicPart* part);
     ElectronicPart* addElectronicPart(std::string name, std::string library, std::string deviceset, std::string device, std::string package);
     ElectronicPart* getElectronicPart(unsigned int partID);
@@ -47,7 +47,7 @@ class Schematic
     bool load3deFile(std::string filename);
 
 
-	private:
+    private:
     bool _checkRubberBandVisibility(const RubberBand* rb, const double z);
 
     ElectronicNets netlist;

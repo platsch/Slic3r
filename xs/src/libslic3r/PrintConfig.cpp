@@ -212,55 +212,55 @@ PrintConfigDef::PrintConfigDef()
     def->min = 1;
     def->default_value = new ConfigOptionInt(2);
 
-	def = this->add("conductive_wire_extrusion_overlap", coFloat);
-	def->label = "Extrusion overlap";
-	def->tooltip = "Controls the length of overlap for wires within a single layer. Wire segments are extruded from the center of the line towards both endpoints to ensure clean endpoints. Set to zero to disable this feature.";
-	def->sidetext = "mm";
-	def->cli = "conductive-wire-extrusion-overlap=f";
-	def->min = 0;
-	def->default_value = new ConfigOptionFloat(1.0);
+    def = this->add("conductive_wire_extrusion_overlap", coFloat);
+    def->label = "Extrusion overlap";
+    def->tooltip = "Controls the length of overlap for wires within a single layer. Wire segments are extruded from the center of the line towards both endpoints to ensure clean endpoints. Set to zero to disable this feature.";
+    def->sidetext = "mm";
+    def->cli = "conductive-wire-extrusion-overlap=f";
+    def->min = 0;
+    def->default_value = new ConfigOptionFloat(1.0);
 
     def = this->add("conductive_wire_extrusion_width", coFloatOrPercent);
-	def->label = "Conductive wires";
-	def->category = "Extrusion Width";
-	def->tooltip = "Set this to a non-zero value to set a manual extrusion width for conductive wires. If left zero, no one knows was happens. If expressed as percentage (for example 200%) it will be computed over layer height.";
-	def->sidetext = "mm or %";
-	def->cli = "conductive-wire-extrusion-width=s";
-	def->default_value = new ConfigOptionFloatOrPercent(0.5, false);
+    def->label = "Conductive wires";
+    def->category = "Extrusion Width";
+    def->tooltip = "Set this to a non-zero value to set a manual extrusion width for conductive wires. If left zero, no one knows was happens. If expressed as percentage (for example 200%) it will be computed over layer height.";
+    def->sidetext = "mm or %";
+    def->cli = "conductive-wire-extrusion-width=s";
+    def->default_value = new ConfigOptionFloatOrPercent(0.5, false);
 
-	def = this->add("conductive_wire_first_extrusion_overlap", coFloat);
-	def->label = "First extrusion overlap";
-	def->tooltip = "Controls the length of overlap for the first wire within a single layer for more reliable extruder priming. Set zero to disable.";
-	def->sidetext = "mm";
-	def->cli = "conductive-wire-first-extrusion-overlap=f";
-	def->min = 0;
-	def->default_value = new ConfigOptionFloat(1.5);
+    def = this->add("conductive_wire_first_extrusion_overlap", coFloat);
+    def->label = "First extrusion overlap";
+    def->tooltip = "Controls the length of overlap for the first wire within a single layer for more reliable extruder priming. Set zero to disable.";
+    def->sidetext = "mm";
+    def->cli = "conductive-wire-first-extrusion-overlap=f";
+    def->min = 0;
+    def->default_value = new ConfigOptionFloat(1.5);
 
-	def = this->add("conductive_wire_overlap_min_extrusion_length", coFloat);
-	def->label = "Min extrusion for overlap";
-	def->tooltip = "Don't generate overlapping extrusion from the center of the line if the overall length of an extrusion path is less than this value.";
-	def->sidetext = "mm";
-	def->cli = "conductive_wire_overlap_min_extrusion_length=f";
-	def->min = 0;
-	def->default_value = new ConfigOptionFloat(0.0);
+    def = this->add("conductive_wire_overlap_min_extrusion_length", coFloat);
+    def->label = "Min extrusion for overlap";
+    def->tooltip = "Don't generate overlapping extrusion from the center of the line if the overall length of an extrusion path is less than this value.";
+    def->sidetext = "mm";
+    def->cli = "conductive_wire_overlap_min_extrusion_length=f";
+    def->min = 0;
+    def->default_value = new ConfigOptionFloat(0.0);
 
-	def = this->add("conductive_wire_slope_overlap", coFloat);
-	def->label = "Slope overlap";
-	def->tooltip = "Controls the length of overlap for sloped wires which are realized by a 'stair' of overlapping horizontal wires.";
-	def->sidetext = "mm";
-	def->cli = "conductive-wire-slope-overlap=f";
-	def->min = 0;
-	def->default_value = new ConfigOptionFloat(1.5);
+    def = this->add("conductive_wire_slope_overlap", coFloat);
+    def->label = "Slope overlap";
+    def->tooltip = "Controls the length of overlap for sloped wires which are realized by a 'stair' of overlapping horizontal wires.";
+    def->sidetext = "mm";
+    def->cli = "conductive-wire-slope-overlap=f";
+    def->min = 0;
+    def->default_value = new ConfigOptionFloat(1.5);
 
     def = this->add("conductive_wire_speed", coFloat);
-	def->label = "Conductive wires";
-	def->category = "Speed";
-	def->tooltip = "Speed for printing conductive wires. Typically very slow.";
-	def->sidetext = "mm/s";
-	def->cli = "conductive-wire-speed=f";
-	def->aliases.push_back("conductive_feed_rate");
-	def->min = 0;
-	def->default_value = new ConfigOptionFloat(2);
+    def->label = "Conductive wires";
+    def->category = "Speed";
+    def->tooltip = "Speed for printing conductive wires. Typically very slow.";
+    def->sidetext = "mm/s";
+    def->cli = "conductive-wire-speed=f";
+    def->aliases.push_back("conductive_feed_rate");
+    def->min = 0;
+    def->default_value = new ConfigOptionFloat(2);
 
     def = this->add("cooling", coBool);
     def->label = "Enable auto cooling";
@@ -870,16 +870,16 @@ PrintConfigDef::PrintConfigDef()
     def->default_value = new ConfigOptionInt(100);
 
     def = this->add("max_layer_height", coFloats);
-	def->label = "Max";
-	def->tooltip = "This is the highest printable layer height for this extruder and limits the resolution for adaptive slicing. Typical values are slightly smaller than nozzle_diameter.";
-	def->sidetext = "mm";
-	def->cli = "max-layer-height=f@";
-	def->min = 0;
-	{
-		ConfigOptionFloats* opt = new ConfigOptionFloats();
-		opt->values.push_back(0.3);
-		def->default_value = opt;
-	}
+    def->label = "Max";
+    def->tooltip = "This is the highest printable layer height for this extruder and limits the resolution for adaptive slicing. Typical values are slightly smaller than nozzle_diameter.";
+    def->sidetext = "mm";
+    def->cli = "max-layer-height=f@";
+    def->min = 0;
+    {
+        ConfigOptionFloats* opt = new ConfigOptionFloats();
+        opt->values.push_back(0.3);
+        def->default_value = opt;
+    }
 
     def = this->add("max_print_speed", coFloat);
     def->label = "Max print speed";
@@ -909,16 +909,16 @@ PrintConfigDef::PrintConfigDef()
     def->default_value = new ConfigOptionInt(35);
 
     def = this->add("min_layer_height", coFloats);
-	def->label = "Min";
-	def->tooltip = "This is the lowest printable layer height for this extruder and limits the resolution for adaptive slicing. Typical values are 0.1 or 0.05.";
-	def->sidetext = "mm";
-	def->cli = "min-layer-height=f@";
-	def->min = 0;
-	{
-		ConfigOptionFloats* opt = new ConfigOptionFloats();
-		opt->values.push_back(0.15);
-		def->default_value = opt;
-	}
+    def->label = "Min";
+    def->tooltip = "This is the lowest printable layer height for this extruder and limits the resolution for adaptive slicing. Typical values are 0.1 or 0.05.";
+    def->sidetext = "mm";
+    def->cli = "min-layer-height=f@";
+    def->min = 0;
+    {
+        ConfigOptionFloats* opt = new ConfigOptionFloats();
+        opt->values.push_back(0.15);
+        def->default_value = opt;
+    }
 
     def = this->add("min_print_speed", coFloat);
     def->label = "Min print speed";

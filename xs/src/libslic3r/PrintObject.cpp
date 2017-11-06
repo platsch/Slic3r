@@ -403,115 +403,115 @@ PrintObject::embed_electronic_parts()
  */
 void PrintObject::make_electronic_wires()
 {
-	if(this->_schematic->getPartlist()->size() > 0) {
-		// amount of overlap for wire split points to have extrusion ends at wire endpoints
-		coord_t extrusion_overlap = scale_(this->print()->default_object_config.conductive_wire_extrusion_overlap);
-		coord_t first_extrusion_overlap = scale_(this->print()->default_object_config.conductive_wire_first_extrusion_overlap);
-		coord_t overlap_min_extrusion_length = scale_(this->print()->default_object_config.conductive_wire_overlap_min_extrusion_length);
-		// amount of overlap for inter-layer connections of sloped wires
-		coord_t layer_overlap = scale_(this->print()->default_object_config.conductive_wire_slope_overlap);
+    if(this->_schematic->getPartlist()->size() > 0) {
+        // amount of overlap for wire split points to have extrusion ends at wire endpoints
+        coord_t extrusion_overlap = scale_(this->print()->default_object_config.conductive_wire_extrusion_overlap);
+        coord_t first_extrusion_overlap = scale_(this->print()->default_object_config.conductive_wire_first_extrusion_overlap);
+        coord_t overlap_min_extrusion_length = scale_(this->print()->default_object_config.conductive_wire_overlap_min_extrusion_length);
+        // amount of overlap for inter-layer connections of sloped wires
+        coord_t layer_overlap = scale_(this->print()->default_object_config.conductive_wire_slope_overlap);
 
-		// initialize values for flow calculation
-		ConfigOptionFloatOrPercent extrusion_width = this->print()->default_object_config.conductive_wire_extrusion_width;
-		unsigned int extruder = this->print()->default_region_config.conductive_wire_extruder.getInt();
-		float nozzle_diameter = this->print()->config.nozzle_diameter.get_at(extruder-1);
+        // initialize values for flow calculation
+        ConfigOptionFloatOrPercent extrusion_width = this->print()->default_object_config.conductive_wire_extrusion_width;
+        unsigned int extruder = this->print()->default_region_config.conductive_wire_extruder.getInt();
+        float nozzle_diameter = this->print()->config.nozzle_diameter.get_at(extruder-1);
 
-		// add spare layer to the top of the object in case we have wires on the surface. Will be removed at the end of this method if empty.
-		Layer* top_layer = this->layers.back();//this->get_layer(this->layer_count()-1);
-		Layer* additional_layer = this->add_layer(top_layer->id()+1, top_layer->height, top_layer->print_z+top_layer->height, top_layer->slice_z+top_layer->height);
+        // add spare layer to the top of the object in case we have wires on the surface. Will be removed at the end of this method if empty.
+        Layer* top_layer = this->layers.back();//this->get_layer(this->layer_count()-1);
+        Layer* additional_layer = this->add_layer(top_layer->id()+1, top_layer->height, top_layer->print_z+top_layer->height, top_layer->slice_z+top_layer->height);
 
-		// add cross-references
-		top_layer->upper_layer = additional_layer;
-		additional_layer->lower_layer = top_layer;
-
-
-		// initialize layerRegions for spare layer
-		int region_count = this->print()->regions.size();
-		for(int i = 0; i < region_count; i++) {
-			additional_layer->add_region(this->print()->get_region(i));
-		}
+        // add cross-references
+        top_layer->upper_layer = additional_layer;
+        additional_layer->lower_layer = top_layer;
 
 
-		FOREACH_LAYER(this, layer_it) {
-			double z_top, z_bottom;
-			Polylines channels;
+        // initialize layerRegions for spare layer
+        int region_count = this->print()->regions.size();
+        for(int i = 0; i < region_count; i++) {
+            additional_layer->add_region(this->print()->get_region(i));
+        }
 
-			// if upper_layer is defined, get channels to create a "bed" by offsetting only a small amount
-			Layer* layer = (*layer_it)->upper_layer;
 
-			for(int i = 0; i < 2; i++) {
-				if(layer != NULL) {
-					z_top = layer->print_z;
-					z_bottom = z_top - layer->height;
-					channels = this->_schematic->getChannels(z_bottom, z_top, extrusion_overlap, first_extrusion_overlap, overlap_min_extrusion_length, layer_overlap);
+        FOREACH_LAYER(this, layer_it) {
+            double z_top, z_bottom;
+            Polylines channels;
 
-					// translate to objects origin
-					for (Polylines::iterator pl = channels.begin(); pl != channels.end(); ++pl) {
-						pl->translate(this->size.x/2, this->size.y/2);
-					}
+            // if upper_layer is defined, get channels to create a "bed" by offsetting only a small amount
+            Layer* layer = (*layer_it)->upper_layer;
 
-					// offset and remove bed or channel
-					if(channels.size() > 0) {
-						Polygons channel_polygons = offset(channels, scale_(0.01));
-						// double offsetting for channels. 1 step generates a polygon from the polyline,
-						// 2. step extends the polygon to avoid cropped angles.
-						if(i > 0) {
-							//SVG svg2("polygon_low_offset.svg");
-							//svg2.draw(channel_polygons, "red");
-							//svg2.Close();
-							//std::cout << "nr of polygons after polyline offset: " << channel_polygons.size() << std::endl;
-							channel_polygons = offset(channel_polygons, scale_(extrusion_width/2 + this->print()->default_object_config.conductive_wire_channel_width/2 - 0.01));
-							//SVG svg("polygon.svg");
-							//svg.draw(channel_polygons, "red");
-							//svg.draw(channels, "green");
-							//svg.Close();
-						}
+            for(int i = 0; i < 2; i++) {
+                if(layer != NULL) {
+                    z_top = layer->print_z;
+                    z_bottom = z_top - layer->height;
+                    channels = this->_schematic->getChannels(z_bottom, z_top, extrusion_overlap, first_extrusion_overlap, overlap_min_extrusion_length, layer_overlap);
 
-						FOREACH_LAYERREGION((*layer_it), layerm) {
-							(*layerm)->modify_slices(channel_polygons, false);
-						}
-						(*layer_it)->setDirty(true);
-					}
-				}
-				// only 2 loops, first is upper_layer second is current layer
-				layer = (*layer_it);
-			}
+                    // translate to objects origin
+                    for (Polylines::iterator pl = channels.begin(); pl != channels.end(); ++pl) {
+                        pl->translate(this->size.x/2, this->size.y/2);
+                    }
 
-			// create extrusion objects for this layer
-			Flow flow = Flow::new_from_config_width(frConductiveWire, extrusion_width, nozzle_diameter, layer->height, 0);
-			// Currently not using the standard flow object, because the conductive ink can't be modelled as rectangle with semicircles at the end.
-			// Instead, simple use the volume of the rect.
+                    // offset and remove bed or channel
+                    if(channels.size() > 0) {
+                        Polygons channel_polygons = offset(channels, scale_(0.01));
+                        // double offsetting for channels. 1 step generates a polygon from the polyline,
+                        // 2. step extends the polygon to avoid cropped angles.
+                        if(i > 0) {
+                            //SVG svg2("polygon_low_offset.svg");
+                            //svg2.draw(channel_polygons, "red");
+                            //svg2.Close();
+                            //std::cout << "nr of polygons after polyline offset: " << channel_polygons.size() << std::endl;
+                            channel_polygons = offset(channel_polygons, scale_(extrusion_width/2 + this->print()->default_object_config.conductive_wire_channel_width/2 - 0.01));
+                            //SVG svg("polygon.svg");
+                            //svg.draw(channel_polygons, "red");
+                            //svg.draw(channels, "green");
+                            //svg.Close();
+                        }
 
-			// clear old wires
-			layer->wires.clear();
+                        FOREACH_LAYERREGION((*layer_it), layerm) {
+                            (*layerm)->modify_slices(channel_polygons, false);
+                        }
+                        (*layer_it)->setDirty(true);
+                    }
+                }
+                // only 2 loops, first is upper_layer second is current layer
+                layer = (*layer_it);
+            }
 
-			for (Polylines::iterator channel_pl = channels.begin(); channel_pl != channels.end(); ++channel_pl) {
-				if(channel_pl->points.size() > 1) {
+            // create extrusion objects for this layer
+            Flow flow = Flow::new_from_config_width(frConductiveWire, extrusion_width, nozzle_diameter, layer->height, 0);
+            // Currently not using the standard flow object, because the conductive ink can't be modelled as rectangle with semicircles at the end.
+            // Instead, simple use the volume of the rect.
 
-					// clip start and end of each trace by extrusion_width/2 to achieve correct line endpoints
-					channel_pl->clip_start(scale_(extrusion_width/2));
-					channel_pl->clip_end(scale_(extrusion_width/2));
+            // clear old wires
+            layer->wires.clear();
 
-					ExtrusionPath path(erConductiveWire);
-					path.polyline = *channel_pl;
-					path.mm3_per_mm = flow.mm3_per_mm();
-					//path.mm3_per_mm = extrusion_width * layer->height;
-					path.width = extrusion_width;
-					path.height = layer->height;
+            for (Polylines::iterator channel_pl = channels.begin(); channel_pl != channels.end(); ++channel_pl) {
+                if(channel_pl->points.size() > 1) {
 
-					layer->wires.append(path);
-				}
-			}
-		}
+                    // clip start and end of each trace by extrusion_width/2 to achieve correct line endpoints
+                    channel_pl->clip_start(scale_(extrusion_width/2));
+                    channel_pl->clip_end(scale_(extrusion_width/2));
 
-		// remove top layer if empty
-		top_layer = this->layers.back();
-		if(top_layer->wires.empty()) {
-			this->delete_layer(this->layer_count()-1);
-			// remove invalid reference from n-1 layer
-			this->layers.back()->upper_layer = NULL;
-		}
-	}
+                    ExtrusionPath path(erConductiveWire);
+                    path.polyline = *channel_pl;
+                    path.mm3_per_mm = flow.mm3_per_mm();
+                    //path.mm3_per_mm = extrusion_width * layer->height;
+                    path.width = extrusion_width;
+                    path.height = layer->height;
+
+                    layer->wires.append(path);
+                }
+            }
+        }
+
+        // remove top layer if empty
+        top_layer = this->layers.back();
+        if(top_layer->wires.empty()) {
+            this->delete_layer(this->layer_count()-1);
+            // remove invalid reference from n-1 layer
+            this->layers.back()->upper_layer = NULL;
+        }
+    }
 }
 
 

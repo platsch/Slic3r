@@ -18,11 +18,11 @@ namespace Slic3r {
 
 // stores data from the schematic
 struct ElectronicNetPin {
-	std::string part;
-	std::string pin;
-	std::string gate;
-	unsigned int partID;
-	unsigned int netPointKey;
+    std::string part;
+    std::string pin;
+    std::string gate;
+    unsigned int partID;
+    unsigned int netPointKey;
 };
 
 
@@ -57,7 +57,7 @@ class ElectronicNet
     RubberBandPtrs* generateWiredRubberBands();
     RubberBandPtrs* getUnwiredRubberbands();
 
-	private:
+    private:
     //bool _pointIsConnected(unsigned int netPointKey);
 
     std::string name;
