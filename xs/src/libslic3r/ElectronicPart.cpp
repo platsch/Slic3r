@@ -274,8 +274,11 @@ TriangleMesh ElectronicPart::getMesh()
 	return partMesh;
 }
 
-Polygon* ElectronicPart::getHullPolygon(double z_lower, double z_upper, double hull_offset)
+/// Generates the hull polygon of this part between z_lower and z_upper
+/// hull_offset is an additional offset to widen the cavity to avoid collisions when inserting a part (unscaled value)
+Polygon ElectronicPart::getHullPolygon(const double z_lower, const double z_upper, const double hull_offset) const
 {
+	Polygon result;
 	// part affected?
 	if((z_upper-this->position.z > EPSILON)  && z_lower < (this->position.z + this->size[2])) {
 		Points points;
@@ -303,21 +306,19 @@ Polygon* ElectronicPart::getHullPolygon(double z_lower, double z_upper, double h
 		points.push_back(Point(scale_(this->origin[0]-dx), scale_(this->origin[1]+dy)));
 
 		// generate polygon
-		this->hullPolygon = Slic3r::Geometry::convex_hull(points);
+		result = Slic3r::Geometry::convex_hull(points);
 
 		// apply margin to have some space between part an extruded plastic
-		this->hullPolygon =  offset(Polygons(this->hullPolygon), scale_(hull_offset), 100000, ClipperLib::jtSquare).front();
+		result = offset(Polygons(result), scale_(hull_offset), 100000, ClipperLib::jtSquare).front();
 
 		// rotate polygon
-		this->hullPolygon.rotate(Geometry::deg2rad(this->rotation.z), Point(0,0));
+		result.rotate(Geometry::deg2rad(this->rotation.z), Point(0,0));
 
 		// apply object translation
-		this->hullPolygon.translate(scale_(this->position.x), scale_(this->position.y));
-	}else{
-		this->hullPolygon = Polygon();
+		result.translate(scale_(this->position.x), scale_(this->position.y));
 	}
 
-	return &this->hullPolygon;
+	return result;
 }
 
 /* Set placing method (automatic, manual or no placing).

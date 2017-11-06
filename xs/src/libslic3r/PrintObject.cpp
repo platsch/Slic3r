@@ -325,6 +325,79 @@ PrintObject::invalidate_all_steps()
     return invalidated;
 }
 
+// Remove part outlines from every layer to generate
+// cavities for electronic parts
+void
+PrintObject::embed_electronic_parts()
+{
+    ElectronicParts *partlist = this->_schematic->getPartlist();
+    if(partlist->size() > 0) {
+
+        // electronic parts are placed with respect to the objects bounding box center but the object
+        // uses the bounding box min point as origin, so we need to translate them.
+        BoundingBox bb = this->bounding_box();
+        Point bb_offset = bb.center() - bb.min;
+        // store config values
+        double conductive_cavity_offset = this->print()->default_object_config.conductive_cavity_offset;
+        // scope for marking adjacent layers dirty
+        int dirty_scope = 1;
+        for(auto &region : this->print()->regions) {
+            dirty_scope = std::max<int>({dirty_scope,
+            region->config.infill_every_layers.getInt(),
+            region->config.top_solid_layers.getInt(),
+            region->config.bottom_solid_layers.getInt()});
+        }
+
+        for(auto &layer : this->layers) {
+            for(auto &layerm : layer->regions) {
+                Polygons polygons;
+                for(const auto part : *partlist) {
+                    // only if this part is affected
+                    if(part->isPlaced()) {
+                        Polygon hull = part->getHullPolygon(layer->print_z - layer->height, layer->print_z, conductive_cavity_offset);
+
+                        if(hull.is_valid()) {
+                            hull.translate(bb_offset);
+                            polygons.push_back(hull);
+                        }
+
+                        // perl debug code, should be translated
+                        //if (0) {
+                        //    require "Slic3r/SVG.pm";
+                        //    Slic3r::SVG::output(
+                        //       "diff_op_post.svg",
+                        //        no_arrows   => 1,
+                        //        #red_expolygons  => [$layerm->slices->[0]->expolygon]
+                        //        red_expolygons  => [Slic3r::ExPolygon->new($polygons[0])],
+                        //    );
+                        //}
+
+                        // cut part from object polygon
+                        if(polygons.size() > 0){
+                            layerm->modify_slices(polygons, true);
+
+                            // Adjacent layers are possibly also affected due to combined infill
+                            // and/or solid TOP/BOTTOM shells -> mark all layers in this scope dirty.
+                            for(size_t layer_id = layer->id()-dirty_scope; layer_id <= layer->id()+dirty_scope; layer_id++) {
+                                if(layer_id > 0 && layer_id < this->layer_count()) {
+                                    this->get_layer(layer_id)->setDirty(true);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // make slices by merging all slices from layer regions
+        for(auto &layer : this->layers) {
+            if(layer->isDirty()) {
+                layer->make_slices();
+                layer->setDirty(false);
+            }
+        }
+    }
+}
+
 /* Remove channels from every layer to generate free space for
  * the extrusion of conductive material.
  */
@@ -1052,6 +1125,9 @@ PrintObject::_make_perimeters()
     if (this->state.is_done(posPerimeters)) return;
     this->state.set_started(posPerimeters);
     
+    // generate cavities for electronic parts
+    this->embed_electronic_parts();
+
     // generate wiring
     // note: "global" routing must be done after process_electronic_parts to avoid routing through parts,
     // but "local" routing must be done before process_electronic_parts to ignore perimeter polygons of parts...

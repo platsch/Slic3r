@@ -41,49 +41,47 @@ LayerRegion::merge_slices()
 void
 LayerRegion::modify_slices(Polygons &polygons, bool use_original_slices)
 {
-	// Make a copy of the original surfaces to avoid reslicing if modify_slices is
-	// invoked multiple times
-	if(this->unmodified_slices.surfaces.size() == 0) {
-		this->unmodified_slices.append(this->slices);
-	}
+    // Make a copy of the original surfaces to avoid reslicing if modify_slices is
+    // invoked multiple times
+    if(this->unmodified_slices.surfaces.size() == 0) {
+        this->unmodified_slices.append(this->slices);
+    }
 
-	// remove previously modified surfaces
-	if(use_original_slices) {
-		this->slices.surfaces.clear();
-	}
+    // remove previously modified surfaces
+    if(use_original_slices) {
+        this->slices.surfaces.clear();
+    }
 
-	SurfaceCollection* working_slices = use_original_slices ?
-			&this->unmodified_slices : &this->slices;
+    SurfaceCollection* working_slices = use_original_slices ? &this->unmodified_slices : &this->slices;
+    SurfaceCollection slices_buffer;
 
-	SurfaceCollection slices_buffer;
+    for (Surfaces::iterator surface = working_slices->surfaces.begin(); surface != working_slices->surfaces.end(); ++surface) {
+        Polygons subject;
+        subject.push_back(surface->expolygon.contour);
+        Polygons clip;
+        clip.insert(clip.end(), surface->expolygon.holes.begin(), surface->expolygon.holes.end());
 
-	for (Surfaces::iterator surface = working_slices->surfaces.begin(); surface != working_slices->surfaces.end(); ++surface) {
-		Polygons subject;
-		subject.push_back(surface->expolygon.contour);
-		Polygons clip;
-		clip.insert(clip.end(), surface->expolygon.holes.begin(), surface->expolygon.holes.end());
+        for (Polygons::iterator p = polygons.begin(); p != polygons.end(); ++p) {
+            // Internal polygons must be clockwise
+            p->make_clockwise();
+            clip.push_back(*p);
+        }
 
-		for (Polygons::iterator p = polygons.begin(); p != polygons.end(); ++p) {
-			// Internal polygons must be clockwise
-			p->make_clockwise();
-			clip.push_back(*p);
-		}
+        // modify island by cutting away inner polygons
+        ExPolygons diffp = diff_ex(subject, clip);
 
-		// modify island by cutting away inner polygons
-		ExPolygons diffp = diff_ex(subject, clip);
-
-		for (ExPolygons::iterator exp = diffp.begin(); exp != diffp.end(); ++exp) {
-			// generate new surface(s) and copy properties from unmodified surface
-			Surface s = Surface(surface->surface_type, *exp);
-			s.thickness = surface->thickness;
-			s.thickness_layers = surface->thickness_layers;
-			s.bridge_angle = surface->bridge_angle;
-			s.extra_perimeters = surface->extra_perimeters;
-			slices_buffer.surfaces.push_back(s);
-		}
-	}
-	this->slices.surfaces.clear(); // free memory
-	this->slices = slices_buffer;
+        for (ExPolygons::iterator exp = diffp.begin(); exp != diffp.end(); ++exp) {
+            // generate new surface(s) and copy properties from unmodified surface
+            Surface s = Surface(surface->surface_type, *exp);
+            s.thickness = surface->thickness;
+            s.thickness_layers = surface->thickness_layers;
+            s.bridge_angle = surface->bridge_angle;
+            s.extra_perimeters = surface->extra_perimeters;
+            slices_buffer.surfaces.push_back(s);
+        }
+    }
+    this->slices.surfaces.clear(); // free memory
+    this->slices = slices_buffer;
 }
 
 /// Creates a new PerimeterGenerator object

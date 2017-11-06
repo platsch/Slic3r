@@ -126,8 +126,6 @@ _constant()
         %code%{ THIS->state.set_done(step); %};
     void set_step_started(PrintObjectStep step)
         %code%{ THIS->state.set_started(step); %};
-
-    void make_electronic_wires();
     
     %name{_detect_surfaces_type} void detect_surfaces_type();
     void process_external_surfaces();

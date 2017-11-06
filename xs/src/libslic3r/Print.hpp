@@ -141,7 +141,8 @@ class PrintObject
     bool invalidate_state_by_config(const PrintConfigBase &config);
     bool invalidate_step(PrintObjectStep step);
     bool invalidate_all_steps();
-    
+
+    void embed_electronic_parts();
     void make_electronic_wires();
 
     bool has_support_material() const;

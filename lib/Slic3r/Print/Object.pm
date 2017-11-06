@@ -137,10 +137,6 @@ sub make_perimeters {
     # prerequisites
     $self->slice;
     
-    #TODO: MOVE THIS TO XS!!!
-    return if $self->step_done(STEP_PERIMETERS);
-    $self->process_electronic_parts;
-    
     $self->_make_perimeters;
 }
 
@@ -154,72 +150,6 @@ sub detect_surfaces_type {
     $self->slice;
     
     $self->_detect_surfaces_type;
-}
-
-# TODO: move this sub to xs
-sub process_electronic_parts {
-    my ($self) = @_;
-    
-    ## Electronic parts extension
-    my $electronicPartList = $self->schematic->getPartlist();
-    if(@{$electronicPartList} > 0) {
-        # electronic parts are placed with respect to the objects bounding box center but the object
-        # uses the bounding box min point as origin, so we need to translate them.
-        my $bb_offset = [$self->bounding_box->center->[0]-$self->bounding_box->min_point->[0], $self->bounding_box->center->[1]-$self->bounding_box->min_point->[1]];
-        
-        # scope for marking adjacent layers dirty       
-        my $dirty_scope = 1;
-        foreach my $region (@{$self->print->regions}) {
-            $dirty_scope = max($dirty_scope, 
-            $region->config->infill_every_layers,
-            $region->config->top_solid_layers,
-            $region->config->bottom_solid_layers);
-        }
-    
-        foreach my $layer (@{ $self->layers }) {
-            foreach my $region_id (0 .. ($layer->region_count - 1)) {
-                my $layerm = $layer->region($region_id);
-                my @polygons;
-                
-                foreach my $part (@{$electronicPartList}) {
-                    # only if this part is affected
-                    if($part->isPlaced) {
-                        my $polygon = $part->getHullPolygon($layer->print_z - $layer->height, $layer->print_z, $self->config->conductive_cavity_offset);
-                    
-                        if($polygon->is_valid) {
-                            $polygon->translate($bb_offset->[0], $bb_offset->[1]);
-                            push @polygons, $polygon;
-                        }
-                        
-                        if (0) {
-                            require "Slic3r/SVG.pm";
-                            Slic3r::SVG::output(
-                                "diff_op_post.svg",
-                                no_arrows   => 1,
-                                #red_expolygons  => [$layerm->slices->[0]->expolygon]
-                                red_expolygons  => [Slic3r::ExPolygon->new($polygons[0])],
-                            );
-                        }
-                    }
-                }
-                # cut part from object polygon
-                if(scalar @polygons > 0){ 
-                    $layerm->modify_slices(\@polygons, 1);
-                    # Adjacent layers are possibly also affected due to combined infill
-                    # and/or solid TOP/BOTTOM shells -> mark all layers in this scope dirty.
-                    for my $layer_id (($layer->id - $dirty_scope) .. ($layer->id + $dirty_scope)) {
-                        if($layer_id > 0 && $layer_id < $self->layer_count) {
-                            $self->get_layer($layer_id)->setDirty(1);
-                        }
-                    }
-                }
-            }
-        }
-        # make slices by merging all slices from layer regions
-        foreach my $layer (@{ $self->layers }) {
-            if($layer->isDirty) {$layer->make_slices;}
-        }
-    }
 }
 
 

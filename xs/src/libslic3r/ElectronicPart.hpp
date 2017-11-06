@@ -74,7 +74,7 @@ class ElectronicPart
     TriangleMesh getFootprintMesh();
     TriangleMesh getPartMesh();
     TriangleMesh getMesh();
-    Polygon* getHullPolygon(double z_lower, double z_upper, double hull_offset);
+    Polygon getHullPolygon(const double z_lower, const double z_upper, const double hull_offset) const;
     std::string getPlaceGcode(double print_z, std::string automaticGcode = "", std::string manualGcode = "");
     std::string getPlaceDescription(Pointf offset);
     void resetPrintedStatus(){this->printed = false;};
@@ -99,7 +99,6 @@ class ElectronicPart
 	double footprintHeight; // should be set to the layer height of the object to match exactly one layer in the visualization
 
 	Padlist padlist;
-	Polygon hullPolygon;
 
 	// Internal methods to generate a mesh of the object and footprint
 	stl_file generateCube(double x, double y, double z, double dx, double dy, double dz);
