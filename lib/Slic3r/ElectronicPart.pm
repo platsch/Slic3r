@@ -4,7 +4,7 @@ use warnings;
 
 use parent qw(Exporter);
 
-our @EXPORT_OK = qw(PM_AUTOMATIC PM_MANUAL PM_NONE);
-our %EXPORT_TAGS = (PlacingMethods => \@EXPORT_OK);
+our @EXPORT_OK = qw(PM_AUTOMATIC PM_MANUAL PM_NONE CM_NONE CM_LAYER CM_PART);
+our %EXPORT_TAGS = (PlacingMethods => [qw(PM_AUTOMATIC PM_MANUAL PM_NONE)], ConnectionMethods => [qw(CM_NONE CM_LAYER CM_PART)]);
 
 1;

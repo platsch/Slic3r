@@ -55,6 +55,8 @@ ExtrusionEntityCollection::arrayref()
                 sv_setref_pv( sv, perl_class_name_ref(path), path );
             } else if (ExtrusionLoop* loop = dynamic_cast<ExtrusionLoop*>(*it)) {
                 sv_setref_pv( sv, perl_class_name_ref(loop), loop );
+            } else if (ExtrusionPoint* point = dynamic_cast<ExtrusionPoint*>(*it)) {
+                sv_setref_pv( sv, perl_class_name_ref(point), point );
             } else if (ExtrusionEntityCollection* collection = dynamic_cast<ExtrusionEntityCollection*>(*it)) {
                 sv_setref_pv( sv, perl_class_name_ref(collection), collection );
             } else {
@@ -79,6 +81,8 @@ ExtrusionEntityCollection::append(...)
                 THIS->entities.push_back( new ExtrusionPath(*path) );
             } else if (ExtrusionLoop* loop = dynamic_cast<ExtrusionLoop*>(entity)) {
                 THIS->entities.push_back( new ExtrusionLoop(*loop) );
+            }else if (ExtrusionPoint* point = dynamic_cast<ExtrusionPoint*>(entity)) {
+                THIS->entities.push_back( new ExtrusionPoint(*point) );
             } else if(ExtrusionEntityCollection* collection = dynamic_cast<ExtrusionEntityCollection*>(entity)) {
                 THIS->entities.push_back( collection->clone() );
             } else {

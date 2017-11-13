@@ -8,6 +8,7 @@ REGISTER_CLASS(ExPolygonCollection, "ExPolygon::Collection");
 REGISTER_CLASS(Extruder, "Extruder");
 REGISTER_CLASS(ExtrusionPath, "ExtrusionPath");
 REGISTER_CLASS(ExtrusionLoop, "ExtrusionLoop");
+REGISTER_CLASS(ExtrusionPoint, "ExtrusionPoint");
 // there is no ExtrusionLoop::Collection or ExtrusionEntity::Collection
 REGISTER_CLASS(ExtrusionEntityCollection, "ExtrusionPath::Collection");
 REGISTER_CLASS(Flow, "Flow");

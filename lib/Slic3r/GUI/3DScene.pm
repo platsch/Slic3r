@@ -1536,47 +1536,64 @@ sub _expolygons_to_verts {
 # for the extrusion $entity.
 sub _extrusionentity_to_verts {
     my ($self, $entity, $top_z, $copy, $qverts, $tverts) = @_;
-    
-    my ($lines, $widths, $heights, $closed);
+
     if ($entity->isa('Slic3r::ExtrusionPath::Collection')) {
         $self->_extrusionentity_to_verts($_, $top_z, $copy, $qverts, $tverts)
             for @$entity;
         return;
-    } elsif ($entity->isa('Slic3r::ExtrusionPath')) {
-        my $polyline = $entity->polyline->clone;
-        $polyline->remove_duplicate_points;
-        $polyline->translate(@$copy);
-        $lines = $polyline->lines;
-        $widths = [ map $entity->width, 0..$#$lines ];
-        $heights = [ map $entity->height, 0..$#$lines ];
-        $closed = 0;
-    } else {
-        $lines   = [];
-        $widths  = [];
-        $heights = [];
-        $closed  = 1;
-        foreach my $path (@$entity) {
-            my $polyline = $path->polyline->clone;
+    } elsif ($entity->isa('Slic3r::ExtrusionPoint')) { # Non-planar extrusions
+        my $point = $entity->point->clone;
+        $point->translate(@$copy, 0);
+        # Calling the C++ implementation Slic3r::_3DScene::_extrusionpoint_to_verts_do()
+        # This adds new vertices to the $qverts and $tverts.
+        Slic3r::GUI::_3DScene::_extrusionpoint_to_verts_do($point, $entity->width,
+            # height (lenght) of the extrusion.
+            $entity->height,
+            # GLVertexArray object: C++ class maintaining an std::vector<float> for coords and normals.
+            $qverts,
+            $tverts);
+    }else{ # planar extrusions
+        my ($lines, $widths, $heights, $closed);
+        if ($entity->isa('Slic3r::ExtrusionPath::Collection')) {
+            $self->_extrusionentity_to_verts($_, $top_z, $copy, $qverts, $tverts)
+                for @$entity;
+            return;
+        } elsif ($entity->isa('Slic3r::ExtrusionPath')) {
+            my $polyline = $entity->polyline->clone;
             $polyline->remove_duplicate_points;
             $polyline->translate(@$copy);
-            my $path_lines = $polyline->lines;
-            push @$lines, @$path_lines;
-            push @$widths, map $path->width, 0..$#$path_lines;
-            push @$heights, map $path->height, 0..$#$path_lines;
+            $lines = $polyline->lines;
+            $widths = [ map $entity->width, 0..$#$lines ];
+            $heights = [ map $entity->height, 0..$#$lines ];
+            $closed = 0;
+        } else {
+            $lines   = [];
+            $widths  = [];
+            $heights = [];
+            $closed  = 1;
+            foreach my $path (@$entity) {
+                my $polyline = $path->polyline->clone;
+                $polyline->remove_duplicate_points;
+                $polyline->translate(@$copy);
+                my $path_lines = $polyline->lines;
+                push @$lines, @$path_lines;
+                push @$widths, map $path->width, 0..$#$path_lines;
+                push @$heights, map $path->height, 0..$#$path_lines;
+            }
         }
+
+        # Calling the C++ implementation Slic3r::_3DScene::_extrusionentity_to_verts_do()
+        # This adds new vertices to the $qverts and $tverts.
+        Slic3r::GUI::_3DScene::_extrusionentity_to_verts_do($lines, $widths, $heights,
+            $closed,
+            # Top height of the extrusion.
+            $top_z,
+            # $copy is not used here.
+            $copy,
+            # GLVertexArray object: C++ class maintaining an std::vector<float> for coords and normals.
+            $qverts,
+            $tverts);
     }
-    
-    # Calling the C++ implementation Slic3r::_3DScene::_extrusionentity_to_verts_do()
-    # This adds new vertices to the $qverts and $tverts.
-    Slic3r::GUI::_3DScene::_extrusionentity_to_verts_do($lines, $widths, $heights,
-        $closed, 
-        # Top height of the extrusion.
-        $top_z, 
-        # $copy is not used here.
-        $copy,
-        # GLVertexArray object: C++ class maintaining an std::vector<float> for coords and normals.
-        $qverts,
-        $tverts);
 }
 
 sub object_idx {

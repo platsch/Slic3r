@@ -105,6 +105,7 @@ class GCode {
     std::string extrude(const ExtrusionEntity &entity, std::string description = "", double speed = -1);
     std::string extrude(ExtrusionLoop loop, std::string description = "", double speed = -1);
     std::string extrude(const ExtrusionPath &path, std::string description = "", double speed = -1);
+    std::string extrude(const ExtrusionPoint &point, std::string description = "", double speed = -1);
     std::string travel_to(const Point &point, ExtrusionRole role, std::string comment);
     bool needs_retraction(const Polyline &travel, ExtrusionRole role = erNone);
     std::string retract(bool toolchange = false);
@@ -112,6 +113,7 @@ class GCode {
     std::string set_extruder(unsigned int extruder_id);
     unsigned int get_current_extruder();
     Pointf point_to_gcode(const Point &point);
+    Pointf3 point3_to_gcode(const Point3 &point);
     
     private:
     Point _last_pos;

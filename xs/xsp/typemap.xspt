@@ -85,6 +85,9 @@
 %typemap{ExtrusionLoop*};
 %typemap{Ref<ExtrusionLoop>}{simple};
 %typemap{Clone<ExtrusionLoop>}{simple};
+%typemap{ExtrusionPoint*};
+%typemap{Ref<ExtrusionPoint>}{simple};
+%typemap{Clone<ExtrusionPoint>}{simple};
 %typemap{TriangleMesh*};
 %typemap{Ref<TriangleMesh>}{simple};
 %typemap{Clone<TriangleMesh>}{simple};
@@ -192,12 +195,14 @@
 %typemap{NetPointPtrs*};
 
 %typemap{Points};
+%typemap{Point3s};
 %typemap{Pointfs};
 %typemap{Lines};
 %typemap{Polygons};
 %typemap{Polylines};
 %typemap{ExPolygons};
 %typemap{ExtrusionPaths};
+%typemap{ExtrusionPoints};
 %typemap{Surfaces};
 %typemap{Polygons*};
 %typemap{TriangleMesh*};
@@ -287,5 +292,11 @@
   %cpp_type{PlacingMethod};
   %precall_code{%
     $CVar = (PlacingMethod)SvUV($PerlVar);
+  %};
+};
+%typemap{ConnectionMethod}{parsed}{
+  %cpp_type{ConnectionMethod};
+  %precall_code{%
+    $CVar = (ConnectionMethod)SvUV($PerlVar);
   %};
 };

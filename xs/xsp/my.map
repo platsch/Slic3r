@@ -117,6 +117,10 @@ ExtrusionLoop*             O_OBJECT_SLIC3R
 Ref<ExtrusionLoop>         O_OBJECT_SLIC3R_T
 Clone<ExtrusionLoop>       O_OBJECT_SLIC3R_T
 
+ExtrusionPoint*            O_OBJECT_SLIC3R
+Ref<ExtrusionPoint>        O_OBJECT_SLIC3R_T
+Clone<ExtrusionPoint>      O_OBJECT_SLIC3R_T
+
 Filler*                    O_OBJECT_SLIC3R
 Ref<Filler>                O_OBJECT_SLIC3R_T
 Clone<Filler>              O_OBJECT_SLIC3R_T
@@ -268,17 +272,20 @@ PrintStep     T_UV
 PrintObjectStep     T_UV
 SurfaceType     T_UV
 PlacingMethod     T_UV
+ConnectionMethod  T_UV
 ClipperLib::JoinType		T_UV
 ClipperLib::PolyFillType		T_UV
 
 # we return these types whenever we want the items to be cloned
 Points          T_ARRAYREF
+Point3s         T_ARRAYREF
 Pointfs         T_ARRAYREF
 Lines           T_ARRAYREF
 Polygons        T_ARRAYREF
 Polylines       T_ARRAYREF
 ExPolygons      T_ARRAYREF
 ExtrusionPaths  T_ARRAYREF
+ExtrusionPoints T_ARRAYREF
 Surfaces        T_ARRAYREF
 
 # we return these types whenever we want the items to be returned

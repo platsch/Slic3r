@@ -230,6 +230,73 @@ _3DScene::_extrusionentity_to_verts_do(const Lines &lines, const std::vector<dou
 }
 
 void
+_3DScene::_extrusionpoint_to_verts_do(const Point3 &point, const double &width, const double height,
+    GLVertexArray* qverts, GLVertexArray* tverts)
+{
+    Pointf3 p_bottom = Pointf3::new_unscale(point);
+    Pointf3 p_top = p_bottom;
+    p_top.translate(0, 0, height);
+
+    // generate cubic extrusion path
+    double r = width/2;
+
+    // generate one facet and add 4 rotated versions to the verts list
+    Pointf3s verts;
+    verts.push_back(Pointf3(p_bottom.x, p_bottom.y+r, p_bottom.z));
+    verts.push_back(Pointf3(p_bottom.x+r, p_bottom.y, p_top.z));
+    verts.push_back(Pointf3(p_bottom.x+r, p_bottom.y, p_bottom.z));
+
+    verts.push_back(Pointf3(p_bottom.x, p_bottom.y+r, p_top.z));
+    verts.push_back(Pointf3(p_bottom.x+r, p_bottom.y, p_top.z));
+    verts.push_back(Pointf3(p_bottom.x, p_bottom.y+r, p_bottom.z));
+
+    Pointf3s norms;
+    norms.push_back(Pointf3(0, 1, 0));
+    norms.push_back(Pointf3(1, 0, 0));
+    norms.push_back(Pointf3(1, 0, 0));
+
+    norms.push_back(Pointf3(0, 1, 0));
+    norms.push_back(Pointf3(1, 0, 0));
+    norms.push_back(Pointf3(0, 1, 0));
+
+    for(int i=0; i<4; i++) {
+        for(int k=0; k<6; k++) {
+            verts[k].rotate_z(i*PI/2, p_bottom);
+            norms[k].rotate_z(i*PI/2);
+            tverts->push_vert(verts[k]);
+            tverts->push_norm(norms[k]);
+        }
+    }
+
+    // top
+    tverts->push_vert(p_top.x, p_top.y+r, p_top.z);
+    tverts->push_vert(p_top.x-r, p_top.y, p_top.z);
+    tverts->push_vert(p_top.x, p_top.y-r, p_top.z);
+
+    tverts->push_vert(p_top.x, p_top.y+r, p_top.z);
+    tverts->push_vert(p_top.x, p_top.y-r, p_top.z);
+    tverts->push_vert(p_top.x+r, p_top.y, p_top.z);
+
+    for(int i=0; i<6; i++) {
+        tverts->push_norm(0, 0, 1); // normal pointing to top
+    }
+
+    // bottom
+    tverts->push_vert(p_bottom.x, p_bottom.y+r, p_bottom.z);
+    tverts->push_vert(p_bottom.x, p_bottom.y-r, p_bottom.z);
+    tverts->push_vert(p_bottom.x-r, p_bottom.y, p_bottom.z);
+
+    tverts->push_vert(p_bottom.x, p_bottom.y+r, p_bottom.z);
+    tverts->push_vert(p_bottom.x+r, p_bottom.y, p_bottom.z);
+    tverts->push_vert(p_bottom.x, p_bottom.y-r, p_bottom.z);
+
+    for(int i=0; i<6; i++) {
+        tverts->push_norm(0, 0, -1); // normal pointing to bottom
+    }
+
+}
+
+void
 GLVertexArray::load_mesh(const TriangleMesh &mesh)
 {
     this->reserve_more(3 * 3 * mesh.facets_count());

@@ -403,7 +403,10 @@ PrintObject::embed_electronic_parts()
  */
 void PrintObject::make_electronic_wires()
 {
-    if(this->_schematic->getPartlist()->size() > 0) {
+    // pointer to partlist
+    ElectronicParts* partlist = this->_schematic->getPartlist();
+
+    if(partlist->size() > 0) {
         // amount of overlap for wire split points to have extrusion ends at wire endpoints
         coord_t extrusion_overlap = scale_(this->print()->default_object_config.conductive_wire_extrusion_overlap);
         coord_t first_extrusion_overlap = scale_(this->print()->default_object_config.conductive_wire_first_extrusion_overlap);
@@ -485,6 +488,7 @@ void PrintObject::make_electronic_wires()
             // clear old wires
             layer->wires.clear();
 
+            // generate extrusion objects for each wire
             for (Polylines::iterator channel_pl = channels.begin(); channel_pl != channels.end(); ++channel_pl) {
                 if(channel_pl->points.size() > 1) {
 
@@ -502,6 +506,25 @@ void PrintObject::make_electronic_wires()
                     layer->wires.append(path);
                 }
             }
+            // generate contact points for SMD pins
+            for (ElectronicParts::const_iterator part = partlist->begin(); part != partlist->end(); ++part) {
+
+                double print_z = layer->print_z;
+                // use a very high print_z value for last layer to catch all remaining parts
+                if(layer->id() == this->layer_count()-1) {
+                    print_z = 999999;
+                }
+                Point3s connection_points = (*part)->getConnectionPoints(print_z);
+                for (Point3s::iterator point = connection_points.begin(); point != connection_points.end(); ++point) {
+                    point->translate(this->size.x/2, this->size.y/2, 0); // translate to objects origin
+                    ExtrusionPoint epoint(erConductiveWire);
+                    epoint.point = *point;
+                    //epoint.mm3_per_mm = flow.mm3_per_mm(); // is generated automatically by the ExtrusionPoint object
+                    epoint.width = extrusion_width;
+                    epoint.height = (*part)->getFootprintHeight(); //layer->height;
+                    layer->wires.append(epoint);
+                }
+            }
         }
 
         // remove top layer if empty
@@ -510,6 +533,11 @@ void PrintObject::make_electronic_wires()
             this->delete_layer(this->layer_count()-1);
             // remove invalid reference from n-1 layer
             this->layers.back()->upper_layer = NULL;
+        }
+
+        // reset parts printed status
+        for (ElectronicParts::const_iterator part = partlist->begin(); part != partlist->end(); ++part) {
+            (*part)->resetPrintedStatus();
         }
     }
 }
@@ -1124,7 +1152,7 @@ PrintObject::_make_perimeters()
 {
     if (this->state.is_done(posPerimeters)) return;
     this->state.set_started(posPerimeters);
-    
+
     // generate cavities for electronic parts
     this->embed_electronic_parts();
 

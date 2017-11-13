@@ -482,6 +482,8 @@ GCode::extrude(const ExtrusionEntity &entity, std::string description, double sp
         return this->extrude(*path, description, speed);
     } else if (const ExtrusionLoop* loop = dynamic_cast<const ExtrusionLoop*>(&entity)) {
         return this->extrude(*loop, description, speed);
+    } else if (const ExtrusionPoint* point = dynamic_cast<const ExtrusionPoint*>(&entity)) {
+        return this->extrude(*point, description, speed);
     } else {
         CONFESS("Invalid argument supplied to extrude()");
         return "";
@@ -496,6 +498,96 @@ GCode::extrude(const ExtrusionPath &path, std::string description, double speed)
     // reset acceleration
     gcode += this->writer.set_acceleration(this->config.default_acceleration.value);
     
+    return gcode;
+}
+
+std::string
+GCode::extrude(const ExtrusionPoint &epoint, std::string description, double speed)
+{
+    std::string gcode;
+
+    // move to point of extrusion
+    if (!this->_last_pos_defined || !this->_last_pos.coincides_with(epoint.first_point())) {
+        gcode += this->travel_to(
+            epoint.first_point(),
+            epoint.role,
+            "move to " + description + " point"
+        );
+    }
+
+    // unlift to find actual current z position
+    this->writer.unlift();
+    double _pos_z = this->writer.get_position().z;
+
+    // move to bottom of point
+    gcode += this->writer.travel_to_z(unscale(epoint.point.z), "move to bottom of " + description);
+
+    // compensate retraction
+    gcode += this->unretract();
+
+    // calculate extrusion length per distance unit
+    double e_per_mm = this->writer.extruder()->e_per_mm3 * epoint.mm3_per_mm();
+    if (this->writer.extrusion_axis().empty()) e_per_mm = 0;
+
+    // set speed
+    if (speed == -1) {
+        if (epoint.role == erPerimeter) {
+            speed = this->config.get_abs_value("perimeter_speed");
+        } else if (epoint.role == erExternalPerimeter) {
+            speed = this->config.get_abs_value("external_perimeter_speed");
+        } else if (epoint.role == erOverhangPerimeter || epoint.role == erBridgeInfill) {
+            speed = this->config.get_abs_value("bridge_speed");
+        } else if (epoint.role == erInternalInfill) {
+            speed = this->config.get_abs_value("infill_speed");
+        } else if (epoint.role == erSolidInfill) {
+            speed = this->config.get_abs_value("solid_infill_speed");
+        } else if (epoint.role == erTopSolidInfill) {
+            speed = this->config.get_abs_value("top_solid_infill_speed");
+        } else if (epoint.role == erGapFill) {
+            speed = this->config.get_abs_value("gap_fill_speed");
+        } else if (epoint.role == erConductiveWire) {
+            speed = this->config.get_abs_value("conductive_wire_speed");
+        } else {
+            CONFESS("Invalid speed");
+        }
+    }
+    if (this->volumetric_speed != 0 && speed == 0) {
+        speed = this->volumetric_speed / epoint.mm3_per_mm();
+    }
+
+    if (this->config.max_volumetric_speed.value > 0) {
+        // cap speed with max_volumetric_speed anyway (even if user is not using autospeed)
+        speed = std::min(
+            speed,
+            this->config.max_volumetric_speed.value / epoint.mm3_per_mm()
+        );
+    }
+    if (EXTRUDER_CONFIG(filament_max_volumetric_speed) > 0) {
+        // cap speed with max_volumetric_speed anyway (even if user is not using autospeed)
+        speed = std::min(
+            speed,
+            EXTRUDER_CONFIG(filament_max_volumetric_speed) / epoint.mm3_per_mm()
+        );
+    }
+    double F = speed * 60;  // convert mm/sec to mm/min
+    gcode += this->writer.set_speed(F);
+    {
+        std::string comment = this->config.gcode_comments ? description + " point extrusion" : "";
+        Pointf3 target_pos = this->point3_to_gcode(epoint.point); // target pos in unscaled printer coordinates
+        target_pos.translate(0, 0, epoint.height); // translate to top of extrusion
+        gcode += this->writer.extrude_to_xyz(
+            target_pos,
+            e_per_mm * epoint.height, // height of ExtrusionPoint is lenght of extrusion
+            comment
+        );
+    }
+
+    // move back to original z
+    gcode += this->writer.travel_to_z(_pos_z);
+
+    // reset acceleration
+    gcode += this->writer.set_acceleration(this->config.default_acceleration.value);
+
     return gcode;
 }
 
@@ -792,6 +884,17 @@ GCode::point_to_gcode(const Point &point)
     return Pointf(
         unscale(point.x) + this->origin.x - extruder_offset.x,
         unscale(point.y) + this->origin.y - extruder_offset.y
+    );
+}
+
+Pointf3
+GCode::point3_to_gcode(const Point3 &point)
+{
+    Pointf p = this->point_to_gcode(point);
+    return Pointf3(
+        p.x,
+        p.y,
+        unscale(point.z)
     );
 }
 

@@ -123,6 +123,11 @@ sub clone {
     );
 }
 
+package Slic3r::ExtrusionPoint;
+use overload
+    '@{}' => sub { $_[0]->arrayref },
+    'fallback' => 1;
+
 package Slic3r::Filler;
 
 sub fill_surface {
@@ -227,6 +232,7 @@ for my $class (qw(
         Slic3r::ExtrusionLoop
         Slic3r::ExtrusionPath
         Slic3r::ExtrusionPath::Collection
+        Slic3r::ExtrusionPoint
         Slic3r::Filler
         Slic3r::Flow
         Slic3r::GCode
