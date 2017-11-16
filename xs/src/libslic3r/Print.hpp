@@ -16,6 +16,7 @@
 #include "SlicingAdaptive.hpp"
 #include "LayerHeightSpline.hpp"
 #include "Schematic.hpp"
+#include "ElectronicWireGenerator.hpp"
 
 namespace Slic3r {
 
