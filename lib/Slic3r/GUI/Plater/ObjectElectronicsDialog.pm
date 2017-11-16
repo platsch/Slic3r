@@ -703,7 +703,7 @@ sub reload_tree {
     
     if (defined $self->{schematic}) {
     	my $partlist = $self->{schematic}->getPartlist();
-        if ($#{$partlist} > 0) {
+        if ($#{$partlist} >= 0) {
         	
         	# placed SMDs
             my $eIcon = ICON_PCB;
