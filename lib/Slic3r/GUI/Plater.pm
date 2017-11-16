@@ -1834,6 +1834,7 @@ sub async_apply_config {
     $self->{toolpaths2D}->reload_print if $self->{toolpaths2D};
     $self->{preview3D}->reload_print if $self->{preview3D};
     $self->{AdaptiveLayersDialog}->reload_preview if $self->{AdaptiveLayersDialog};
+    $self->{electronicPartsDlg}->reload_print if $self->{electronicPartsDlg};
     
     if (!$Slic3r::GUI::Settings->{_}{background_processing}) {
         $self->hide_preview if $invalidated;
@@ -1911,7 +1912,7 @@ sub stop_background_process {
     $self->{toolpaths2D}->reload_print if $self->{toolpaths2D};
     $self->{preview3D}->reload_print if $self->{preview3D};
     $self->{AdaptiveLayersDialog}->reload_preview if $self->{AdaptiveLayersDialog};
-    $self->{electronicPartsDlg}->reload_preview if $self->{electronicPartsDlg};
+    $self->{electronicPartsDlg}->reload_print if $self->{electronicPartsDlg};
     
     if ($self->{process_thread}) {
         Slic3r::debugf "Killing background process.\n";
