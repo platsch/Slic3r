@@ -477,15 +477,17 @@ sub process_layer {
     # set new layer - this will change Z and force a retraction if retract_layer_change is enabled
     if ($self->print->config->before_layer_gcode) {
         my $pp = $self->_gcodegen->placeholder_parser->clone;
-        $pp->set('layer_num' => $self->_gcodegen->layer_index + 1);
-        $pp->set('layer_z'   => $layer->print_z);
+        $pp->set('layer_num'          => $self->_gcodegen->layer_index + 1);
+        $pp->set('layer_z'            => $layer->print_z);
+        $pp->set('current_retraction' => $self->_gcodegen->writer->extruder->retracted);
         $gcode .= $pp->process($self->print->config->before_layer_gcode) . "\n";
     }
     $gcode .= $self->_gcodegen->change_layer($layer->as_layer);  # this will increase $self->_gcodegen->layer_index
     if ($self->print->config->layer_gcode) {
         my $pp = $self->_gcodegen->placeholder_parser->clone;
-        $pp->set('layer_num' => $self->_gcodegen->layer_index);
-        $pp->set('layer_z'   => $layer->print_z);
+        $pp->set('layer_num'          => $self->_gcodegen->layer_index);
+        $pp->set('layer_z'            => $layer->print_z);
+        $pp->set('current_retraction' => $self->_gcodegen->writer->extruder->retracted);
         $gcode .= $pp->process($self->print->config->layer_gcode) . "\n";
     }
     
