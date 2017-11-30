@@ -570,6 +570,7 @@ GCode::extrude(const ExtrusionPoint &epoint, std::string description, double spe
         );
     }
     double F = speed * 60;  // convert mm/sec to mm/min
+    speed = speed*0.5;      // and reduce speed since we are doing short vertical movements.
     gcode += this->writer.set_speed(F);
     {
         std::string comment = this->config.gcode_comments ? description + " point extrusion" : "";
