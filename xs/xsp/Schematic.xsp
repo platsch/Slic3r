@@ -15,6 +15,7 @@
     ElectronicParts* getPartlist()
         %code{% RETVAL = THIS->getPartlist(); %};
     RubberBandPtrs* getRubberBands();
+    void updateRubberBands();
     NetPointPtrs* getNetPoints();
     Ref<NetPoint> findNearestSplittingPoint(NetPoint* sourceWayPoint, Pointf3* p)
         %code{% RETVAL = THIS->findNearestSplittingPoint(sourceWayPoint, *p); %};

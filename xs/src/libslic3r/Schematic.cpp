@@ -98,7 +98,9 @@ void Schematic::setFilename(std::string filename)
     this->filename = filename;
 }
 
-RubberBandPtrs* Schematic::getRubberBands()
+// Generate a new set of rubberbands from net graph.
+// Previous rubberbands are invalidated by this step since we allocate new IDs!!
+void Schematic::updateRubberBands()
 {
     this->rubberBands.clear();
     this->updatePartNetPoints();
@@ -118,7 +120,6 @@ RubberBandPtrs* Schematic::getRubberBands()
             //}
         }
     }
-    return &this->rubberBands;
 }
 
 NetPointPtrs* Schematic::getNetPoints(){
@@ -184,6 +185,7 @@ void Schematic::addWire(const NetPoint* netPoint, const Pointf3& p)
             break;
         }
     }
+    this->updateRubberBands();
 }
 
 
@@ -236,6 +238,7 @@ void Schematic::splitWire(const RubberBand* rubberband, const Pointf3& p)
             break;
         }
     }
+    this->updateRubberBands();
 }
 
 
@@ -250,6 +253,7 @@ bool Schematic::removeWire(const unsigned int rubberBandID)
     if(!result) {
         std::cout << "Warning! failed to remove wire " << rubberBandID << std::endl;
     }
+    this->updateRubberBands();
     return result;
 }
 
@@ -266,15 +270,12 @@ bool Schematic::removeNetPoint(const NetPoint* netPoint)
     if(!result) {
         std::cout << "Warning! failed to remove netPoint " << netPoint->getKey() << std::endl;
     }
+    this->updateRubberBands();
     return result;
 }
 
 Polylines Schematic::getChannels(const double z_bottom, const double z_top, coord_t extrusion_overlap, coord_t first_extrusion_overlap, coord_t overlap_min_extrusion_length, coord_t layer_overlap)
 {
-
-    // update rubberbands
-    this->getRubberBands();
-
     Polylines pls;
     Polylines pls_akku;
 
@@ -619,6 +620,7 @@ bool Schematic::load3deFile(std::string filename) {
             }
         }
     }
+    this->updateRubberBands();
     return result;
 }
 

@@ -30,7 +30,8 @@ class Schematic
     ElectronicPart* getElectronicPart(std::string partName);
     void addElectronicNet(ElectronicNet* net);
     ElectronicParts* getPartlist();
-    RubberBandPtrs* getRubberBands();
+    RubberBandPtrs* getRubberBands() {return &this->rubberBands;};
+    void updateRubberBands();
     NetPointPtrs* getNetPoints();
     const NetPoint* findNearestSplittingPoint(const NetPoint* sourceWayPoint, const Pointf3& p) const;
     void addWire(const NetPoint* netPoint, const Pointf3& p);

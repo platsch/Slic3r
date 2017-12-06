@@ -542,7 +542,6 @@ sub reload_print {
 sub render_print {
     my ($self) = @_;
     return if $self->_loaded;
-    
     # we require that there's at least one object and the posSlice step
     # is performed on all of them (this ensures that _shifted_copies was
     # populated and we know the number of layers)
@@ -806,15 +805,16 @@ sub property_selection_changed {
     
     # current properties are of type...
     if($self->{property_selected_type} == PROPERTY_PART) {
-    	$self->savePartProperties($self->{property_selected_object});
-    	$self->reload_tree($self->{property_selected_object}->getPartID());
+        $self->savePartProperties($self->{property_selected_object});
+        $self->{schematic}->updateRubberBands();
+        $self->reload_tree($self->{property_selected_object}->getPartID());
     }
     
     if($self->{property_selected_type} == PROPERTY_WAYPOINT) {
-    	my $x = $self->{propgrid}->GetPropertyValue("Position.X")->GetDouble;
-    	my $y = $self->{propgrid}->GetPropertyValue("Position.Y")->GetDouble;
-    	my $z = $self->{propgrid}->GetPropertyValue("Position.Z")->GetDouble;
-    	$self->{property_selected_object}->setPosition($x, $y, $z);
+        my $x = $self->{propgrid}->GetPropertyValue("Position.X")->GetDouble;
+        my $y = $self->{propgrid}->GetPropertyValue("Position.Y")->GetDouble;
+        my $z = $self->{propgrid}->GetPropertyValue("Position.Z")->GetDouble;
+        $self->{property_selected_object}->setPosition($x, $y, $z);
     }
     
     # trigger slicing steps to update modifications;
