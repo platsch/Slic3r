@@ -112,6 +112,7 @@ sub load_electronic_part {
 	my %offsets = (); # [ z => [ qverts_idx, tverts_idx ] ]    
     $offsets{0} = [0, 0];
     $offsets{$mesh->bounding_box->z_min-$self->{visibility_offset}} = [0, 0];
+    print "load_electronic_part\n";
 
     push @{$self->volumes}, Slic3r::GUI::3DScene::Volume->new(
         bounding_box    => $mesh->bounding_box,
@@ -292,19 +293,22 @@ sub mouse_event_new {
         $self->enable_picking(1);
     }	
     elsif ($e->Moving && $self->{activity}->{place_electronic_part}) {
-    	# refresh mouse position
-    	$self->mouse_event($e);
-    	my $mpos = $self->get_mouse_pos_3d_obj;
-    	
-    	# remove mesh
+        # refresh mouse position
+        $self->mouse_event($e);
+        my $mpos = $self->get_mouse_pos_3d_obj;
+
+        # remove mesh
         pop @{$self->volumes};
         
         # generate mesh at new position. Not very efficient implementation...
         my $mesh = $self->{activity}->{place_electronic_part}->getMesh;
-		$mesh->translate($self->origin->x + $mpos->x, $self->origin->y + $mpos->y, $self->{current_z});
-		$self->load_electronic_part($mesh, [0, 0, 0.7, 0.7]);
-		$self->volumes->[$#{$self->volumes}]->hover(0);
-		#$self->volumes->[$#{$self->volumes}]->selected
+        $mesh->translate($self->origin->x + $mpos->x, $self->origin->y + $mpos->y, $self->{current_z});
+        $self->load_electronic_part($mesh, [0, 0, 0.7, 0.7]);
+        $self->volumes->[$#{$self->volumes}]->hover(0);
+        #$self->volumes->[$#{$self->volumes}]->selected
+
+        # refresh canvas
+        $self->Refresh;
     }	
     elsif ($e->Moving && $self->{activity}->{rubberband_splitting}) {
     	# refresh mouse position
