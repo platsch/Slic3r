@@ -930,17 +930,21 @@ sub loadButtonPressed {
     my ($filename) = @_;
     
     if (!$filename) {
+        my $dir = $Slic3r::GUI::Settings->{recent}{skein_directory}
+           || $Slic3r::GUI::Settings->{recent}{config_directory}
+           || '';
+        
         my $dlg = Wx::FileDialog->new(
             $self, 
             'Select schematic to load:',
-            '',
+            $dir,
             '',
             &Slic3r::GUI::FILE_WILDCARDS->{sch}, 
             wxFD_OPEN | wxFD_FILE_MUST_EXIST);
         return unless $dlg->ShowModal == wxID_OK;
         $filename = Slic3r::decode_path($dlg->GetPaths);
         $dlg->Destroy;
-    }    
+    }
 
     my ($base,$path,$type) = fileparse($filename,('.sch','.SCH','3de','.3DE'));
     if ($type eq "sch" || $type eq "SCH" || $type eq ".sch" || $type eq ".SCH") {
@@ -948,11 +952,11 @@ sub loadButtonPressed {
     } elsif ($type eq "3de" || $type eq "3DE" || $type eq ".3de" || $type eq ".3DE") {
     	# read corresponding .sch file first
     	my $parser = XML::LibXML->new();
-	    my $xmldoc = $parser->parse_file($filename);
-	    for my $files ($xmldoc->findnodes('/electronics/filename')) {
-	    	print "file to be opened: " . $path . $files->getAttribute('source') . "\n";
-	        Slic3r::Electronics::Filereaders::Eagle->readFile($path . $files->getAttribute('source'), $self->{schematic}, $self->{config});
-	    }
+        my $xmldoc = $parser->parse_file($filename);
+        for my $files ($xmldoc->findnodes('/electronics/filename')) {
+            print "file to be opened: " . $path . $files->getAttribute('source') . "\n";
+            Slic3r::Electronics::Filereaders::Eagle->readFile($path . $files->getAttribute('source'), $self->{schematic}, $self->{config});
+        }
     	$self->{schematic}->load3deFile($filename);
     }
 
