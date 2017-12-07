@@ -112,7 +112,6 @@ sub load_electronic_part {
 	my %offsets = (); # [ z => [ qverts_idx, tverts_idx ] ]    
     $offsets{0} = [0, 0];
     $offsets{$mesh->bounding_box->z_min-$self->{visibility_offset}} = [0, 0];
-    print "load_electronic_part\n";
 
     push @{$self->volumes}, Slic3r::GUI::3DScene::Volume->new(
         bounding_box    => $mesh->bounding_box,

@@ -806,7 +806,6 @@ sub property_selection_changed {
     # current properties are of type...
     if($self->{property_selected_type} == PROPERTY_PART) {
         $self->savePartProperties($self->{property_selected_object});
-        $self->{schematic}->updateRubberBands();
         $self->reload_tree($self->{property_selected_object}->getPartID());
     }
     
@@ -816,6 +815,8 @@ sub property_selection_changed {
         my $z = $self->{propgrid}->GetPropertyValue("Position.Z")->GetDouble;
         $self->{property_selected_object}->setPosition($x, $y, $z);
     }
+    
+    $self->{schematic}->updateRubberBands();
     
     # trigger slicing steps to update modifications;
     $self->{print}->objects->[$self->{obj_idx}]->invalidate_step(STEP_SLICE);
