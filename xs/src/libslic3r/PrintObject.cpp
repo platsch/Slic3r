@@ -434,7 +434,7 @@ void PrintObject::make_electronic_wires()
             additional_layer->add_region(this->print()->get_region(i));
         }
 
-        // collect unrouted wires
+        // collect unrouted wires (could be parallelized, access to schematic is const
         FOREACH_LAYER(this, layer) {
             double z_top, z_bottom;
 
@@ -533,7 +533,7 @@ void PrintObject::make_electronic_wires()
                     point.translate(this->size.x/2, this->size.y/2, 0); // translate to objects origin
                     ExtrusionPoint epoint(erConductiveWire);
                     epoint.point = point;
-                    //epoint.mm3_per_mm = flow.mm3_per_mm(); // is generated automatically by the ExtrusionPoint object
+                    //epoint.mm3_per_mm is generated automatically by the ExtrusionPoint object
                     epoint.width = extrusion_width;
                     epoint.height = part->getFootprintHeight(); //layer->height;
                     (*layer)->wire_extrusions.append(epoint);

@@ -274,7 +274,7 @@ bool Schematic::removeNetPoint(const NetPoint* netPoint)
     return result;
 }
 
-Polylines Schematic::getChannels(const double z_bottom, const double z_top, coord_t layer_overlap)
+Polylines Schematic::getChannels(const double z_bottom, const double z_top, const coord_t layer_overlap) const
 {
     Polylines pls;
 

@@ -45,7 +45,7 @@ class RubberBand : public Linef3
     const Pointf3* selectNearest(const Pointf3& p);
     const bool pointASelected() const {return this->netPointASelected;};
     const bool pointBSelected() const {return this->netPointBSelected;};
-    bool getLayerSegments(const double z_bottom, const double z_top, coord_t layer_overlap, Lines* segments, bool extendPinA, bool extendPinB);
+    bool getLayerSegments(const double z_bottom, const double z_top, coord_t const layer_overlap, Lines* segments, bool extendPinA, bool extendPinB);
 
     // Rubberband inherits from Linef3 and uses points a and b.
 

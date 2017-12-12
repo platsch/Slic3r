@@ -101,7 +101,7 @@ const Pointf3* RubberBand::selectNearest(const Pointf3& p)
  * Endpoints connecting an smd-pin are extended to the opposite of the pin if extendPinX is true.
  * extension_length and result in scaled coordinates.
  */
-bool RubberBand::getLayerSegments(const double z_bottom, const double z_top, coord_t layer_overlap, Lines* segments, bool extendPinA, bool extendPinB)
+bool RubberBand::getLayerSegments(const double z_bottom, const double z_top, const coord_t layer_overlap, Lines* segments, bool extendPinA, bool extendPinB)
 {
     bool result = false;
 
