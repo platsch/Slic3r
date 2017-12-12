@@ -71,8 +71,8 @@
     bool has_lower_layer()
         %code%{ RETVAL = (THIS->lower_layer != NULL); %};
         
-    Ref<ExtrusionEntityCollection> wires()
-        %code%{ RETVAL = &THIS->wires; %};
+    Ref<ExtrusionEntityCollection> wire_extrusions()
+        %code%{ RETVAL = &THIS->wire_extrusions; %};
     
     size_t region_count();
     Ref<LayerRegion> get_region(int idx);

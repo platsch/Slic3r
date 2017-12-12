@@ -1467,7 +1467,7 @@ sub load_print_object_toolpaths {
                 my $color = $color_by_extruder
                     ? $self->colors->[ ($object->print->default_region_config->conductive_wire_extruder-1) % @{$self->colors} ]
                     : $self->colors->[3];
-                $add->($layer->wires, $top_z, $copy, $color);
+                $add->($layer->wire_extrusions, $top_z, $copy, $color);
             }
             
             if ($layer->isa('Slic3r::Layer::Support') && $object->step_done(STEP_SUPPORTMATERIAL)) {

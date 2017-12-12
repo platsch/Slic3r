@@ -682,11 +682,11 @@ sub process_layer {
         }
         
         # always extrude conductive wires at the end
-        if(!$layer->isa('Slic3r::Layer::Support') && (@{$layer->wires} > 0)) {
+        if(!$layer->isa('Slic3r::Layer::Support') && (@{$layer->wire_extrusions} > 0)) {
 	        $gcode .= $self->_gcodegen->set_extruder($self->print->default_region_config->conductive_wire_extruder-1);
 	        $self->_gcodegen->config->apply_static($self->print->default_region_config);
 	        $gcode .= $self->_gcodegen->extrude($_, 'conductive wire', -1)
-	            for (@{$layer->wires});
+	            for (@{$layer->wire_extrusions});
         }
         
         # place electronic parts for this layer

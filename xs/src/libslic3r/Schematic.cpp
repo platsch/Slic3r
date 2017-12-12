@@ -274,11 +274,11 @@ bool Schematic::removeNetPoint(const NetPoint* netPoint)
     return result;
 }
 
-Polylines Schematic::getChannels(const double z_bottom, const double z_top, coord_t extrusion_overlap, coord_t first_extrusion_overlap, coord_t overlap_min_extrusion_length, coord_t layer_overlap)
+Polylines Schematic::getChannels(const double z_bottom, const double z_top, coord_t layer_overlap)
 {
     Polylines pls;
-    Polylines pls_akku;
 
+    // collect rubberbands. Must be done by-net to evaluate waypointDegree for pin extensions at smd pads
     for (ElectronicNets::const_iterator net = this->netlist.begin(); net != this->netlist.end(); ++net) {
         // collect all rubberbands for this net
         std::list<Line> lines;
@@ -356,58 +356,9 @@ Polylines Schematic::getChannels(const double z_bottom, const double z_top, coor
                     lines.erase(stored_line);
                 }
             }
-            pls_akku.push_back(pl);
+            pls.push_back(pl);
         }
     }
-
-    if(pls_akku.size() > 0) {
-        // find longest path for this layer and apply higher overlapping
-        Polylines::iterator max_len_pl;
-        double max_len = 0;
-        for (Polylines::iterator pl = pls_akku.begin(); pl != pls_akku.end(); ++pl) {
-            if(pl->length() > max_len) {
-                max_len = pl->length();
-                max_len_pl = pl;
-            }
-        }
-        // move longest line to front
-        Polyline longest_line = (*max_len_pl);
-        pls_akku.erase(max_len_pl);
-        pls_akku.insert(pls_akku.begin(), longest_line);
-
-
-        // split paths to equal length parts with small overlap to have extrusion ending at endpoint
-        for (Polylines::iterator pl = pls_akku.begin(); pl != pls_akku.end(); ++pl) {
-            double clip_length;
-            if(pl == pls_akku.begin()) {
-                clip_length = (*pl).length()/2 - first_extrusion_overlap; // first extrusion at this layer
-            }else{
-                clip_length = (*pl).length()/2 - extrusion_overlap;
-            }
-
-            if((((*pl).length()/2 - clip_length) > EPSILON) && ((*pl).length() > overlap_min_extrusion_length)) {
-                Polyline pl2 = (*pl);
-
-                //first half
-                (*pl).clip_end(clip_length);
-                (*pl).reverse();
-                (*pl).remove_duplicate_points();
-                if((*pl).length() > scale_(0.05)) {
-                    pls.push_back((*pl));
-                }
-
-                //second half
-                pl2.clip_start(clip_length);
-                pl2.remove_duplicate_points();
-                if(pl2.length() > scale_(0.05)) {
-                    pls.push_back(pl2);
-                }
-            }else{
-                pls.push_back(*pl);
-            }
-        }
-    }
-
     return pls;
 }
 
