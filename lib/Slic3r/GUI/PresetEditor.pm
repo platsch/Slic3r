@@ -474,7 +474,7 @@ sub options {
         extrusion_width first_layer_extrusion_width perimeter_extrusion_width 
         external_perimeter_extrusion_width infill_extrusion_width solid_infill_extrusion_width 
         top_infill_extrusion_width support_material_extrusion_width conductive_wire_extrusion_width
-        infill_overlap bridge_flow_ratio
+        support_material_interface_extrusion_width infill_overlap bridge_flow_ratio
         xy_size_compensation resolution shortcuts compatible_printers
         conductive_cavity_offset conductive_wire_channel_width conductive_wire_extrusion_overlap conductive_wire_first_extrusion_overlap
         conductive_wire_overlap_min_extrusion_length conductive_wire_slope_overlap conductive_pnp_manual_gcode
@@ -691,7 +691,8 @@ sub build {
                 for qw(extrusion_width first_layer_extrusion_width
                     perimeter_extrusion_width external_perimeter_extrusion_width
                     infill_extrusion_width solid_infill_extrusion_width
-                    top_infill_extrusion_width support_material_extrusion_width
+                    top_infill_extrusion_width support_material_interface_extrusion_width 
+                    support_material_extrusion_width
                     conductive_wire_extrusion_width);
         }
         {
@@ -955,7 +956,8 @@ sub _update {
         for qw(support_material_threshold support_material_pattern 
             support_material_spacing support_material_angle
             support_material_interface_layers dont_support_bridges
-            support_material_extrusion_width support_material_contact_distance);
+            support_material_extrusion_width support_material_interface_extrusion_width
+            support_material_contact_distance);
 
     $self->get_field($_)->toggle($have_support_material && $have_support_interface)
         for qw(support_material_interface_spacing support_material_interface_extruder

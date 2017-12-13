@@ -38,9 +38,16 @@ sub new {
     $optgroup->append_single_option_line(Slic3r::GUI::OptionsGroup::Option->new(
         opt_id      => 'autocenter',
         type        => 'bool',
-        label       => 'Auto-center parts',
+        label       => 'Auto-center parts (x,y)',
         tooltip     => 'If this is enabled, Slic3r will auto-center objects around the print bed center.',
         default     => $Slic3r::GUI::Settings->{_}{autocenter},
+    ));
+    $optgroup->append_single_option_line(Slic3r::GUI::OptionsGroup::Option->new(
+        opt_id      => 'autoalignz',
+        type        => 'bool',
+        label       => 'Auto-align parts (z=0)',
+        tooltip     => 'If this is enabled, Slic3r will auto-align objects z value to be on the print bed at z=0.',
+        default     => $Slic3r::GUI::Settings->{_}{autoalignz},
     ));
     $optgroup->append_single_option_line(Slic3r::GUI::OptionsGroup::Option->new(
         opt_id      => 'invert_zoom',
@@ -70,6 +77,13 @@ sub new {
         label       => 'Display profile editors as tabs',
         tooltip     => 'When opening a profile editor, it will be shown in a dialog or in a tab according to this option.',
         default     => $Slic3r::GUI::Settings->{_}{tabbed_preset_editors},
+    ));
+    $optgroup->append_single_option_line(Slic3r::GUI::OptionsGroup::Option->new(
+        opt_id      => 'show_host',
+        type        => 'bool',
+        label       => 'Show Controller Tab (requires restart)',
+        tooltip     => 'Shows/Hides the Controller Tab. Requires a restart of Slic3r.',
+        default     => $Slic3r::GUI::Settings->{_}{show_host},
     ));
     
     my $sizer = Wx::BoxSizer->new(wxVERTICAL);

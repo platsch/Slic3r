@@ -149,14 +149,18 @@ sub export {
     }
     
     # set extruder(s) temperature before and after start G-code
+    my $include_start_extruder_temp = $self->config->start_gcode !~ /M(?:109|104)/i; 
+    foreach my $start_gcode (@{ $self->config->start_filament_gcode }) { # process filament gcode in order
+        $include_start_extruder_temp = $include_start_extruder_temp &&  ($start_gcode !~ /M(?:109|104)/i);
+    }
     $self->_print_first_layer_temperature(0)
-        if $self->config->start_gcode !~ /M(?:109|104)/i;
-    printf $fh "%s\n", $gcodegen->placeholder_parser->process($self->config->start_gcode);
+        if $include_start_extruder_temp;
+    printf $fh "%s\n", Slic3r::ConditionalGCode::apply_math($gcodegen->placeholder_parser->process($self->config->start_gcode));
     foreach my $start_gcode (@{ $self->config->start_filament_gcode }) { # process filament gcode in order
         printf $fh "%s\n", $gcodegen->placeholder_parser->process($start_gcode);
     }
     $self->_print_first_layer_temperature(1)
-        if $self->config->start_gcode !~ /M(?:109|104)/i;
+        if $include_start_extruder_temp;
     
     # set other general things
     print $fh $gcodegen->preamble;
@@ -219,7 +223,7 @@ sub export {
     if ($self->config->complete_objects) {
         # print objects from the smallest to the tallest to avoid collisions
         # when moving onto next object starting point
-        my @obj_idx = sort { $self->objects->[$a]->size->z <=> $self->objects->[$b]->size->z } 0..($self->print->object_count - 1);
+        my @obj_idx = sort { $self->objects->[$a]->config->sequential_print_priority <=> $self->objects->[$b]->config->sequential_print_priority or $self->objects->[$a]->size->z <=> $self->objects->[$b]->size->z} 0..($self->print->object_count - 1);
         
         my $finished_objects = 0;
         for my $obj_idx (@obj_idx) {
@@ -256,7 +260,7 @@ sub export {
                             && $self->config->between_objects_gcode !~ /M(?:190|140)/i;
                         $self->_print_first_layer_temperature(0)
                             if $self->config->between_objects_gcode !~ /M(?:109|104)/i;
-                        printf $fh "%s\n", $gcodegen->placeholder_parser->process($self->config->between_objects_gcode);
+                        printf $fh "%s\n", Slic3r::ConditionalGCode::apply_math($gcodegen->placeholder_parser->process($self->config->between_objects_gcode));
                     }
                     $self->process_layer($layer, [$copy]);
                 }
@@ -294,25 +298,25 @@ sub export {
     print $fh $gcodegen->retract;   # TODO: process this retract through PressureRegulator in order to discharge fully
     print $fh $gcodegen->writer->set_fan(0);
     foreach my $end_gcode (@{ $self->config->end_filament_gcode }) { # Process filament-specific gcode in extruder order.
-        printf $fh "%s\n", $gcodegen->placeholder_parser->process($end_gcode);
+        printf $fh "%s\n", Slic3r::ConditionalGCode::apply_math($gcodegen->placeholder_parser->process($end_gcode));
     }
     
     # bit of a workaround. Call the function with a very high print_z to ensure every remaining part will be placed.
     my $pnp_gcode = "";
     foreach my $object (@{$self->objects}) { # TODO: Shifted copies???
-	    foreach my $part (@{$object->schematic->getPartlist}) {
-	        $pnp_gcode .= $part->getPlaceGcode(99999999, "", $object->config->conductive_pnp_manual_gcode);
-	    }
-	}
-	if($pnp_gcode ne "") {
-		# switch back to first extruder
-    	print $fh $gcodegen->set_extruder($self->print->extruders->[0]);
-    	print $fh $pnp_gcode;
-		# re-activate first extruder, in case the printer was left on the PnP "Extruder"
-		print $fh $self->_gcodegen->writer()->toolchange($self->print->extruders->[0]);	
-	}
+        foreach my $part (@{$object->schematic->getPartlist}) {
+            $pnp_gcode .= $part->getPlaceGcode(99999999, "", $object->config->conductive_pnp_manual_gcode);
+        }
+    }
+    if($pnp_gcode ne "") {
+        # switch back to first extruder
+        print $fh $gcodegen->set_extruder($self->print->extruders->[0]);
+        print $fh $pnp_gcode;
+        # re-activate first extruder, in case the printer was left on the PnP "Extruder"
+        print $fh $self->_gcodegen->writer()->toolchange($self->print->extruders->[0]);	
+    }
     
-    printf $fh "%s\n", $gcodegen->placeholder_parser->process($self->config->end_gcode);
+    printf $fh "%s\n", Slic3r::ConditionalGCode::apply_math($gcodegen->placeholder_parser->process($self->config->end_gcode));
     print $fh $gcodegen->writer->update_progress($gcodegen->layer_count, $gcodegen->layer_count, 1);  # 100%
     print $fh $gcodegen->writer->postamble;
     
@@ -480,7 +484,7 @@ sub process_layer {
         $pp->set('layer_num'          => $self->_gcodegen->layer_index + 1);
         $pp->set('layer_z'            => $layer->print_z);
         $pp->set('current_retraction' => $self->_gcodegen->writer->extruder->retracted);
-        $gcode .= $pp->process($self->print->config->before_layer_gcode) . "\n";
+        $gcode .= Slic3r::ConditionalGCode::apply_math($pp->process($self->print->config->before_layer_gcode) . "\n");
     }
     $gcode .= $self->_gcodegen->change_layer($layer->as_layer);  # this will increase $self->_gcodegen->layer_index
     if ($self->print->config->layer_gcode) {
@@ -488,7 +492,7 @@ sub process_layer {
         $pp->set('layer_num'          => $self->_gcodegen->layer_index);
         $pp->set('layer_z'            => $layer->print_z);
         $pp->set('current_retraction' => $self->_gcodegen->writer->extruder->retracted);
-        $gcode .= $pp->process($self->print->config->layer_gcode) . "\n";
+        $gcode .= Slic3r::ConditionalGCode::apply_math($pp->process($self->print->config->layer_gcode) . "\n");
     }
     
     # extrude skirt along raft layers and normal object layers

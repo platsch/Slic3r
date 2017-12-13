@@ -1246,6 +1246,7 @@ sub load_model_objects {
     
     my $need_arrange = 0;
     my $scaled_down = 0;
+    my $outside_bounds = 0;
     my @obj_idx = ();
     foreach my $model_object (@model_objects) {
         my $o = $self->{model}->add_object($model_object);
@@ -1259,15 +1260,27 @@ sub load_model_objects {
         push @obj_idx, $#{ $self->{objects} };
     
         if ($model_object->instances_count == 0) {
-            # if object has no defined position(s) we need to rearrange everything after loading
-            $need_arrange = 1;
-        
-            # add a default instance and center object around origin
-            $o->center_around_origin;  # also aligns object to Z = 0
-            $o->add_instance(offset => $bed_centerf);
+            if ($Slic3r::GUI::Settings->{_}{autocenter}) {
+                # if object has no defined position(s) we need to rearrange everything after loading
+                $need_arrange = 1;
+
+                # add a default instance and center object around origin
+                $o->center_around_origin;  # also aligns object to Z = 0
+                $o->add_instance(offset => $bed_centerf);
+            } else {
+                # if user turned autocentering off, automatic arranging would disappoint them
+                $need_arrange = 0;
+
+                if ($Slic3r::GUI::Settings->{_}{autoalignz}) {
+                    $o->align_to_ground; # aligns object to Z = 0
+                }
+                $o->add_instance();
+            }
         } else {
-            # if object has defined positions we still need to ensure it's aligned to Z = 0
-            $o->align_to_ground;
+            if ($Slic3r::GUI::Settings->{_}{autoalignz}) {
+                # if object has defined positions we still need to ensure it's aligned to Z = 0
+                $o->align_to_ground;
+            }
         }
         
         {
@@ -1279,15 +1292,31 @@ sub load_model_objects {
                 $scaled_down = 1;
             }
         }
+
+        {
+           # if after scaling the object does not fit on the bed provide a warning
+           my $bed_bounds = Slic3r::Geometry::BoundingBoxf->new_from_points($self->{config}->bed_shape);
+           my $o_bounds = $o->bounding_box;
+           my $min = Slic3r::Pointf->new($o_bounds->x_min, $o_bounds->y_min);
+           my $max = Slic3r::Pointf->new($o_bounds->x_max, $o_bounds->y_max);
+           if (!$bed_bounds->contains_point($min) || !$bed_bounds->contains_point($max))
+           {
+               $outside_bounds = 1;
+           }
+        }
     
         $self->{print}->auto_assign_extruders($o);
         $self->{print}->add_model_object($o);
     }
-    
-    # if user turned autocentering off, automatic arranging would disappoint them
-    if (!$Slic3r::GUI::Settings->{_}{autocenter}) {
-        $need_arrange = 0;
+
+    if ($outside_bounds) {
+         Slic3r::GUI::show_info(
+            $self,
+            'Some of your object(s) appear to be outside the print bed. Use the arrange button to correct this.',
+            'Outside print bed?',
+        );
     }
+    
     
     if ($scaled_down) {
         Slic3r::GUI::show_info(

@@ -1513,6 +1513,18 @@ PrintConfigDef::PrintConfigDef()
     def->min = 1;
     def->default_value = new ConfigOptionInt(1);
 
+    def = this->add("support_material_interface_extrusion_width", coFloatOrPercent);
+    def->label = "Support interface";
+    def->gui_type = "f_enum_open";
+    def->category = "Extrusion Width";
+    def->tooltip = "Set this to a non-zero value to set a manual extrusion width for support material interface. If expressed as percentage (for example 90%) it will be computed over layer height.";
+    def->sidetext = "mm or %";
+    def->cli = "support-material-interface-extrusion-width=s";
+    def->min = 0;
+    def->enum_values.push_back("0");
+    def->enum_labels.push_back("default");
+    def->default_value = new ConfigOptionFloatOrPercent(0, false);
+
     def = this->add("support_material_interface_layers", coInt);
     def->label = "Interface layers";
     def->category = "Support material";
@@ -1745,6 +1757,13 @@ PrintConfigDef::PrintConfigDef()
     def->tooltip = "Set this to the number of *full* steps (not microsteps) needed for moving the Z axis by 1mm; you can calculate this by dividing the number of microsteps configured in your firmware by the microstepping amount (8, 16, 32). Slic3r will round your configured layer height to the nearest multiple of that value in order to ensure the best accuracy. This is most useful for machines with imperial leadscrews or belt-driven Z or for unusual layer heights with metric leadscrews. Set to zero to disable this experimental feature.";
     def->cli = "z-steps-per-mm=f";
     def->default_value = new ConfigOptionFloat(0);
+
+    def = this->add("sequential_print_priority", coInt);
+    def->label = "Sequential Printing Priority";
+    def->category = "Advanced";
+    def->tooltip ="Set this to alter object priority for sequential printing. Objects are first sorted by priority (smaller integers print first), then by height.";
+    def->cli = "sequential-print-priority=i";
+    def->default_value = new ConfigOptionInt(0);
 }
 
 const PrintConfigDef print_config_def;
