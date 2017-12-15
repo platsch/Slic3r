@@ -852,7 +852,7 @@ GCode::set_extruder(unsigned int extruder_id)
         pp.set("next_extruder",     (int) extruder_id);
         pp.set("previous_retraction", this->writer.extruder()->retracted);
         pp.set("next_retraction", this->writer.extruders.find(extruder_id)->second.retracted);
-        gcode += pp.process(this->config.toolchange_gcode.value) + '\n';
+        gcode += Slic3r::apply_math(pp.process(this->config.toolchange_gcode.value))  + '\n';
     }
     
     // if ooze prevention is enabled, park current extruder in the nearest
