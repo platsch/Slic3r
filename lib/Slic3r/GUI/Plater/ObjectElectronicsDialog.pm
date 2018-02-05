@@ -656,6 +656,8 @@ sub placePart {
     $part->setVisibility(1);
     $self->reload_tree($part->getPartID());
     
+    $self->{schematic}->updateRubberBands();
+    
     # trigger slicing steps to update modifications;
     $self->triggerSlicing;
     
