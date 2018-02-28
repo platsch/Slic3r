@@ -414,6 +414,7 @@ void PrintObject::make_electronic_wires()
         coord_t overlap_min_extrusion_length = scale_(this->print()->default_object_config.conductive_wire_overlap_min_extrusion_length);
         // amount of overlap for inter-layer connections of sloped wires
         coord_t layer_overlap = scale_(this->print()->default_object_config.conductive_wire_slope_overlap);
+        const double conductive_wire_channel_width = this->print()->default_object_config.conductive_wire_channel_width;
 
         // initialize values for flow calculation
         ConfigOptionFloatOrPercent extrusion_width = this->print()->default_object_config.conductive_wire_extrusion_width;
@@ -453,18 +454,21 @@ void PrintObject::make_electronic_wires()
         // are routed by contour following, clipped, longest segment first etc.
         // this could be parallelized
         FOREACH_LAYER(this, layer) {
-            ElectronicWireGenerator ewg((*layer)->unrouted_wires,
-                    extrusion_width,
-                    extrusion_overlap,
-                    first_extrusion_overlap,
-                    overlap_min_extrusion_length,
-                    &((*layer)->wires));
-            ewg.process();
+            if((*layer)->unrouted_wires.size() > 0) {
+                ElectronicWireGenerator ewg(
+                        (*layer),
+                        extrusion_width,
+                        extrusion_overlap,
+                        first_extrusion_overlap,
+                        overlap_min_extrusion_length,
+                        conductive_wire_channel_width);
+                ewg.process();
+            }
         }
 
         // make beds and channels
         FOREACH_LAYER(this, layer) {
-            // if upper_layer is defined, get channels to create a "bed" by offsetting only a small amount
+/*            // if upper_layer is defined, get channels to create a "bed" by offsetting only a small amount
             Layer* upper_layer = (*layer)->upper_layer;
             Polygons bed_polygons;
             Polygons channel_polygons;
@@ -485,7 +489,7 @@ void PrintObject::make_electronic_wires()
                 //svg2.draw(channel_polygons, "red");
                 //svg2.Close();
                 //std::cout << "nr of polygons after polyline offset: " << channel_polygons.size() << std::endl;
-                channel_polygons = offset(channel_polygons, scale_(extrusion_width/2 + this->print()->default_object_config.conductive_wire_channel_width/2 - 0.01));
+                channel_polygons = offset(channel_polygons, scale_(extrusion_width/2 + conductive_wire_channel_width/2 - 0.01));
                 //SVG svg("polygon.svg");
                 //svg.draw(channel_polygons, "red");
                 //svg.draw(channels, "green");
@@ -498,7 +502,7 @@ void PrintObject::make_electronic_wires()
                 (*layerm)->modify_slices(bed_polygons, false);
                 (*layerm)->modify_slices(channel_polygons, false);
             }
-
+*/
             // create extrusion objects for this layer
             Flow flow = Flow::new_from_config_width(frConductiveWire, extrusion_width, nozzle_diameter, (*layer)->height, 0);
             // Currently not using the standard flow object, because the conductive ink can't be modelled as rectangle with semicircles at the end.
