@@ -120,6 +120,39 @@ ExPolygon::contains_b(const Point &point) const
 }
 
 bool
+ExPolygon::first_intersection(const Line& line, Point* intersection, bool* ccw, const Polygon** match) const
+{
+    bool result = false;
+    Point p;
+    *intersection = line.b;
+    bool _ccw;
+    const Polygon* p_match;
+    // contour
+    if (this->contour.first_intersection(line, &p, ccw)) {
+        *intersection = p;
+        p_match = &this->contour;
+        result = true;
+    }
+    //holes
+    for (const auto &pl : this->holes) {
+        if (pl.first_intersection(line, &p, &_ccw)) {
+            // found an intersection
+            if(line.a.distance_to(p) < line.a.distance_to(*intersection)) {
+                // intersection is closer to start of line than all other intersections
+                *intersection = p;
+                *ccw = _ccw;
+                p_match = &pl;
+                result = true;
+            }
+        }
+    }
+    if(result) {
+        *match = p_match;
+    }
+    return result;
+}
+
+bool
 ExPolygon::has_boundary_point(const Point &point) const
 {
     if (this->contour.has_boundary_point(point)) return true;

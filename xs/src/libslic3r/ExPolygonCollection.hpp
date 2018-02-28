@@ -27,6 +27,9 @@ class ExPolygonCollection
     void rotate(double angle, const Point &center);
     template <class T> bool contains(const T &item) const;
     bool contains_b(const Point &point) const;
+    /** Find the first (closest) intersection of Line with all containing ExPolygons.
+    match returns a reference to the intersecting ExPolygon and Polygon whithin that Expolygon for further processing. **/
+    bool first_intersection(const Line& line, Point* intersection, bool* ccw, const Polygon** p_match, const ExPolygon** ep_match) const;
     void simplify(double tolerance);
     Polygon convex_hull() const;
     Lines lines() const;

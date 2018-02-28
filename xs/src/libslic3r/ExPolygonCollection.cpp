@@ -82,6 +82,29 @@ ExPolygonCollection::contains_b(const Point &point) const
     return false;
 }
 
+bool
+ExPolygonCollection::first_intersection(const Line& line, Point* intersection, bool* ccw, const Polygon** p_match, const ExPolygon** ep_match) const
+{
+    bool result = false;
+    Point p;
+    *intersection = line.b;
+    bool _ccw;
+
+    for (const auto &epl : this->expolygons) {
+        if (epl.first_intersection(line, &p, &_ccw, p_match)) {
+            // found an intersection
+            if(line.a.distance_to(p) < line.a.distance_to(*intersection)) {
+                // intersection is closer to start of line than all other intersections
+                *intersection = p;
+                *ccw = _ccw;
+                *ep_match = &epl;
+                result = true;
+            }
+        }
+    }
+    return result;
+}
+
 void
 ExPolygonCollection::simplify(double tolerance)
 {
