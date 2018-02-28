@@ -133,6 +133,34 @@ Polyline::simplify(double tolerance)
     this->points = MultiPoint::_douglas_peucker(this->points, tolerance);
 }
 
+bool
+Polyline::remove_loops()
+{
+    bool result = false;
+    if(this->points.size() > 3) {
+        bool iteration = true;
+        Point intersection;
+        while(iteration) {
+            iteration = false;
+            for (Points::const_iterator it = this->points.begin(); it != this->points.end()-2; ++it) {
+                for (Points::const_iterator it2 = it+2; it2 != this->points.end()-1; ++it2) {
+                    Line line = Line(*it, *(it + 1));
+                    if(line.intersection(Line(*it2, *(it2 + 1)), &intersection)) {
+                        // remove all points beetween it1 and it2, add intersection
+                        this->points.erase(it+1, it2+1);
+                        this->points.insert(it+1, intersection);
+                        result = true;
+                        iteration = true;
+                        break;
+                    }
+                }
+                if(iteration) break;
+            }
+        }
+    }
+    return result;
+}
+
 /* This method simplifies all *lines* contained in the supplied area */
 template <class T>
 void

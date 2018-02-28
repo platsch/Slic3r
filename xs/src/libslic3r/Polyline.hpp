@@ -28,6 +28,7 @@ class Polyline : public MultiPoint {
     void extend_start(double distance);
     Points equally_spaced_points(double distance) const;
     void simplify(double tolerance);
+    bool remove_loops();
     template <class T> void simplify_by_visibility(const T &area);
     void split_at(const Point &point, Polyline* p1, Polyline* p2) const;
     bool is_straight() const;
