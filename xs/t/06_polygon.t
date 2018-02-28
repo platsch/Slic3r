@@ -5,7 +5,7 @@ use warnings;
 
 use List::Util qw(first);
 use Slic3r::XS;
-use Test::More tests => 21;
+use Test::More tests => 23;
 
 use constant PI => 4 * atan2(1, 1);
 
@@ -82,6 +82,11 @@ ok $cw_polygon->contains_point(Slic3r::Point->new(150,150)), 'cw contains_point'
     my $line = Slic3r::Line->new([175992032,102000000], [47983964,102000000]);
     my $intersection = $polygon->intersection($line);
     is_deeply $intersection->pp, [50000000, 102000000], 'polygon-line intersection';
+    $polygon = Slic3r::Polygon->new(@$square);
+    my $first_intersection = $polygon->first_intersection(Slic3r::Line->new([110, 10], [110, 300]));
+    is_deeply $first_intersection->pp, [110, 100], 'polygon-line first intersection';
+    $first_intersection = $polygon->first_intersection(Slic3r::Line->new([110, 300], [110, 10]));
+    is_deeply $first_intersection->pp, [110, 200], 'polygon-line first intersection';
 }
 
 # this is not a test: this just demonstrates bad usage, where $polygon->clone gets

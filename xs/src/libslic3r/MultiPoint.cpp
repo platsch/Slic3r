@@ -158,6 +158,28 @@ MultiPoint::intersection(const Line& line, Point* intersection) const
     return false;
 }
 
+bool
+MultiPoint::first_intersection(const Line& line, Point* intersection, bool* ccw) const
+{
+    bool result = false;
+    Lines lines = this->lines();
+    Point p;
+    *intersection = line.b;
+    for (Lines::const_iterator it = lines.begin(); it != lines.end(); ++it) {
+        if (it->intersection(line, &p)) {
+            // lines intersect
+            if(line.a.distance_to(p) < line.a.distance_to(*intersection)) {
+                // intersection is closer to start of line than all other intersections
+                *intersection = p;
+                // ccw test is always positive or negative at this point since coincident / parallel lines don't intersect
+                *ccw = it->ccw(line.a) > 0 ? true : false;
+                result = true;
+            }
+        }
+    }
+    return result;
+}
+
 std::string
 MultiPoint::dump_perl() const
 {

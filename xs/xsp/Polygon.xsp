@@ -48,6 +48,13 @@
             (void)THIS->intersection(*line, &p);
             RETVAL = p;
         %};
+    Clone<Point> first_intersection(Line* line)
+        %code{%
+            Point p;
+            bool ccw;
+            (void)THIS->first_intersection(*line, &p, &ccw);
+            RETVAL = p;
+        %};
 %{
 
 Polygon*
