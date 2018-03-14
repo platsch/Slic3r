@@ -42,12 +42,12 @@ void ElectronicWireGenerator::refine_wires()
     int index = 0;
 
     // number of applicable perimeters
-    int perimeters = 9999;
+    int max_perimeters = 9999;
     for(const auto &region : this->layer->regions) {
-      perimeters = std::min(perimeters, region->region()->config.perimeters.value);
+      max_perimeters = std::min(max_perimeters, region->region()->config.perimeters.value);
     }
     // ensure at least 1 perimeter for polygon offsetting
-    perimeters = std::max(1, perimeters);
+    max_perimeters = std::max(1, max_perimeters);
 
     this->sort_unrouted_wires();
 
@@ -67,50 +67,66 @@ void ElectronicWireGenerator::refine_wires()
         Polyline routed_wire;
         routed_wire.append(unrouted_wire.first_point());// add first point
         for(auto &line : unrouted_wire.lines()) {
-            bool outside_expolygon = false;
 
             // generate set of inflated expolygons. Inflate by perimeter width per region and channel width.
             ExPolygonCollection inflated_slices;
-            for(const auto &region : this->layer->regions) {
+            std::vector<ExPolygonCollection> inflated_slices2;
 
-                /*const coord_t perimeter_spacing     = region->flow(frPerimeter).scaled_spacing();
-                const coord_t ext_perimeter_width   = region->flow(frExternalPerimeter).scaled_width();
-                const coord_t ext_perimeter_spacing = region->flow(frExternalPerimeter).scaled_spacing();
-                // compute the total thickness of perimeters
-                const coord_t perimeters_thickness = ext_perimeter_width
-                    + (region->region()->config.perimeters-1) * perimeter_spacing
-                    + scale_(this->extrusion_width/2 + this->conductive_wire_channel_width/2);
-                */
-                const coord_t perimeters_thickness = this->offset_width(region, region->region()->config.perimeters);
+            for(int i=0; i < max_perimeters; i++) {
+                // initialize vector element
+                inflated_slices2.push_back(ExPolygonCollection());
 
-/*                std::cout << std::endl;
-                std::cout << "perimeter_spacing: " << perimeter_spacing << std::endl;
-                std::cout << "ext_perimeter_width: " << ext_perimeter_width << std::endl;
-                std::cout << "ext_perimeter_spacing: " << ext_perimeter_spacing << std::endl;
-                std::cout << "perimeters_thickness: " << unscale(perimeters_thickness) << std::endl;
-                std::cout << "external perimeter: " << ext_perimeter_width << std::endl;
-                std::cout << "internal perimeters: " << (region->region()->config.perimeters-1) * perimeter_spacing << std::endl;
-                std::cout << "number of internal perimeters: " << region->region()->config.perimeters << std::endl;
-                std::cout << "half channel: " << scale_(this->extrusion_width/2 + this->conductive_wire_channel_width/2) << std::endl;
-                std::cout << "extrusion width : " << scale_(this->extrusion_width/2) << " + channel width: " << scale_(this->conductive_wire_channel_width/2) << std::endl;
-                std::cout << std::endl;
-*/
+                for(const auto &region : this->layer->regions) {
 
-                inflated_slices.append(offset_ex((Polygons)region->slices, -perimeters_thickness));
+                    /*const coord_t perimeter_spacing     = region->flow(frPerimeter).scaled_spacing();
+                    const coord_t ext_perimeter_width   = region->flow(frExternalPerimeter).scaled_width();
+                    const coord_t ext_perimeter_spacing = region->flow(frExternalPerimeter).scaled_spacing();
+                    // compute the total thickness of perimeters
+                    const coord_t perimeters_thickness = ext_perimeter_width
+                        + (region->region()->config.perimeters-1) * perimeter_spacing
+                        + scale_(this->extrusion_width/2 + this->conductive_wire_channel_width/2);
+                    */
+                    //const coord_t perimeters_thickness = this->offset_width(region, region->region()->config.perimeters);
+                    const coord_t perimeters_thickness = this->offset_width(region, i+1);
+
+    /*                std::cout << std::endl;
+                    std::cout << "perimeter_spacing: " << perimeter_spacing << std::endl;
+                    std::cout << "ext_perimeter_width: " << ext_perimeter_width << std::endl;
+                    std::cout << "ext_perimeter_spacing: " << ext_perimeter_spacing << std::endl;
+                    std::cout << "perimeters_thickness: " << unscale(perimeters_thickness) << std::endl;
+                    std::cout << "external perimeter: " << ext_perimeter_width << std::endl;
+                    std::cout << "internal perimeters: " << (region->region()->config.perimeters-1) * perimeter_spacing << std::endl;
+                    std::cout << "number of internal perimeters: " << region->region()->config.perimeters << std::endl;
+                    std::cout << "half channel: " << scale_(this->extrusion_width/2 + this->conductive_wire_channel_width/2) << std::endl;
+                    std::cout << "extrusion width : " << scale_(this->extrusion_width/2) << " + channel width: " << scale_(this->conductive_wire_channel_width/2) << std::endl;
+                    std::cout << std::endl;
+    */
+
+                    //inflated_slices.append(offset_ex((Polygons)region->slices, -perimeters_thickness));
+                    inflated_slices2[i].append(offset_ex((Polygons)region->slices, -perimeters_thickness));
+                }
             }
             if(debug_flag) {
-                svg.draw(inflated_slices, "blue");
+                int c = 50;
+                for(int i=0; i < max_perimeters; i++) {
+                    std::ostringstream ss;
+                    ss << "rgb(" << 100 << "," << c << "," << c << ")";
+                    std::string color = ss.str();
+                    svg.draw(inflated_slices2[i], color);
+                    c += 50;
+                }
                 debug_flag = false;
             }
 
-
+            bool outside_expolygon = false;
+            int current_perimeters = 1;
             while(true) {
                 Point intersection;
                 bool ccw;
                 const Polygon* p;
                 const ExPolygon* ep;
                 // find intersections with all expolygons
-                while(inflated_slices.first_intersection(line, &intersection, &ccw, &p, &ep)) {
+                while(inflated_slices2[current_perimeters].first_intersection(line, &intersection, &ccw, &p, &ep)) {
                     std::cout << "in loop" << std::endl;
                     if(ccw) { // leaving expolygon
                         outside_expolygon = true;
@@ -119,28 +135,36 @@ void ElectronicWireGenerator::refine_wires()
                         l.extend_end(scale_(EPSILON));
                         intersection = l.b;
                         routed_wire.append(intersection);
+                        current_perimeters = 1;
                     }else{ // entering expolygon
                         // follow contour
                         if(routed_wire.is_valid() && outside_expolygon) { // at least 2 points
                             outside_expolygon = false;
-                            // convert to polyline
-                            Polyline pl = *p;
-                            // split at entry point
-                            Polyline pl_tmp, pl1, pl2;
-                            pl.split_at(routed_wire.last_point(), &pl1, &pl_tmp);
-                            pl_tmp.append(pl1); // append first half (until entry split) to second half (rest)
-                            pl_tmp.split_at(intersection, &pl1, &pl2);
-                            // compare lenghts, add shorter polyline
-                            if(pl1.length() < pl2.length()) {
-                                routed_wire.append(pl1);
-                                svg.draw(pl1, "green", scale_(this->extrusion_width));
-                                svg.draw(pl2, "orange", scale_(this->extrusion_width)/2);
-                            }else{
-                                pl2.reverse();
-                                routed_wire.append(pl2);
-                                svg.draw(pl2, "green", scale_(this->extrusion_width));
-                                svg.draw(pl1, "orange", scale_(this->extrusion_width)/2);
-                            }
+                            Polyline result_pl;
+                            //while(current_perimeters <= max_perimeters) {
+                                // convert to polyline
+                                Polyline pl = *p;
+                                // split at entry point
+                                Polyline pl_tmp, pl1, pl2;
+                                pl.split_at(routed_wire.last_point(), &pl1, &pl_tmp);
+                                pl_tmp.append(pl1); // append first half (until entry split) to second half (rest)
+                                pl_tmp.split_at(intersection, &pl1, &pl2);
+                                // compare lenghts, add shorter polyline
+                                if(pl1.length() < pl2.length()) {
+                                    //routed_wire.append(pl1);
+                                    result_pl = pl1;
+                                    svg.draw(pl1, "green", scale_(this->extrusion_width));
+                                    svg.draw(pl2, "orange", scale_(this->extrusion_width)/2);
+                                }else{
+                                    pl2.reverse();
+                                    //routed_wire.append(pl2);
+                                    result_pl = pl2;
+                                    svg.draw(pl2, "green", scale_(this->extrusion_width));
+                                    svg.draw(pl1, "orange", scale_(this->extrusion_width)/2);
+                                }
+                             //   current_perimeters++;
+                            //}
+                            routed_wire.append(result_pl);
                         }
                         std::cout << "routing done" << std::endl;
                         Line l(line.a, intersection);
