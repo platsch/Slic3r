@@ -81,6 +81,8 @@ class Point
 Point operator+(const Point& point1, const Point& point2);
 Point operator-(const Point& point1, const Point& point2);
 Point operator*(double scalar, const Point& point2);
+// operator for std::streams
+std::ostream& operator<<(std::ostream &stm, const Point &point);
 
 inline Points&
 operator+=(Points &dst, const Points &src) {
@@ -222,5 +224,22 @@ namespace boost { namespace polygon {
     };
 } }
 // end Boost
+
+// hash operator for std::hash to be used in hashmaps etc
+namespace std
+{
+    template <>
+    struct hash<Point>
+    {
+        size_t operator()( const Point& p ) const
+        {
+            // http://stackoverflow.com/a/1646913/126995
+            size_t res = 17;
+            res = res * 31 + hash<coord_t>()( p.x );
+            res = res * 31 + hash<coord_t>()( p.y );
+            return res;
+        }
+    };
+}
 
 #endif

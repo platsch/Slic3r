@@ -344,6 +344,12 @@ operator*(double scalar, const Point& point2)
     return Point(scalar * point2.x, scalar * point2.y);
 }
 
+std::ostream&
+operator<<(std::ostream &stm, const Point &point)
+{
+    return stm << point.x << "," << point.y;
+}
+
 bool
 Point3::operator==(const Point3& rhs) const
 {
