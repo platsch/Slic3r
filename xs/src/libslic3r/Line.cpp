@@ -151,6 +151,52 @@ Line::parallel_to(const Line &line) const {
     return this->parallel_to(line.direction());
 }
 
+bool
+Line::overlap_with(const Line &other, Line* line) const
+{
+    bool result = false;
+    if(!this->coincides_with(other)) {
+        if(this->a.distance_to(other) < SCALED_EPSILON) {
+            line->a = this->a;
+            result = true;
+        }else if(other.a.distance_to(*this) < SCALED_EPSILON){
+            line->a = other.a;
+            result = true;
+        }
+        if(result) {
+            result = false;
+            if(this->b.distance_to(other) < SCALED_EPSILON) {
+                line->b = this->b;
+                result = true;
+            }else if(other.b.distance_to(*this) < SCALED_EPSILON){
+                line->b = other.b;
+                result = true;
+            }
+        }
+        // filter lines with contact at only one endpoint
+        if(line->length() < EPSILON) result = false;
+
+    }
+    return result;
+}
+
+bool
+Line::contains(const Line &other) const
+{
+    bool result = false;
+    if(!this->coincides_with(other)) {
+        if(other.a.distance_to(*this) < SCALED_EPSILON && // other endpoint is on this line?
+                !other.a.coincides_with_epsilon(this->a) && // endpoints should not be the same,
+                !other.a.coincides_with_epsilon(this->b) && // we are looking for a real overlap
+                other.b.distance_to(*this) < SCALED_EPSILON &&
+                !other.b.coincides_with_epsilon(this->a) &&
+                !other.b.coincides_with_epsilon(this->b)) {
+            result = true;
+        }
+    }
+    return result;
+}
+
 Vector
 Line::vector() const
 {

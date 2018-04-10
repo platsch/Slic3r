@@ -36,6 +36,10 @@ class Line
     double distance_to(const Point &point) const;
     bool parallel_to(double angle) const;
     bool parallel_to(const Line &line) const;
+    /// Returns true if both lines are overlapping but not identical.
+    bool overlap_with(const Line &other, Line* line) const;
+    /// Check if this line fully contains the other line. No common endpoints.
+    bool contains(const Line &other) const;
     double atan2_() const;
     double orientation() const;
     double direction() const;
