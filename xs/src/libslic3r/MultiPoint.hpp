@@ -42,6 +42,8 @@ class MultiPoint
     void append(const Point &point);
     void append(const Points &points);
     void append(const Points::const_iterator &begin, const Points::const_iterator &end);
+    /// Try to insert this point. Returns false if point is on no line.
+    bool insert(const Point &point);
     bool intersection(const Line& line, Point* intersection) const;
     /// returns the first intersection with the given line i.e. the intersection
     /// with minimal distance to line.a

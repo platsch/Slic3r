@@ -149,6 +149,21 @@ MultiPoint::append(const Points::const_iterator &begin, const Points::const_iter
 }
 
 bool
+MultiPoint::insert(const Point &point)
+{
+    bool result = false;
+    for (Points::iterator it = points.begin(); it != points.end()-1; ++it) {
+        Line l(*it, *(it+1));
+        if(point.distance_to(l) < SCALED_EPSILON) {
+            this->points.insert(it+1, point);
+            result = true;
+            break;
+        }
+    }
+    return result;
+}
+
+bool
 MultiPoint::intersection(const Line& line, Point* intersection) const
 {
     Lines lines = this->lines();
