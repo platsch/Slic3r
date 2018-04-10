@@ -34,7 +34,7 @@ class ExPolygon
     bool contains_b(const Point &point) const;
     /** Find the first (closest) intersection of Line with this ExPolygon.
         match returns a reference to the intersecting Polygon for further processing. **/
-    bool first_intersection(const Line& line, Point* intersection, bool* ccw, const Polygon** match) const;
+    bool first_intersection(const Line& line, Point* intersection, bool* ccw, Polygon** match);
     bool has_boundary_point(const Point &point) const;
     BoundingBox bounding_box() const { return this->contour.bounding_box(); };
     void remove_vertical_collinear_points(coord_t tolerance);
