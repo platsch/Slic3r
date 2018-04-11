@@ -33,8 +33,6 @@ ElectronicWireGenerator::process()
 
 void ElectronicWireGenerator::refine_wires()
 {
-    // clip polyline against polygon. Check result: identical? split into multiple parts?
-
     SVG svg("refine_wires.svg");
     svg.draw(*(this->slices), "black");
     bool debug_flag = true;
@@ -65,134 +63,253 @@ void ElectronicWireGenerator::refine_wires()
         svg.draw(*(this->slices), "black");
 
         Polyline routed_wire;
-        routed_wire.append(unrouted_wire.first_point());// add first point
-        for(auto &line : unrouted_wire.lines()) {
+        //routed_wire.append(unrouted_wire.first_point());// add first point
 
-            // generate set of inflated expolygons. Inflate by perimeter width per region and channel width.
-            ExPolygonCollection inflated_slices;
-            std::vector<ExPolygonCollection> inflated_slices2;
+        // generate set of inflated expolygons. Inflate by perimeter width per region and channel width.
+        std::vector<ExPolygonCollection> inflated_slices;
 
-            for(int i=0; i < max_perimeters; i++) {
-                // initialize vector element
-                inflated_slices2.push_back(ExPolygonCollection());
+        // setup graph structure for routing
+        routing_graph_t routing_graph;
+        boost::property_map<routing_graph_t, boost::vertex_index_t>::type routing_graph_index = boost::get(boost::vertex_index, routing_graph); // Index Vertex->Point
+        point_index_t graph_point_index; // Index Point->Vertex
 
-                for(const auto &region : this->layer->regions) {
+        for(int i=0; i < max_perimeters; i++) {
+            // initialize vector element
+            inflated_slices.push_back(ExPolygonCollection());
 
-                    /*const coord_t perimeter_spacing     = region->flow(frPerimeter).scaled_spacing();
-                    const coord_t ext_perimeter_width   = region->flow(frExternalPerimeter).scaled_width();
-                    const coord_t ext_perimeter_spacing = region->flow(frExternalPerimeter).scaled_spacing();
-                    // compute the total thickness of perimeters
-                    const coord_t perimeters_thickness = ext_perimeter_width
-                        + (region->region()->config.perimeters-1) * perimeter_spacing
-                        + scale_(this->extrusion_width/2 + this->conductive_wire_channel_width/2);
-                    */
-                    //const coord_t perimeters_thickness = this->offset_width(region, region->region()->config.perimeters);
-                    const coord_t perimeters_thickness = this->offset_width(region, i+1);
-
-    /*                std::cout << std::endl;
-                    std::cout << "perimeter_spacing: " << perimeter_spacing << std::endl;
-                    std::cout << "ext_perimeter_width: " << ext_perimeter_width << std::endl;
-                    std::cout << "ext_perimeter_spacing: " << ext_perimeter_spacing << std::endl;
-                    std::cout << "perimeters_thickness: " << unscale(perimeters_thickness) << std::endl;
-                    std::cout << "external perimeter: " << ext_perimeter_width << std::endl;
-                    std::cout << "internal perimeters: " << (region->region()->config.perimeters-1) * perimeter_spacing << std::endl;
-                    std::cout << "number of internal perimeters: " << region->region()->config.perimeters << std::endl;
-                    std::cout << "half channel: " << scale_(this->extrusion_width/2 + this->conductive_wire_channel_width/2) << std::endl;
-                    std::cout << "extrusion width : " << scale_(this->extrusion_width/2) << " + channel width: " << scale_(this->conductive_wire_channel_width/2) << std::endl;
-                    std::cout << std::endl;
-    */
-
-                    //inflated_slices.append(offset_ex((Polygons)region->slices, -perimeters_thickness));
-                    inflated_slices2[i].append(offset_ex((Polygons)region->slices, -perimeters_thickness));
-                }
-            }
-            if(debug_flag) {
-                int c = 50;
-                for(int i=0; i < max_perimeters; i++) {
-                    std::ostringstream ss;
-                    ss << "rgb(" << 100 << "," << c << "," << c << ")";
-                    std::string color = ss.str();
-                    svg.draw(inflated_slices2[i], color);
-                    c += 50;
-                }
-                debug_flag = false;
-            }
-
-            bool outside_expolygon = false;
-            int current_perimeters = 1;
-            while(true) {
-                Point intersection;
-                bool ccw;
-                const Polygon* p;
-                const ExPolygon* ep;
-                // find intersections with all expolygons
-                while(inflated_slices2[current_perimeters].first_intersection(line, &intersection, &ccw, &p, &ep)) {
-                    std::cout << "in loop" << std::endl;
-                    if(ccw) { // leaving expolygon
-                        outside_expolygon = true;
-                        svg.draw(Line(line.a, intersection), "red", scale_(this->extrusion_width));
-                        Line l(line.a, intersection);
-                        l.extend_end(scale_(EPSILON));
-                        intersection = l.b;
-                        routed_wire.append(intersection);
-                        current_perimeters = 1;
-                    }else{ // entering expolygon
-                        // follow contour
-                        if(routed_wire.is_valid() && outside_expolygon) { // at least 2 points
-                            outside_expolygon = false;
-                            Polyline result_pl;
-                            //while(current_perimeters <= max_perimeters) {
-                                // convert to polyline
-                                Polyline pl = *p;
-                                // split at entry point
-                                Polyline pl_tmp, pl1, pl2;
-                                pl.split_at(routed_wire.last_point(), &pl1, &pl_tmp);
-                                pl_tmp.append(pl1); // append first half (until entry split) to second half (rest)
-                                pl_tmp.split_at(intersection, &pl1, &pl2);
-                                // compare lenghts, add shorter polyline
-                                if(pl1.length() < pl2.length()) {
-                                    //routed_wire.append(pl1);
-                                    result_pl = pl1;
-                                    svg.draw(pl1, "green", scale_(this->extrusion_width));
-                                    svg.draw(pl2, "orange", scale_(this->extrusion_width)/2);
-                                }else{
-                                    pl2.reverse();
-                                    //routed_wire.append(pl2);
-                                    result_pl = pl2;
-                                    svg.draw(pl2, "green", scale_(this->extrusion_width));
-                                    svg.draw(pl1, "orange", scale_(this->extrusion_width)/2);
-                                }
-                             //   current_perimeters++;
-                            //}
-                            routed_wire.append(result_pl);
-                        }
-                        std::cout << "routing done" << std::endl;
-                        Line l(line.a, intersection);
-                        l.extend_end(scale_(EPSILON));
-                        intersection = l.b;
-                        svg.draw(Line(routed_wire.last_point(), intersection), "red", scale_(this->extrusion_width));
-                        routed_wire.append(intersection);
-                    }
-                    line.a = intersection;
-                }
-                // no further intersections found, rest must be inside or outside of slices. Append linear line
-                svg.draw(line, "red", scale_(this->extrusion_width));
-                routed_wire.append(line.b);
-                std::cout << "append rest" << std::endl;
-                break;
+            for(const auto &region : this->layer->regions) {
+                const coord_t perimeters_thickness = this->offset_width(region, i+1);
+                inflated_slices[i].append(offset_ex((Polygons)region->slices, -perimeters_thickness));
             }
         }
-        svg.draw(routed_wire, "yellow", scale_(this->extrusion_width));
-        routed_wire.remove_loops();
+        if(debug_flag) {
+            int c = 50;
+            for(int i=0; i < max_perimeters; i++) {
+                std::ostringstream ss;
+                ss << "rgb(" << 100 << "," << c << "," << c << ")";
+                std::string color = ss.str();
+                svg.draw(inflated_slices[i], color);
+                c += 50;
+            }
+            debug_flag = false;
+        }
+
+
+        std::vector<WireSegment> segments;
+        double edge_weight_factor = 1.0 + max_perimeters * 0.1;
+        for(auto &line : unrouted_wire.lines()) {
+            WireSegment segment;
+            segment.line = line;
+            for(int current_perimeters = 0; current_perimeters < max_perimeters; current_perimeters++) {
+                Line iteration_line = line;
+                Line collision_line = line; // reset line for next iteration
+                while(true) {
+                    bool outside_expolygon = false;
+                    Point intersection;
+                    bool ccw;
+                    Polygon* p;
+                    ExPolygon* ep;
+                    // find intersections with all expolygons
+                    while(inflated_slices[current_perimeters].first_intersection(collision_line, &intersection, &ccw, &p, &ep)) {
+                        p->insert(intersection);
+                        if(ccw) { // leaving expolygon
+                            outside_expolygon = true;
+                            //svg.draw(Line(line.a, intersection), "red", scale_(this->extrusion_width));
+                            Line l(iteration_line.a, intersection);
+                            segment.connecting_lines.push_back(std::make_pair(l, edge_weight_factor));
+                            //iteration_line.a = intersection;
+                            //p->insert(intersection);
+                        }else{ // entering expolygon
+                            Line l(iteration_line.a, intersection);
+                            if(!outside_expolygon) {
+                                //iteration_line.a = intersection;
+                                //p->insert(intersection);
+                                segment.connecting_lines.push_back(std::make_pair(l, edge_weight_factor*2.0));
+                            }// else do nothing... we are only looking for connections inside polygons
+                            outside_expolygon = false;
+                        }
+                        iteration_line.a = intersection;
+                        collision_line.a = intersection;
+                        collision_line.extend_start(-scale_(EPSILON)); // crop line a bit to avoid multiple intersections with the same polygon
+                    }
+                    // no further intersections found, rest must be inside or outside of slices. Append linear line
+                    segment.connecting_lines.push_back(std::make_pair(iteration_line, edge_weight_factor));
+                    break;
+                }
+            }
+            segments.push_back(segment);
+            for(int i=0; i<segment.connecting_lines.size(); i++) {
+                //Line l(segment.connecting_lines[i].first);
+                //l.translate(scale_(i*0.3), 0);
+                //svg.draw(l, "red", scale_(this->extrusion_width/4));
+            }
+            for(int i=0; i<segment.connecting_lines.size(); i++) {
+                svg.draw(segment.connecting_lines[i].first.a, "black", scale_(this->extrusion_width/4));
+                svg.draw(segment.connecting_lines[i].first.b, "black", scale_(this->extrusion_width/4));
+            }
+        }
+
+        // add contour polygons to graph
+        //for(ExPolygons &eps : inflated_slices) {
+        coord_t perimeter_sum = 0;
+        for(int i = 0; i < max_perimeters; i++) {
+            //double edge_weight_factor = 2 * perimeter_sum * PI; //2 * r * pi ->
+            // 2*r <-> 2*r*pi
+            //std::cout << "edge_weight_factor: " << edge_weight_factor << std::endl;
+            double edge_weight_factor = 1.0 + (max_perimeters-i-1) * 0.1;
+            for(ExPolygon &ep : (ExPolygons)inflated_slices[i]) {
+                // iterate over contour and holes to avoid deep copy
+                this->polygon_to_graph(ep.contour, &routing_graph, &graph_point_index, edge_weight_factor);
+                for(Polygon &p : ep.holes) {
+                    this->polygon_to_graph(p, &routing_graph, &graph_point_index, edge_weight_factor);
+                }
+            }
+            //perimeter_sum += perimeters_thicknesses[i];
+        }
+
+/*        std::ofstream file;
+        file.open("graph.dot");
+        boost::property_map<routing_graph_t, boost::edge_weight_t>::type EdgeWeightMap = get(boost::edge_weight_t(), routing_graph);
+        if (file.is_open()) {
+            boost::write_graphviz(file, routing_graph,
+                boost::make_label_writer(routing_graph_index),
+                boost::make_label_writer(EdgeWeightMap));
+        }
+*/
+
+        // debug output graph
+        std::ostringstream ss1;
+        ss1 << "graph_debug_";
+        ss1 << index;
+        ss1 << ".svg";
+        filename = ss1.str();
+        SVG svg_graph(filename.c_str());
+        svg_graph.draw(*(this->slices), "black");
+        boost::graph_traits<routing_graph_t>::edge_iterator ei, ei_end;
+        for (boost::tie(ei, ei_end) = edges(routing_graph); ei != ei_end; ++ei) {
+
+            Point a = routing_graph_index[boost::source(*ei, routing_graph)];
+            Point b = routing_graph_index[boost::target(*ei, routing_graph)];
+            Line l = Line(a, b);
+            svg_graph.draw(l, "red", scale_(this->extrusion_width/4));
+        }
+
+        // A* search on routing graph
+        for(auto segment : segments) {
+
+            // add connecting lines to graph
+            for(int i=0; i<segment.connecting_lines.size(); i++) {
+                double edge_weight_factor = segment.connecting_lines[i].second;
+
+                // add endpoints to graph. Won't add multiple copies of the same point due to hash structure.
+                routing_edge_t edge;
+                Line l = segment.connecting_lines[i].first;
+                this->add_vertex(l.a, &routing_graph, &graph_point_index);
+                this->add_vertex(l.b, &routing_graph, &graph_point_index);
+                this->add_edge(l, &routing_graph, &graph_point_index, &edge, edge_weight_factor);
+                Line dbg = l;
+                dbg.translate(scale_(i*0.5), 0);
+                svg.draw(dbg, "red", scale_(this->extrusion_width/8));
+                segment.edges.insert(edge);
+                float debug_offset = 0.0;
+                for(int j=i+1; j<segment.connecting_lines.size(); j++) {
+                    bool add_overlaps = false;
+                    if(l.contains(segment.connecting_lines[j].first)) {
+                        edge_weight_factor = segment.connecting_lines[i].second;
+                        add_overlaps = true;
+                    }
+                    if(segment.connecting_lines[j].first.contains(l)) {
+                        edge_weight_factor = segment.connecting_lines[j].second;
+                        add_overlaps = true;
+                    }
+                    if(add_overlaps) {
+                        std::ostringstream ss;
+                        ss << "rgb(" << 100 << "," << edge_weight_factor*100 << "," << edge_weight_factor*100 << ")";
+                        std::string color = ss.str();
+                        // add points of 2nd line
+                        this->add_vertex(segment.connecting_lines[j].first.a, &routing_graph, &graph_point_index);
+                        this->add_vertex(segment.connecting_lines[j].first.b, &routing_graph, &graph_point_index);
+                        // add the remaining combination of edges. 2nd line will be added later in the loop.
+                        this->add_edge(Line(segment.connecting_lines[i].first.a, segment.connecting_lines[j].first.b), &routing_graph, &graph_point_index, &edge, edge_weight_factor);
+                        Line d = Line(segment.connecting_lines[i].first.a, segment.connecting_lines[j].first.b);
+                        d.translate(scale_(i*0.5+0.1+debug_offset), 0);
+                        svg.draw(d, color, scale_(this->extrusion_width/6));
+                        segment.edges.insert(edge);
+                        this->add_edge(Line(segment.connecting_lines[j].first.a, segment.connecting_lines[i].first.b), &routing_graph, &graph_point_index, &edge, edge_weight_factor);
+                        segment.edges.insert(edge);
+                        d = Line(segment.connecting_lines[j].first.a, segment.connecting_lines[i].first.b);
+                        d.translate(scale_(i*0.5+0.2+debug_offset), 0);
+                        svg.draw(d, color, scale_(this->extrusion_width/6));
+                        debug_offset += 0.2;
+                    }
+                }
+            }
+
+            // generate an index-map to map vertex descriptors to array indices
+            boost::property_map<routing_graph_t, boost::vertex_index1_t>::type indexmap = boost::get(boost::vertex_index1, routing_graph);
+            boost::graph_traits<routing_graph_t>::vertex_iterator i, iend;
+            int idx = 0;
+            for (boost::tie(i, iend) = boost::vertices(routing_graph); i != iend; ++i, ++idx) {
+                indexmap[*i] = idx;
+            }
+
+            std::vector<routing_graph_t::vertex_descriptor> predmap(boost::num_vertices(routing_graph));
+            //std::vector<coord_t> distmap(boost::num_vertices(routing_graph));
+            routing_vertex_t start = graph_point_index[segment.line.b];
+            routing_vertex_t goal = graph_point_index[segment.line.a];
+
+            try {
+                // call astar named parameter interface
+                astar_search
+                (routing_graph, start,
+                    distance_heuristic<routing_graph_t, coord_t, boost::property_map<routing_graph_t, boost::vertex_index_t>::type>
+                    (routing_graph_index, goal),
+                    vertex_index_map(indexmap).
+                    predecessor_map(boost::make_iterator_property_map(predmap.begin(), boost::get(boost::vertex_index1, routing_graph))).
+                    //distance_map(boost::make_iterator_property_map(distmap.begin(), boost::get(boost::vertex_index1, routing_graph))).
+                    visitor(astar_goal_visitor<routing_vertex_t>(goal))
+                    );
+
+
+            } catch(found_goal fg) { // found a path to the goal
+                for(routing_vertex_t v = goal;; v = predmap[indexmap[v]]) {
+                    if(predmap[indexmap[v]] == v)
+                        break;
+                    routed_wire.append(routing_graph_index[v]);
+                }
+            }
+
+
+
+            // remove edges generated by this segment to avoid double usage when routing the next segment
+            for(auto edge : segment.edges) {
+                boost::remove_edge(edge, routing_graph);
+            }
+        }
+
+        // add final point
+        routed_wire.append(unrouted_wire.last_point());
+
+        svg_graph.draw(routed_wire, "yellow", scale_(this->extrusion_width/8));
+        svg_graph.arrows = false;
+        svg_graph.Close();
+
+        //svg.draw(routed_wire, "yellow", scale_(this->extrusion_width));
+        //routed_wire.remove_loops();
         this->channel_from_wire(routed_wire);
         this->routed_wires.push_back(routed_wire);
-        svg.draw(routed_wire, "white", scale_(this->extrusion_width)/2);
+        svg.draw(routed_wire, "white", scale_(this->extrusion_width)/4);
+
+        double index = 0;
+        for(auto point : routed_wire.points) {
+            point.translate(scale_(index), 0.0);
+            svg.draw(point, "green", scale_(this->extrusion_width/6));
+            //svg.draw(wire.b, "green", scale_(this->extrusion_width/6));
+            index += 0.2;
+        }
 
         svg.arrows = false;
         svg.Close();
-
-        // any perimeter contact for this wire?
-        //Polylines diff_pl = diff_pl(wire.Polylines(), const Slic3r::Polygons &clip, bool safety_offset_ = false)
     }
 }
 
@@ -221,8 +338,8 @@ void ElectronicWireGenerator::sort_unrouted_wires()
         for(auto &line : unrouted_wire.lines()) {
             Point intersection;
             bool ccw;
-            const Polygon* p;
-            const ExPolygon* ep;
+            Polygon* p;
+            ExPolygon* ep;
             while(inflated_wires.first_intersection(line, &intersection, &ccw, &p, &ep)) {
                 intersections.back()++;
                 Line l(line.a, intersection);
@@ -353,6 +470,58 @@ coord_t ElectronicWireGenerator::offset_width(const LayerRegion* region, int per
     const coord_t result = ext_perimeter_width
         + (perimeters-1) * perimeter_spacing
         + scale_(this->extrusion_width/2 + this->conductive_wire_channel_width/2);
+    return result;
+}
+
+void ElectronicWireGenerator::polygon_to_graph(const Polygon& p, routing_graph_t* g, point_index_t* index, const double& weight_factor) const
+{
+    if(p.is_valid()) {
+        routing_vertex_t last_vertex, this_vertex, first_vertex;
+        last_vertex = boost::add_vertex(p.points.front(), *g); // add first point
+        (*index)[p.points.front()] = last_vertex;
+        first_vertex = last_vertex;
+        for (Points::const_iterator it = p.points.begin(); it != p.points.end()-1; ++it) {
+            // add next vertex
+            this_vertex = boost::add_vertex(*(it+1), *g);
+            (*index)[*(it+1)] = this_vertex;
+
+            // add edge
+            coord_t distance = it->distance_to(*(it+1)) * weight_factor;
+            // Add factor to prioritize routing with high distance to external perimeter
+            boost::add_edge(last_vertex, this_vertex, distance, *g);
+            last_vertex = this_vertex;
+        }
+        // add final edge to close the loop
+        coord_t distance = p.points.back().distance_to(p.points.front());
+        // Add factor to prioritize routing with high distance to external perimeter
+        boost::add_edge(last_vertex, first_vertex, distance, *g);
+    }
+}
+
+bool ElectronicWireGenerator::add_vertex(const Point& p, routing_graph_t* g, point_index_t* index) const
+{
+    bool result = false;
+    if((*index).find(p) == (*index).end()) { // is this point already in the graph?
+        routing_vertex_t vertex = boost::add_vertex(p, *g);
+        (*index)[p] = vertex; // add vertex to reverse lookup table
+        result = true;
+    }
+    return result;
+}
+
+
+bool ElectronicWireGenerator::add_edge(const Line& l, routing_graph_t* g, point_index_t* index, routing_edge_t* edge, const double& edge_weight_factor) const
+{
+    bool result = true;
+    try {
+        routing_vertex_t vertex_a = (*index).at(l.a); // unordered_map::at throws an out-of-range
+        routing_vertex_t vertex_b = (*index).at(l.b); // unordered_map::at throws an out-of-range
+        coord_t distance = l.length() * edge_weight_factor;
+        *edge = boost::add_edge(vertex_a, vertex_b, distance, *g).first;
+    } catch (const std::out_of_range& oor) {
+        std::cerr << "Unable to find vertex for point while adding an edge: " << oor.what() << '\n';
+        result = false;
+    }
     return result;
 }
 
