@@ -474,6 +474,11 @@ sub new {
     
     $self->reload_tree;
 
+    # trigger slicing if background processing is inactiv to get a preview
+    if(!$Slic3r::GUI::Settings->{_}{background_processing}) {
+       $self->triggerSlicing;
+    }
+
     return $self;
 }
 
@@ -819,9 +824,13 @@ sub property_selection_changed {
     $self->{schematic}->updateRubberBands();
     
     # trigger slicing steps to update modifications;
-    $self->{print}->objects->[$self->{obj_idx}]->invalidate_step(STEP_SLICE);
-    # calls schedule to update the toolpath to give the user an opportunity for multiple position updates
-    $self->{plater}->schedule_background_process;
+    if($Slic3r::GUI::Settings->{_}{background_processing}) {
+        $self->{print}->objects->[$self->{obj_idx}]->invalidate_step(STEP_SLICE);
+        # calls schedule to update the toolpath to give the user an opportunity for multiple position updates
+        $self->{plater}->schedule_background_process;
+    }else{
+       $self->triggerSlicing;
+    }
 }
 
 
