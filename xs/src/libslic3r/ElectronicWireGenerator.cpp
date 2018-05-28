@@ -70,7 +70,7 @@ void ElectronicWireGenerator::refine_wires()
 
         // setup graph structure for routing
         routing_graph_t routing_graph;
-        boost::property_map<routing_graph_t, boost::vertex_index_t>::type routing_graph_index = boost::get(boost::vertex_index, routing_graph); // Index Vertex->Point
+        boost::property_map<routing_graph_t, Point PointVertex::*>::type pointmap = boost::get(&PointVertex::point, routing_graph); // Index Vertex->Point
         point_index_t graph_point_index; // Index Point->Vertex
 
         for(int i=0; i < max_perimeters; i++) {
@@ -114,8 +114,8 @@ void ElectronicWireGenerator::refine_wires()
                         p->insert(intersection);
                         if(ccw) { // leaving expolygon
                             outside_expolygon = true;
-                            //svg.draw(Line(line.a, intersection), "red", scale_(this->extrusion_width));
                             Line l(iteration_line.a, intersection);
+                            svg.draw(l, "red", scale_(this->extrusion_width));
                             segment.connecting_lines.push_back(std::make_pair(l, edge_weight_factor));
                             //iteration_line.a = intersection;
                             //p->insert(intersection);
@@ -133,7 +133,13 @@ void ElectronicWireGenerator::refine_wires()
                         collision_line.extend_start(-scale_(EPSILON)); // crop line a bit to avoid multiple intersections with the same polygon
                     }
                     // no further intersections found, rest must be inside or outside of slices. Append linear line
-                    segment.connecting_lines.push_back(std::make_pair(iteration_line, edge_weight_factor));
+                    if(inflated_slices[current_perimeters].contains_b(iteration_line.b)) {
+                        // inside material, low weight
+                        segment.connecting_lines.push_back(std::make_pair(iteration_line, edge_weight_factor));
+                    }else{
+                        // outside material, high weight
+                        segment.connecting_lines.push_back(std::make_pair(iteration_line, edge_weight_factor*2.0));
+                    }
                     break;
                 }
             }
@@ -177,23 +183,6 @@ void ElectronicWireGenerator::refine_wires()
         }
 */
 
-        // debug output graph
-        std::ostringstream ss1;
-        ss1 << "graph_debug_";
-        ss1 << index;
-        ss1 << ".svg";
-        filename = ss1.str();
-        SVG svg_graph(filename.c_str());
-        svg_graph.draw(*(this->slices), "black");
-        boost::graph_traits<routing_graph_t>::edge_iterator ei, ei_end;
-        for (boost::tie(ei, ei_end) = edges(routing_graph); ei != ei_end; ++ei) {
-
-            Point a = routing_graph_index[boost::source(*ei, routing_graph)];
-            Point b = routing_graph_index[boost::target(*ei, routing_graph)];
-            Line l = Line(a, b);
-            svg_graph.draw(l, "red", scale_(this->extrusion_width/4));
-        }
-
         // A* search on routing graph
         for(auto segment : segments) {
 
@@ -204,12 +193,16 @@ void ElectronicWireGenerator::refine_wires()
                 // add endpoints to graph. Won't add multiple copies of the same point due to hash structure.
                 routing_edge_t edge;
                 Line l = segment.connecting_lines[i].first;
-                this->add_vertex(l.a, &routing_graph, &graph_point_index);
-                this->add_vertex(l.b, &routing_graph, &graph_point_index);
-                this->add_edge(l, &routing_graph, &graph_point_index, &edge, edge_weight_factor);
+                Slic3r::add_point_vertex(l.a, routing_graph, graph_point_index);
+                Slic3r::add_point_vertex(l.b, routing_graph, graph_point_index);
+                Slic3r::add_point_edge(l, routing_graph, graph_point_index, &edge, edge_weight_factor);
                 Line dbg = l;
                 dbg.translate(scale_(i*0.5), 0);
-                svg.draw(dbg, "red", scale_(this->extrusion_width/8));
+                std::ostringstream ss;
+                ss << "rgb(" << 100 << "," << edge_weight_factor*100 << "," << edge_weight_factor*100 << ")";
+                std::string color = ss.str();
+                svg.draw(dbg, color, scale_(this->extrusion_width/8));
+                //svg.draw(dbg, "red", scale_(this->extrusion_width/8));
                 segment.edges.insert(edge);
                 float debug_offset = 0.0;
                 for(int j=i+1; j<segment.connecting_lines.size(); j++) {
@@ -227,15 +220,15 @@ void ElectronicWireGenerator::refine_wires()
                         ss << "rgb(" << 100 << "," << edge_weight_factor*100 << "," << edge_weight_factor*100 << ")";
                         std::string color = ss.str();
                         // add points of 2nd line
-                        this->add_vertex(segment.connecting_lines[j].first.a, &routing_graph, &graph_point_index);
-                        this->add_vertex(segment.connecting_lines[j].first.b, &routing_graph, &graph_point_index);
+                        Slic3r::add_point_vertex(segment.connecting_lines[j].first.a, routing_graph, graph_point_index);
+                        Slic3r::add_point_vertex(segment.connecting_lines[j].first.b, routing_graph, graph_point_index);
                         // add the remaining combination of edges. 2nd line will be added later in the loop.
-                        this->add_edge(Line(segment.connecting_lines[i].first.a, segment.connecting_lines[j].first.b), &routing_graph, &graph_point_index, &edge, edge_weight_factor);
+                        Slic3r::add_point_edge(Line(segment.connecting_lines[i].first.a, segment.connecting_lines[j].first.b), routing_graph, graph_point_index, &edge, edge_weight_factor);
                         Line d = Line(segment.connecting_lines[i].first.a, segment.connecting_lines[j].first.b);
                         d.translate(scale_(i*0.5+0.1+debug_offset), 0);
                         svg.draw(d, color, scale_(this->extrusion_width/6));
                         segment.edges.insert(edge);
-                        this->add_edge(Line(segment.connecting_lines[j].first.a, segment.connecting_lines[i].first.b), &routing_graph, &graph_point_index, &edge, edge_weight_factor);
+                        Slic3r::add_point_edge(Line(segment.connecting_lines[j].first.a, segment.connecting_lines[i].first.b), routing_graph, graph_point_index, &edge, edge_weight_factor);
                         segment.edges.insert(edge);
                         d = Line(segment.connecting_lines[j].first.a, segment.connecting_lines[i].first.b);
                         d.translate(scale_(i*0.5+0.2+debug_offset), 0);
@@ -245,46 +238,80 @@ void ElectronicWireGenerator::refine_wires()
                 }
             }
 
-            // generate an index-map to map vertex descriptors to array indices
-            boost::property_map<routing_graph_t, boost::vertex_index1_t>::type indexmap = boost::get(boost::vertex_index1, routing_graph);
+
+            // generate required maps for A* search
+            boost::property_map<routing_graph_t, routing_vertex_t PointVertex::*>::type predmap = boost::get(&PointVertex::predecessor, routing_graph);
+            // init maps
             boost::graph_traits<routing_graph_t>::vertex_iterator i, iend;
-            int idx = 0;
+            unsigned int idx = 0;
             for (boost::tie(i, iend) = boost::vertices(routing_graph); i != iend; ++i, ++idx) {
-                indexmap[*i] = idx;
+                //indexmap[*i] = idx;
+                predmap[*i] = *i;
+                //distmap[*i] = INF;
+                routing_graph[*i].index = idx;
+                routing_graph[*i].distance = INF;
+                routing_graph[*i].color = boost::white_color;
             }
 
-            std::vector<routing_graph_t::vertex_descriptor> predmap(boost::num_vertices(routing_graph));
-            //std::vector<coord_t> distmap(boost::num_vertices(routing_graph));
+            // start / goal vertex
             routing_vertex_t start = graph_point_index[segment.line.b];
             routing_vertex_t goal = graph_point_index[segment.line.a];
 
+            // A* visitor
+            astar_visitor<routing_graph_t, routing_vertex_t, ExPolygonCollection> vis(goal, &inflated_slices.back(), scale_(1), &graph_point_index, (1.0 + max_perimeters * 0.1));
+            // distance heuristic
+            distance_heuristic<routing_graph_t, coord_t, boost::property_map<routing_graph_t, Point PointVertex::*>::type> dist_heuristic(pointmap, goal);
+            // init start vertex
+            routing_graph[start].distance = 0;
+            routing_graph[start].cost = dist_heuristic(start);
+
+
             try {
                 // call astar named parameter interface
-                astar_search
+                astar_search_no_init
                 (routing_graph, start,
-                    distance_heuristic<routing_graph_t, coord_t, boost::property_map<routing_graph_t, boost::vertex_index_t>::type>
-                    (routing_graph_index, goal),
-                    vertex_index_map(indexmap).
-                    predecessor_map(boost::make_iterator_property_map(predmap.begin(), boost::get(boost::vertex_index1, routing_graph))).
-                    //distance_map(boost::make_iterator_property_map(distmap.begin(), boost::get(boost::vertex_index1, routing_graph))).
-                    visitor(astar_goal_visitor<routing_vertex_t>(goal))
+                    dist_heuristic,
+                    vertex_index_map(boost::get(&PointVertex::index, routing_graph)).
+                    predecessor_map(predmap).
+                    color_map(boost::get(&PointVertex::color, routing_graph)).
+                    distance_map(boost::get(&PointVertex::distance, routing_graph)).
+                    rank_map( boost::get(&PointVertex::cost, routing_graph)).
+                    visitor(vis).
+                    distance_compare(std::less<coord_t>()).
+                    distance_combine(boost::closed_plus<coord_t>(INF)).
+                    distance_inf(INF)
                     );
-
-
             } catch(found_goal fg) { // found a path to the goal
-                for(routing_vertex_t v = goal;; v = predmap[indexmap[v]]) {
-                    if(predmap[indexmap[v]] == v)
+                for(routing_vertex_t v = goal;; v = predmap[v]) {
+                    if(predmap[v] == v)
                         break;
-                    routed_wire.append(routing_graph_index[v]);
+                    routed_wire.append(pointmap[v]);
                 }
             }
-
 
 
             // remove edges generated by this segment to avoid double usage when routing the next segment
             for(auto edge : segment.edges) {
                 boost::remove_edge(edge, routing_graph);
             }
+        }
+
+
+        // debug output graph
+        std::ostringstream ss1;
+        ss1 << "graph_debug_";
+        ss1 << index;
+        ss1 << ".svg";
+        filename = ss1.str();
+        SVG svg_graph(filename.c_str());
+        svg_graph.draw(*(this->slices), "black");
+        boost::graph_traits<routing_graph_t>::edge_iterator ei, ei_end;
+        for (boost::tie(ei, ei_end) = edges(routing_graph); ei != ei_end; ++ei) {
+
+            Point a = pointmap[boost::source(*ei, routing_graph)];
+            Point b = pointmap[boost::target(*ei, routing_graph)];
+            Line l = Line(a, b);
+            svg_graph.draw(l, "red", scale_(this->extrusion_width/4));
         }
 
         // add final point
@@ -477,13 +504,11 @@ void ElectronicWireGenerator::polygon_to_graph(const Polygon& p, routing_graph_t
 {
     if(p.is_valid()) {
         routing_vertex_t last_vertex, this_vertex, first_vertex;
-        last_vertex = boost::add_vertex(p.points.front(), *g); // add first point
-        (*index)[p.points.front()] = last_vertex;
+        Slic3r::add_point_vertex(p.points.front(), *g, *index, &last_vertex); // add first point
         first_vertex = last_vertex;
         for (Points::const_iterator it = p.points.begin(); it != p.points.end()-1; ++it) {
             // add next vertex
-            this_vertex = boost::add_vertex(*(it+1), *g);
-            (*index)[*(it+1)] = this_vertex;
+            Slic3r::add_point_vertex(*(it+1), *g, *index, &this_vertex);
 
             // add edge
             coord_t distance = it->distance_to(*(it+1)) * weight_factor;
@@ -492,37 +517,10 @@ void ElectronicWireGenerator::polygon_to_graph(const Polygon& p, routing_graph_t
             last_vertex = this_vertex;
         }
         // add final edge to close the loop
-        coord_t distance = p.points.back().distance_to(p.points.front());
+        coord_t distance = p.points.back().distance_to(p.points.front()) * weight_factor;
         // Add factor to prioritize routing with high distance to external perimeter
         boost::add_edge(last_vertex, first_vertex, distance, *g);
     }
-}
-
-bool ElectronicWireGenerator::add_vertex(const Point& p, routing_graph_t* g, point_index_t* index) const
-{
-    bool result = false;
-    if((*index).find(p) == (*index).end()) { // is this point already in the graph?
-        routing_vertex_t vertex = boost::add_vertex(p, *g);
-        (*index)[p] = vertex; // add vertex to reverse lookup table
-        result = true;
-    }
-    return result;
-}
-
-
-bool ElectronicWireGenerator::add_edge(const Line& l, routing_graph_t* g, point_index_t* index, routing_edge_t* edge, const double& edge_weight_factor) const
-{
-    bool result = true;
-    try {
-        routing_vertex_t vertex_a = (*index).at(l.a); // unordered_map::at throws an out-of-range
-        routing_vertex_t vertex_b = (*index).at(l.b); // unordered_map::at throws an out-of-range
-        coord_t distance = l.length() * edge_weight_factor;
-        *edge = boost::add_edge(vertex_a, vertex_b, distance, *g).first;
-    } catch (const std::out_of_range& oor) {
-        std::cerr << "Unable to find vertex for point while adding an edge: " << oor.what() << '\n';
-        result = false;
-    }
-    return result;
 }
 
 }

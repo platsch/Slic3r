@@ -109,6 +109,7 @@ bool RubberBand::getLayerSegments(const double z_bottom, const double z_top, con
     if((this->a.z >= z_bottom && this->b.z < z_top) || (this->a.z < z_top && this->b.z >= z_bottom)) {
         result = true;
         bool extend_a = true;
+        bool extend_b = true;
         Line segment;
 
         // point a
@@ -139,12 +140,10 @@ bool RubberBand::getLayerSegments(const double z_bottom, const double z_top, con
             Pointf3 i = this->intersect_plane(z_bottom);
             segment.b.x = scale_(i.x);
             segment.b.y = scale_(i.y);
-            segment.extend_end(layer_overlap/2);
         }else if(this->b.z > z_top) {
             Pointf3 i = this->intersect_plane(z_top);
             segment.b.x = scale_(i.x);
             segment.b.y = scale_(i.y);
-            segment.extend_end(layer_overlap/2);
         }else{
             segment.b.x = scale_(this->b.x);
             segment.b.y = scale_(this->b.y);
@@ -155,13 +154,34 @@ bool RubberBand::getLayerSegments(const double z_bottom, const double z_top, con
                 Line padExtension(segment.b, Point(scale_(p.x), scale_(p.y)));
                 segments->push_back(padExtension);
             }
+
+            extend_b = false;
         }
 
         if(extend_a) {
-            segment.extend_start(layer_overlap/2);
+            Line l(segment);
+            l.extend_start(layer_overlap/2);
+            l.b = segment.a;
+            // move 2. half of overlap to l if possible to ensure proper overlap for routing
+            if(segment.length() > layer_overlap/2) {
+                segment.extend_start(-layer_overlap/2);
+                l.extend_end(layer_overlap/2);
+            }
+            segments->push_back(l);
         }
 
-        // if only one point touches the layer length will be 0
+        if(extend_b) {
+            Line l(segment);
+            l.extend_end(layer_overlap/2);
+            l.a = segment.b;
+            if(segment.length() > layer_overlap/2) {
+                segment.extend_end(-layer_overlap/2);
+                l.extend_start(layer_overlap/2);
+            }
+            segments->push_back(l);
+        }
+
+        // if only one point touches the layer, length will be 0
         if(segment.length() < scale_(0.05)) {
             result = false;
         }
