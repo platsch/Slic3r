@@ -7,10 +7,12 @@
 namespace Slic3r {
 
 class Line;
+class Line3;
 class Linef3;
 class Polyline;
 class ThickLine;
 typedef std::vector<Line> Lines;
+typedef std::vector<Line3> Line3s;
 typedef std::vector<ThickLine> ThickLines;
 
 class Line
@@ -58,6 +60,22 @@ class ThickLine : public Line
     
     ThickLine() : a_width(0), b_width(0) {};
     ThickLine(Point _a, Point _b) : Line(_a, _b), a_width(0), b_width(0) {};
+};
+
+std::ostream& operator<<(std::ostream &stm, const Line3 &line3);
+
+class Line3 : public Line
+{
+    public:
+    Point3 a;
+    Point3 b;
+    Line3() {};
+    explicit Line3(Point3 _a, Point3 _b): a(_a), b(_b) {};
+    explicit Line3(Line _l, coord_t _z): a(Point3(_l.a.x, _l.a.y, _z)), b(Point3(_l.b.x, _l.b.y, _z)) {};
+    explicit Line3(Point _a, Point _b, coord_t _z): a(Point3(_a.x, _a.y, _z)), b(Point3(_b.x, _b.y, _z)) {};
+    void translate(double x, double y, double z);
+    double length() const;
+    Point3 intersect_plane(coord_t z) const;
 };
 
 class Linef

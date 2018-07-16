@@ -264,6 +264,36 @@ Line::ccw(const Point& point) const
     return point.ccw(*this);
 }
 
+std::ostream&
+operator<<(std::ostream &stm, const Line3 &line3)
+{
+    return stm << "LINESTRING(" << line3.a.x << " " << line3.a.y << " " << line3.a.z << ","
+        << line3.b.x << " " << line3.b.y << " " << line3.b.z << ")";
+}
+
+void
+Line3::translate(double x, double y, double z)
+{
+    this->a.translate(x, y, z);
+    this->b.translate(x, y, z);
+}
+
+double
+Line3::length() const
+{
+    return this->a.distance_to(this->b);
+}
+
+Point3
+Line3::intersect_plane(coord_t z) const
+{
+    return Point3(
+        this->a.x + (this->b.x - this->a.x) * (z - this->a.z) / (this->b.z - this->a.z),
+        this->a.y + (this->b.y - this->a.y) * (z - this->a.z) / (this->b.z - this->a.z),
+        z
+    );
+}
+
 Pointf3
 Linef3::intersect_plane(double z) const
 {
