@@ -58,6 +58,10 @@ src/libslic3r/ElectronicNet.hpp
 src/libslic3r/ElectronicNet.cpp
 src/libslic3r/ElectronicPart.hpp
 src/libslic3r/ElectronicPart.cpp
+src/libslic3r/ElectronicWireGenerator.hpp
+src/libslic3r/ElectronicWireGenerator.cpp
+src/libslic3r/ElectronicWireRouter.hpp
+src/libslic3r/ElectronicWireRouter.cpp
 src/libslic3r/ExPolygon.cpp
 src/libslic3r/ExPolygon.hpp
 src/libslic3r/ExPolygonCollection.cpp
