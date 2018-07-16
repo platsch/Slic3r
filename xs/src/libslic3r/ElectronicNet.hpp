@@ -53,7 +53,7 @@ class ElectronicNet
     bool removeWiredRubberBand(const unsigned int ID);
     const NetPoint* findNearestNetPoint(const Pointf3& p) const;
     bool waypointsConnected(const unsigned int NetPointKeyA, const unsigned int netPointKeyB);
-    const unsigned int wayointDegree(const unsigned int waypointID);
+    const unsigned int waypointDegree(const unsigned int waypointID);
     RubberBandPtrs* generateWiredRubberBands();
     RubberBandPtrs* getUnwiredRubberbands();
 

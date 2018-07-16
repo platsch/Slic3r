@@ -24,7 +24,7 @@ typedef std::vector<RubberBand*> RubberBandPtrs;
 class RubberBand : public Linef3
 {
     public:
-    RubberBand(const std::string net, NetPoint* pointA, NetPoint* pointB, bool isWired);
+    RubberBand(const std::string net, NetPoint* pointA, NetPoint* pointB, int netPointADegree, int netPointBDegree, bool isWired);
     ~RubberBand();
     const unsigned int getID() const {return this->ID;};
     const std::string getNetName() const {return this->netName;};
@@ -40,12 +40,15 @@ class RubberBand : public Linef3
     const unsigned int getNetPointBiD() const {return this->netPointBiD;};
     const NetPoint* getNetPointA() const {return this->netPointA;};
     const NetPoint* getNetPointB() const {return this->netPointB;};
+    Line3 asScaledLine() const;
     const bool isWired() const {return this->wiredFlag;};
     bool connectsNetPin(const unsigned int netPinID) const;
     const Pointf3* selectNearest(const Pointf3& p);
     const bool pointASelected() const {return this->netPointASelected;};
     const bool pointBSelected() const {return this->netPointBSelected;};
-    bool getLayerSegments(const double z_bottom, const double z_top, coord_t const layer_overlap, Lines* segments, bool extendPinA, bool extendPinB);
+    bool getLayerSegments(const double z_bottom, const double z_top, coord_t const layer_overlap, Lines* segments, bool* overlap_a, bool* overlap_b) const;
+    /// returns rubberband inlcuding potential pin contact extensions
+    Line3s getExtendedSegmets() const;
 
     // Rubberband inherits from Linef3 and uses points a and b.
 
@@ -65,6 +68,8 @@ class RubberBand : public Linef3
     bool _hasPartB;
     bool _hasNetPointA;
     bool _hasNetPointB;
+    Pointf3 _pinAExtension;  // pin extension for better smd pad connections. Only if netPoint degree == 1.
+    Pointf3 _pinBExtension;
     const bool wiredFlag;
     static unsigned int s_idGenerator;
     unsigned int ID;

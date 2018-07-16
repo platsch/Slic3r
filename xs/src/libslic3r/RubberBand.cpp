@@ -3,7 +3,7 @@
 namespace Slic3r {
 
 
-RubberBand::RubberBand(const std::string net, NetPoint* pointA, NetPoint* pointB, bool isWired):
+RubberBand::RubberBand(const std::string net, NetPoint* pointA, NetPoint* pointB, int netPointADegree, int netPointBDegree, bool isWired):
     netName(net),
     wiredFlag(isWired)
 {
@@ -14,12 +14,28 @@ RubberBand::RubberBand(const std::string net, NetPoint* pointA, NetPoint* pointB
     this->netPointBiD = pointB->getKey();
     this->a = (pointA->getPoint());
     this->b = (pointB->getPoint());
+    this->_pinAExtension = this->a;
+    this->_pinBExtension = this->b;
     this->netPointASelected = false;
     this->netPointBSelected = false;
+
+    if(this->netPointA->getType() == PART && netPointADegree == 1) {
+        this->_pinAExtension = this->netPointA->getRouteExtension(this->b);
+    }
+    if(this->netPointB->getType() == PART && netPointBDegree == 1) {
+        this->_pinBExtension = this->netPointB->getRouteExtension(this->a);
+    }
 }
 
 RubberBand::~RubberBand()
 {
+}
+
+Line3 RubberBand::asScaledLine() const
+{
+    Line3 result(Point3(scale_(this->a.x), scale_(this->a.y), scale_(this->a.z)),
+            Point3(scale_(this->b.x), scale_(this->b.y), scale_(this->b.z)));
+    return result;
 }
 
 /*// returns true if a is not already defined as a netPoint
@@ -100,8 +116,9 @@ const Pointf3* RubberBand::selectNearest(const Pointf3& p)
  * to ensure inter-layer connectivity.
  * Endpoints connecting an smd-pin are extended to the opposite of the pin if extendPinX is true.
  * extension_length and result in scaled coordinates.
+ * Resulting segments preserve order from a to b.
  */
-bool RubberBand::getLayerSegments(const double z_bottom, const double z_top, const coord_t layer_overlap, Lines* segments, bool extendPinA, bool extendPinB)
+bool RubberBand::getLayerSegments(const double z_bottom, const double z_top, const coord_t layer_overlap, Lines* segments, bool* overlap_a, bool* overlap_b) const
 {
     bool result = false;
 
@@ -126,9 +143,8 @@ bool RubberBand::getLayerSegments(const double z_bottom, const double z_top, con
             segment.a.y = scale_(this->a.y);
 
             // if this is a pad, extend to pad perimeter
-            if(this->netPointA->getType() == PART && extendPinA) {
-                Pointf3 p = this->netPointA->getRouteExtension(this->b);
-                Line padExtension(segment.a, Point(scale_(p.x), scale_(p.y)));
+            if(!this->_pinAExtension.coincides_with(this->a)) {
+                Line padExtension(Point(scale_(this->_pinAExtension.x), scale_(this->_pinAExtension.y)), segment.a);
                 segments->push_back(padExtension);
             }
 
@@ -148,37 +164,44 @@ bool RubberBand::getLayerSegments(const double z_bottom, const double z_top, con
             segment.b.x = scale_(this->b.x);
             segment.b.y = scale_(this->b.y);
 
-            // if this is a pad, extend to pad perimeter
-            if(this->netPointB->getType() == PART && extendPinB) {
-                Pointf3 p = this->netPointB->getRouteExtension(this->a);
-                Line padExtension(segment.b, Point(scale_(p.x), scale_(p.y)));
-                segments->push_back(padExtension);
-            }
-
             extend_b = false;
         }
 
-        if(extend_a) {
+        if(extend_a && layer_overlap > 0) {
+            //segment.extend_start(layer_overlap);
             Line l(segment);
             l.extend_start(layer_overlap/2);
             l.b = segment.a;
             // move 2. half of overlap to l if possible to ensure proper overlap for routing
             if(segment.length() > layer_overlap/2) {
                 segment.extend_start(-layer_overlap/2);
-                l.extend_end(layer_overlap/2);
+                l.b = segment.a;
             }
             segments->push_back(l);
         }
 
-        if(extend_b) {
+        if(extend_b && layer_overlap > 0) {
+            //segment.extend_end(layer_overlap);
             Line l(segment);
             l.extend_end(layer_overlap/2);
             l.a = segment.b;
             if(segment.length() > layer_overlap/2) {
                 segment.extend_end(-layer_overlap/2);
-                l.extend_start(layer_overlap/2);
+                l.a = segment.b;
             }
+            // preserve order of lines! a-extension is pushed first, then segment
+            segments->push_back(segment);
             segments->push_back(l);
+        }else{
+            // preserve order of lines! a-extension is pushed first, then segment
+            segments->push_back(segment);
+        }
+
+        // and then b extension
+        // if this is a pad, extend to pad perimeter
+        if(!extend_b && !this->_pinBExtension.coincides_with(this->b)) {
+            Line padExtension(segment.b, Point(scale_(this->_pinBExtension.x), scale_(this->_pinBExtension.y)));
+            segments->push_back(padExtension);
         }
 
         // if only one point touches the layer, length will be 0
@@ -186,7 +209,34 @@ bool RubberBand::getLayerSegments(const double z_bottom, const double z_top, con
             result = false;
         }
 
-        segments->push_back(segment);
+        // set overlap flags
+        *overlap_a = extend_a;
+        *overlap_b = extend_b;
+    }
+
+    return result;
+}
+
+/* Computes the segment of the full rubberband.
+ * Endpoints connecting an smd-pin are extended to the opposite of the pin if extendPinX is true.
+ * extension_length and result in scaled coordinates.
+ */
+Line3s RubberBand::getExtendedSegmets() const
+{
+    Line3s result;
+
+    // if this is a pad, extend to pad perimeter
+    if(!this->_pinAExtension.coincides_with(this->a)) {
+        Line3 padExtension(this->_pinAExtension.scaled_point3(), this->a.scaled_point3());
+        result.push_back(padExtension);
+    }
+    // actual rubberband line
+    result.push_back(Line3(this->a.scaled_point3(), this->b.scaled_point3()));
+
+    // extend pad b?
+    if(!this->_pinBExtension.coincides_with(this->b)) {
+        Line3 padExtension(this->b.scaled_point3(), this->_pinBExtension.scaled_point3());
+        result.push_back(padExtension);
     }
 
     return result;
