@@ -244,6 +244,30 @@ PrintConfigDef::PrintConfigDef()
     def->min = 0;
     def->default_value = new ConfigOptionFloat(0.0);
 
+    def = this->add("conductive_wire_routing_perimeter_factor", coFloat);
+    def->label = "Routing perimeter factor";
+    def->tooltip = "Outer perimeters will be weighed with n * factor to draw routing towards infill.";
+    def->sidetext = "";
+    def->cli = "conductive_wire_routing_perimeter_factor=f";
+    def->min = 0;
+    def->default_value = new ConfigOptionFloat(0.1);
+
+    def = this->add("conductive_wire_routing_hole_factor", coFloat);
+    def->label = "Routing hole factor";
+    def->tooltip = "Holes in the object are weighed by this factor, a high value causes the algorithm to avoid crossing holes.";
+    def->sidetext = "";
+    def->cli = "conductive_wire_routing_hole_factor=f";
+    def->min = 0;
+    def->default_value = new ConfigOptionFloat(2.0);
+
+    def = this->add("conductive_wire_routing_interlayer_factor", coFloat);
+    def->label = "Routing interlayer factor";
+    def->tooltip = "How much should we avoid layer changes?.";
+    def->sidetext = "";
+    def->cli = "conductive_wire_routing_interlayer_factor=f";
+    def->min = 0;
+    def->default_value = new ConfigOptionFloat(5.0);
+
     def = this->add("conductive_wire_slope_overlap", coFloat);
     def->label = "Slope overlap";
     def->tooltip = "Controls the length of overlap for sloped wires which are realized by a 'stair' of overlapping horizontal wires.";

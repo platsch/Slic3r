@@ -416,6 +416,10 @@ void PrintObject::make_electronic_wires()
         coord_t layer_overlap = scale_(this->print()->default_object_config.conductive_wire_slope_overlap);
         const double conductive_wire_channel_width = this->print()->default_object_config.conductive_wire_channel_width;
 
+        const double conductive_wire_routing_perimeter_factor = this->print()->default_object_config.conductive_wire_routing_perimeter_factor;
+        const double conductive_wire_routing_hole_factor = this->print()->default_object_config.conductive_wire_routing_hole_factor;
+        const double conductive_wire_routing_interlayer_factor = this->print()->default_object_config.conductive_wire_routing_interlayer_factor;
+
         // initialize values for flow calculation
         ConfigOptionFloatOrPercent extrusion_width = this->print()->default_object_config.conductive_wire_extrusion_width;
         unsigned int extruder = this->print()->default_region_config.conductive_wire_extruder.getInt();
@@ -453,18 +457,34 @@ void PrintObject::make_electronic_wires()
         // Final wire generation. Raw rubberband-based wires
         // are routed by contour following, clipped, longest segment first etc.
         // this could be parallelized
+        ElectronicWireRouter ewr(layer_overlap,
+                conductive_wire_routing_perimeter_factor,
+                conductive_wire_routing_hole_factor,
+                conductive_wire_routing_interlayer_factor,
+                this->layer_count() + 1);
         FOREACH_LAYER(this, layer) {
-            if((*layer)->unrouted_wires.size() > 0) {
-                ElectronicWireGenerator ewg(
-                        (*layer),
-                        extrusion_width,
-                        extrusion_overlap,
-                        first_extrusion_overlap,
-                        overlap_min_extrusion_length,
-                        conductive_wire_channel_width);
-                ewg.process();
+            ElectronicWireGenerator ewg(
+                    (*layer),
+                    ewr.last_ewg(),
+                    extrusion_width,
+                    extrusion_overlap,
+                    first_extrusion_overlap,
+                    overlap_min_extrusion_length,
+                    conductive_wire_channel_width);
+            ewr.append_wire_generator(ewg);
+        }
+
+        RubberBandPtrs* rbs = this->_schematic->getRubberBands();
+        // translate to objects origin
+        Point3 offset(this->size.x/2, this->size.y/2);
+        for (auto rb : *rbs) {
+            if(rb->isWired()) {
+                ewr.route(rb, offset);
             }
         }
+
+        // generate actual wires
+        ewr.generate_wires();
 
         // make beds and channels
         FOREACH_LAYER(this, layer) {

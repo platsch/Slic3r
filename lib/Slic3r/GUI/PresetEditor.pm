@@ -477,7 +477,9 @@ sub options {
         infill_overlap bridge_flow_ratio
         xy_size_compensation resolution shortcuts compatible_printers
         conductive_cavity_offset conductive_wire_channel_width conductive_wire_extrusion_overlap conductive_wire_first_extrusion_overlap
-        conductive_wire_overlap_min_extrusion_length conductive_wire_slope_overlap conductive_pnp_manual_gcode
+        conductive_wire_overlap_min_extrusion_length conductive_wire_slope_overlap
+        conductive_wire_routing_perimeter_factor conductive_wire_routing_hole_factor conductive_wire_routing_interlayer_factor
+        conductive_pnp_manual_gcode
         print_settings_id
     )
 }
@@ -767,6 +769,12 @@ sub build {
             $optgroup->append_single_option_line('conductive_wire_first_extrusion_overlap');
             $optgroup->append_single_option_line('conductive_wire_overlap_min_extrusion_length');
             $optgroup->append_single_option_line('conductive_wire_slope_overlap');
+        }
+        {
+            my $optgroup = $page->new_optgroup('Conductive wire routing');
+            $optgroup->append_single_option_line('conductive_wire_routing_perimeter_factor');
+            $optgroup->append_single_option_line('conductive_wire_routing_hole_factor');
+            $optgroup->append_single_option_line('conductive_wire_routing_interlayer_factor');
         }
         {
             my $optgroup = $page->new_optgroup('SMD-components');
