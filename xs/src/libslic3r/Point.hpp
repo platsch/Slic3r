@@ -96,14 +96,14 @@ operator+=(Points &dst, const Point &p) {
     return dst;
 };
 
+std::ostream& operator<<(std::ostream &stm, const Point3 &point3);
+
 class Point3 : public Point
 {
     public:
     coord_t z;
     explicit Point3(coord_t _x = 0, coord_t _y = 0, coord_t _z = 0): Point(_x, _y), z(_z) {};
-    static Point3 new_scale(coordf_t x, coordf_t y, coordf_t z) {
-        return Point3(scale_(x), scale_(y), scale_(z));
-    };
+    explicit Point3(Point p, coord_t _z = 0): Point(p), z(_z) {};
     bool operator==(const Point3& rhs) const;
     std::string wkt() const;
     void scale(double factor);
@@ -112,6 +112,8 @@ class Point3 : public Point
     void rotate_z(double angle);
     void rotate_z(double angle, const Point3 &center);
     bool coincides_with(const Point3 &point) const { return this->x == point.x && this->y == point.y && this->z == point.z; }
+    bool coincides_with_epsilon(const Point3 &point) const;
+    double distance_to(const Point3 &point) const;
 };
 
 std::ostream& operator<<(std::ostream &stm, const Pointf &pointf);
@@ -135,6 +137,8 @@ class Pointf
     void translate(const Vectorf &vector);
     void rotate(double angle);
     void rotate(double angle, const Pointf &center);
+    bool coincides_with(const Pointf &point) const { return this->x == point.x && this->y == point.y; }
+    bool coincides_with_epsilon(const Pointf &point) const;
     Pointf negative() const;
     Vectorf vector_to(const Pointf &point) const;
 };
@@ -150,12 +154,15 @@ class Pointf3 : public Pointf
     static Pointf3 new_unscale(const Point3 &p) {
         return Pointf3(unscale(p.x), unscale(p.y), unscale(p.z));
     };
+    Point3 scaled_point3() const;
     std::string wkt() const;
     void scale(double factor);
     void translate(const Vectorf3 &vector);
     void translate(double x, double y, double z);
     void rotate_z(double angle);
     void rotate_z(double angle, const Pointf3 &center);
+    bool coincides_with(const Pointf3 &point) const { return this->x == point.x && this->y == point.y && this->z == point.z; }
+    bool coincides_with_epsilon(const Pointf3 &point) const;
     double distance_to(const Pointf3 &point) const;
     Pointf3 negative() const;
     Vectorf3 vector_to(const Pointf3 &point) const;
@@ -237,6 +244,20 @@ namespace std
             size_t res = 17;
             res = res * 31 + hash<coord_t>()( p.x );
             res = res * 31 + hash<coord_t>()( p.y );
+            return res;
+        }
+    };
+
+    template <>
+    struct hash<Point3>
+    {
+        size_t operator()( const Point3& p ) const
+        {
+            // http://stackoverflow.com/a/1646913/126995
+            size_t res = 17;
+            res = res * 31 + hash<coord_t>()( p.x );
+            res = res * 31 + hash<coord_t>()( p.y );
+            res = res * 31 + hash<coord_t>()( p.z );
             return res;
         }
     };
