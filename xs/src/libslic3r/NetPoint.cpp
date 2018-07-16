@@ -9,11 +9,8 @@ NetPoint::NetPoint(const NetPoint &other)
 }
 
 NetPoint::NetPoint(const unsigned int key, const netPointType type, const std::string net, const Pointf3 point)
+    : key(key), type(type), netName(net), point(point)
 {
-    this->key = key;
-    this->type = type;
-    this->netName = net;
-    this->point = point;
 }
 
 NetPoint::~NetPoint()
