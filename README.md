@@ -31,6 +31,8 @@ If you want to compile the source yourself follow the instructions on one of the
 * [Windows](https://github.com/alexrj/Slic3r/wiki/Running-Slic3r-from-git-on-Windows)
 * [Mac OSX](https://github.com/alexrj/Slic3r/wiki/Running-Slic3r-from-git-on-OS-X)
 
+all electronics branches additionally require the libxml2-dev and libxml-perl packages.
+
 ### Directory structure
 
 * `Build.PL`: this script installs dependencies into `local-lib/`, compiles the C++ part and runs tests
