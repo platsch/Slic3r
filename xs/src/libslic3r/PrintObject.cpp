@@ -540,6 +540,14 @@ void PrintObject::make_electronic_wires()
         for (ElectronicParts::const_iterator part = partlist->begin(); part != partlist->end(); ++part) {
             (*part)->resetPrintedStatus();
         }
+
+        // make slices by merging all slices from layer regions
+        for(auto &layer : this->layers) {
+            if(layer->isDirty()) {
+                layer->make_slices();
+                layer->setDirty(false);
+            }
+        }
     }
 }
 
