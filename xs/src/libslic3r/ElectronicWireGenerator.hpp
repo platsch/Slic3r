@@ -66,7 +66,7 @@ public:
     const coordf_t get_bottom_z() const;
     const coordf_t get_scaled_bottom_z() const;
     ExPolygonCollections* get_contour_set();
-    WireSegments get_wire_segments(Lines& wire, const double routing_hole_factor);
+    WireSegments get_wire_segments(Lines& wire, const double routing_perimeter_factor, const double routing_hole_factor);
     void add_routed_wire(Polyline &routed_wire);
 
     void generate_wires();

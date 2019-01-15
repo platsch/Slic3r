@@ -75,7 +75,7 @@ ElectronicWireGenerator::get_contour_set()
  * Intersection points are added to the contour polygons.
  */
 WireSegments
-ElectronicWireGenerator::get_wire_segments(Lines& wire, const double routing_hole_factor)
+ElectronicWireGenerator::get_wire_segments(Lines& wire, const double routing_perimeter_factor, const double routing_hole_factor)
 {
     // ensure deflated slices are properly initialized
     if(this->deflated_slices.size() < 1) {
@@ -83,11 +83,11 @@ ElectronicWireGenerator::get_wire_segments(Lines& wire, const double routing_hol
     }
 
     WireSegments segments;
-    double edge_weight_factor = 1.0 + max_perimeters * 0.1;
+    double edge_weight_factor = 1.0 + this->max_perimeters * routing_perimeter_factor;
     for(auto &line : wire) {
         WireSegment segment;
         segment.line = line;
-        for(int current_perimeters = 0; current_perimeters < max_perimeters; current_perimeters++) {
+        for(int current_perimeters = 0; current_perimeters < this->max_perimeters; current_perimeters++) {
             Line iteration_line = line;
             Line collision_line = line; // reset line for next iteration
             while(true) {

@@ -62,7 +62,7 @@ ElectronicWireRouter::route(const RubberBand* rb, const Point3 offset)
             }
             // this MUST be done before get_contour_set() since it adds points to the
             // polygons at intersections!!
-            wire_segments = ewg.get_wire_segments(wire, this->routing_hole_factor);
+            wire_segments = ewg.get_wire_segments(wire, this->routing_perimeter_factor, this->routing_hole_factor);
             // Add connecting lines to graph!!!
         }
         ExPolygonCollections* contours = ewg.get_contour_set();
