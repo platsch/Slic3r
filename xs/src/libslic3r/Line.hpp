@@ -42,6 +42,8 @@ class Line
     bool overlap_with(const Line &other, Line* line) const;
     /// Check if this line fully contains the other line. No common endpoints.
     bool contains(const Line &other) const;
+    /// Check if point is on this line
+    bool contains(const Point &point) const;
     double atan2_() const;
     double orientation() const;
     double direction() const;

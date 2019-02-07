@@ -197,6 +197,12 @@ Line::contains(const Line &other) const
     return result;
 }
 
+bool
+Line::contains(const Point &point) const
+{
+    return (point.distance_to(*this) < SCALED_EPSILON);
+}
+
 Vector
 Line::vector() const
 {

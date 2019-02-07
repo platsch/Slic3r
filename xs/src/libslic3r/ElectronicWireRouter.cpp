@@ -46,7 +46,7 @@ ElectronicWireRouter::route(const RubberBand* rb, const Point3 offset)
 
     // (re-)build routing graph
     Lines wire, last_wire;
-    bool overlap_wire_a , overlap_wire_b, last_overlap_wire_a, last_overlap_wire_b;
+    bool overlap_wire_a , overlap_wire_b;
     for (auto &ewg : this->ewgs) {
         coord_t print_z = ewg.get_scaled_print_z();
         coord_t bottom_z = ewg.get_scaled_bottom_z();
@@ -80,7 +80,7 @@ ElectronicWireRouter::route(const RubberBand* rb, const Point3 offset)
          }
         infill_surfaces_map[print_z] = &(contours->back());
 
-/*        // debug output graph
+        // debug output graph
         //SVG svg_graph("graph_visitor");
         std::ostringstream ss1;
         ss1 << "base_contours_";
@@ -96,10 +96,7 @@ ElectronicWireRouter::route(const RubberBand* rb, const Point3 offset)
                 boost::property_map<routing_graph_t, boost::edge_weight_t>::type EdgeWeightMap = boost::get(boost::edge_weight_t(), routing_graph);
                 coord_t weight = boost::get(EdgeWeightMap, *ei);
                 double w = weight / l.length();
-                w -=0.99;
-                w = w*1000;
-                //std::cout << "w for debug: " << w << std::endl;
-                int w_int = std::min((int)w, 255);
+                int w_int = std::min((int)((w-1)*1000), 255);
                 std::ostringstream ss;
                 ss << "rgb(" << 100 << "," << w_int << "," << w_int << ")";
                 std::string color = ss.str();
@@ -111,13 +108,13 @@ ElectronicWireRouter::route(const RubberBand* rb, const Point3 offset)
                 //}
                 svg_graph1.draw(l,  color, scale_(0.2));
             }
-        }*/
+        }
 
 
         // add wire segments to the graph
         for(auto &segment : wire_segments) {
 
-//            svg_graph1.draw(segment.line, "blue", scale_(0.1));
+            svg_graph1.draw(segment.line, "blue", scale_(0.1));
             float connecting_l_offset = 1;
             if(std::abs(segment.line.a.y - segment.line.b.y) < 1000) {
                 connecting_l_offset = 0;
@@ -135,13 +132,14 @@ ElectronicWireRouter::route(const RubberBand* rb, const Point3 offset)
                 Slic3r::add_point_edge(Line3(l, print_z), routing_graph, graph_point_index, &edge, edge_weight_factor);
                 segment.edges.insert(edge);
 
- //               Line dbg = l;
- //               dbg.translate(scale_(connecting_l_offset), 0);
- //               std::ostringstream ss;
- //               ss << "rgb(" << 100 << "," << edge_weight_factor*100 << "," << edge_weight_factor*100 << ")";
- //               std::string color = ss.str();
-                //svg_graph1.draw(dbg, color, scale_(0.2));
- //               float debug_offset = 0.0;
+                Line dbg = l;
+                //dbg.translate(scale_(connecting_l_offset), 0);
+                std::ostringstream ss;
+                int w = std::min((int)((edge_weight_factor-1)*1000), 255);
+                ss << "rgb(" << 100 << "," << w << "," << w << ")";
+                std::string color = ss.str();
+                svg_graph1.draw(dbg, color, scale_(0.2));
+                float debug_offset = 0.0;
 
                 for(int j=i+1; j<segment.connecting_lines.size(); j++) {
                     bool add_overlaps = false;
@@ -154,9 +152,10 @@ ElectronicWireRouter::route(const RubberBand* rb, const Point3 offset)
                         add_overlaps = true;
                     }
                     if(add_overlaps) {
- //                       std::ostringstream ss;
- //                       ss << "rgb(" << 100 << "," << edge_weight_factor*100 << "," << edge_weight_factor*100 << ")";
- //                       std::string color = ss.str();
+                        std::ostringstream ss;
+                        w = std::min((int)((edge_weight_factor-1)*1000), 255);
+                        ss << "rgb(" << 100 << "," << w << "," << w << ")";
+                        std::string color = ss.str();
 
                         // add points of 2nd line
                         Slic3r::add_point_vertex(Point3(segment.connecting_lines[j].first.a, print_z), routing_graph, graph_point_index);
@@ -166,43 +165,45 @@ ElectronicWireRouter::route(const RubberBand* rb, const Point3 offset)
                         segment.edges.insert(edge);
 
                         Line d = Line(segment.connecting_lines[i].first.a, segment.connecting_lines[j].first.b);
- //                       d.translate(scale_(connecting_l_offset+debug_offset+0.15), 0);
- //                       //svg_graph1.draw(d, color, scale_(0.1));
+                        //d.translate(scale_(connecting_l_offset+debug_offset+0.15), 0);
+                        svg_graph1.draw(d, color, scale_(0.1));
 
                         Slic3r::add_point_edge(Line3(segment.connecting_lines[j].first.a, segment.connecting_lines[i].first.b, print_z), routing_graph, graph_point_index, &edge, edge_weight_factor);
                         segment.edges.insert(edge);
 
- //                       d = Line(segment.connecting_lines[j].first.a, segment.connecting_lines[i].first.b);
- //                       d.translate(scale_(connecting_l_offset+debug_offset+0.3), 0);
-                        //svg_graph1.draw(d, color, scale_(0.1));
- //                       debug_offset += 0.4;
+                        d = Line(segment.connecting_lines[j].first.a, segment.connecting_lines[i].first.b);
+                        //d.translate(scale_(connecting_l_offset+debug_offset+0.3), 0);
+                        svg_graph1.draw(d, color, scale_(0.1));
+                        debug_offset += 0.4;
                     }
                 }
-//                if(l.b.coincides_with_epsilon(segment.line.b)) {
-//                    connecting_l_offset += 1;
-//                }
-//                if(std::abs(segment.line.a.y - segment.line.b.y) < 1000) {
-//                    connecting_l_offset = 0;
- //               }
+                if(l.b.coincides_with_epsilon(segment.line.b)) {
+                    connecting_l_offset += 1;
+                }
+                if(std::abs(segment.line.a.y - segment.line.b.y) < 1000) {
+                    connecting_l_offset = 0;
+                }
             }
         }
- //       svg_graph1.Close();
+        //svg_graph1.Close();
 
         // add direct z-interconnects to the graph
         if(last_wire.size() > 0 && wire.size() > 0) {
             double edge_weight_factor = 1.0 + (ewg.max_perimeters-1) * this->routing_perimeter_factor;
             Point3 a, b;
             bool interconnect = false;
-            if(overlap_wire_a && last_overlap_wire_b) {
-                a = Point3(last_wire.back().b, print_z);
-                b = Point3(wire.front().a, bottom_z);
+            // overlapping wires
+            if((last_wire.front()).contains(wire.back().b) && (wire.back().contains(last_wire.front().a))) {
+                a = Point3(wire.back().b, bottom_z);
+                b = Point3(last_wire.front().a, print_z);
                 interconnect = true;
             }
-            if(overlap_wire_b && last_overlap_wire_a) {
-                a = Point3(last_wire.front().a, print_z);
-                b = Point3(wire.back().b, bottom_z);
+            if((last_wire.back()).contains(wire.front().a) && (wire.front().contains(last_wire.back().b))) {
+                a = Point3(wire.front().a, bottom_z);
+                b = Point3(last_wire.back().b, print_z);
                 interconnect = true;
             }
+
             if(interconnect) {
                 routing_edge_t edge;
 
@@ -218,13 +219,22 @@ ElectronicWireRouter::route(const RubberBand* rb, const Point3 offset)
                     }
                 }
 
-                //Slic3r::add_point_edge(Line3(a, b), routing_graph, graph_point_index, &edge, this->routing_interlayer_factor);
+                svg_graph1.draw(last_wire, "yellow", scale_(0.2));
+                svg_graph1.draw(wire, "blue", scale_(0.15));
+                svg_graph1.draw((Point)b, "green", scale_(0.1));
+
+
                 coord_t distance = ((Point)a).distance_to((Point)b) * edge_weight_factor;
                 if(!contours->back().contains_b(a) || !contours->back().contains_b(b)) {
                     distance = distance * this->routing_hole_factor;
                 }
                 distance += scale_(this->routing_interlayer_factor);
-                edge = boost::add_edge(graph_point_index.at(a), graph_point_index.at(b), distance, routing_graph).first;
+
+                // use the helper function to catch map misses
+                Line3 l(a, b);
+                double edge_weight_factor = distance/l.length();
+                Slic3r::add_point_edge(l, routing_graph, graph_point_index, &edge, edge_weight_factor);
+
                 Polyline pl;
                 pl.append((Point)a);
                 pl.append((Point)b);
@@ -233,8 +243,8 @@ ElectronicWireRouter::route(const RubberBand* rb, const Point3 offset)
         }
 
         last_wire = wire;
-        last_overlap_wire_a = overlap_wire_a;
-        last_overlap_wire_b = overlap_wire_b;
+
+        svg_graph1.Close();
 
   /*      // debug output graph
        std::ostringstream ss;
@@ -288,7 +298,7 @@ ElectronicWireRouter::route(const RubberBand* rb, const Point3 offset)
     std::cout << "goal: " << lines.back().b << std::endl;
 
     // A* visitor
-    astar_visitor<routing_graph_t, routing_vertex_t, ExpolygonsMap> vis(
+    astar_visitor<routing_graph_t, routing_vertex_t, routing_edge_t, ExpolygonsMap> vis(
             goal,
             infill_surfaces_map,
             z_positions,
@@ -332,13 +342,23 @@ ElectronicWireRouter::route(const RubberBand* rb, const Point3 offset)
 
             // layer change
             if(last_z != pointmap[v].z) {
+
                 // apply interlayer overlaps
                 routing_edge_t edge = boost::edge(v, last_v, routing_graph).first;
-                Polyline overlap = interlayer_overlaps[edge];
+
+                Polyline overlap;
+                try {
+                   overlap = interlayer_overlaps.at(edge); // map::at throws an out-of-range
+               } catch (const std::out_of_range& oor) {
+                   std::cerr << "Unable to find overlap for edge: " << oor.what() << '\n';
+                   std::cout << "Edge was: " << edge << std::endl;
+               }
+
                 // correct direction?
                 if(!overlap.first_point().coincides_with_epsilon(routed_wire.last_point())) {
                     overlap.reverse();
                 }
+
                 for (Points::iterator p = overlap.points.begin()+1; p != overlap.points.end(); ++p) {
                     routed_wire.append(*p);
                 }
@@ -353,6 +373,7 @@ ElectronicWireRouter::route(const RubberBand* rb, const Point3 offset)
             last_v = v;
             routed_wire.append((Point)pointmap[v]);
         }
+
         this->z_map[last_z]->add_routed_wire(routed_wire);
     }
 

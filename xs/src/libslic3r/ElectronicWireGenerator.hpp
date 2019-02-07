@@ -198,7 +198,7 @@ public:
         CostType dx = m_location[m_goal].x - m_location[u].x;
         CostType dy = m_location[m_goal].y - m_location[u].y;
         CostType dz = m_location[m_goal].z - m_location[u].z;
-        return ::sqrt(dx * dx + dy * dy + dz * dz);
+        return ::sqrt(dx * dx + dy * dy + dz * dz)*1;
     }
 private:
     LocMap m_location;
@@ -207,7 +207,7 @@ private:
 
 // Visitor that terminates when we find the goal
 struct found_goal {}; // exception for termination
-template <class Graph, class Vertex, class Surfaces>
+template <class Graph, class Vertex, class Edge, class Surfaces>
 class astar_visitor : public boost::default_astar_visitor
 {
 public:
@@ -220,7 +220,12 @@ public:
             const double routing_explore_weight_factor,
             const double routing_interlayer_factor,
             const double layer_overlap)
-    : m_goal(goal), surfaces(surfaces), z_positions(z_positions), interlayer_overlaps(interlayer_overlaps), step_distance(step_distance), point_index(point_index), routing_explore_weight_factor(routing_explore_weight_factor), routing_interlayer_factor(routing_interlayer_factor), layer_overlap(layer_overlap), debug(false) {}
+    : m_goal(goal), surfaces(surfaces), z_positions(z_positions), interlayer_overlaps(interlayer_overlaps), step_distance(step_distance), point_index(point_index), routing_explore_weight_factor(routing_explore_weight_factor), routing_interlayer_factor(routing_interlayer_factor), layer_overlap(layer_overlap), debug(true), debug_trigger(true) {}
+
+    void black_target(Edge e, Graph const& g) {
+        std::cout << "REOPEN VERTEX!!!" << std::endl;
+    }
+
     void examine_vertex(Vertex u, Graph const& g) {
         //std::cout << "examine vertex " << u << " vs goal " << m_goal <<  std::endl;
 
@@ -231,7 +236,6 @@ public:
         if(debug || (u == m_goal)) {
             std::cout << "explore factor: " << this->routing_explore_weight_factor << " interlayer factor: " << this->routing_interlayer_factor << " layer_overlap: " << this->layer_overlap << std::endl;
             // debug output graph
-            //SVG svg_graph("graph_visitor");
             std::ostringstream ss;
             ss << "graph_visitor_";
             ss << print_z;
@@ -246,20 +250,33 @@ public:
                     boost::property_map<routing_graph_t, boost::edge_weight_t>::type EdgeWeightMap = boost::get(boost::edge_weight_t(), g_i);
                     coord_t weight = boost::get(EdgeWeightMap, *ei);
                     double w = weight / l.length();
-                    w -=0.99;
-                    w = w*500;
-                    //std::cout << "w for debug: " << w << std::endl;
+                    w = w*20;
                     int w_int = std::min((int)w, 255);
-                    std::ostringstream ss;
-                    ss << "rgb(" << 100 << "," << w_int << "," << w_int << ")";
-                    std::string color = ss.str();
+                    std::string color;
+                    if(w_int < 0) {
+                        color = "green";
+                    }else{
+                        std::ostringstream ss;
+                        ss << "rgb(" << 100 << "," << w_int << "," << w_int << ")";
+                        color = ss.str();
+                    }
+                    // interlayer-connections
+                    if(g[boost::source(*ei, g)].point.z != g[boost::target(*ei, g)].point.z) {
+                        color = "green";
+                    }
                     //std::cout << "color: " << color << std::endl;
                     //if(g[boost::source(*ei, g)].color == boost::white_color) {
                     //    svg_graph.draw(l,  "white", scale_(0.1));
                     //}else{
                     //    svg_graph.draw(l,  "blue", scale_(0.1));
                     //}
-                    svg_graph.draw(l,  "red", scale_(0.1));
+                    svg_graph.draw(l, color, scale_(0.1));
+                    svg_graph.draw(l.a, "red", scale_(0.1));
+                    svg_graph.draw(l.b, "red", scale_(0.1));
+                    if(l.length() < 2) {
+                        svg_graph.draw(l.a, "red", scale_(0.2));
+                        std::cout << "line lenght 0, z_a: " << g[boost::source(*ei, g)].point.z << " z_b: " << g[boost::target(*ei, g)].point.z << std::endl;
+                    }
                 }
             }
 
@@ -269,7 +286,7 @@ public:
             Point last_point = (Point)g[u].point;
             for(routing_vertex_t v = u;; v = predmap[v]) {
                 Line l = Line(last_point, (Point)g[v].point);
-                svg_graph.draw(l,  "blue", scale_(0.3));
+                svg_graph.draw(l,  "blue", scale_(0.07));
                 last_point = (Point)g[v].point;
                 if(predmap[v] == v)
                     break;
@@ -279,10 +296,12 @@ public:
 
             char ch;
             char d = 'd';
-            if(debug) {
+            char c = 'c';
+            if(debug && debug_trigger) {
                 std::cin >> ch;
             }
 
+            if(ch == c) debug_trigger = false;
             if(ch == d) debug = false;
         }
 
@@ -341,7 +360,10 @@ public:
                     Vertex v;
                     Slic3r::add_point_vertex(Point3(p, print_z), g_i, *point_index, &v);
                     coord_t distance = vertex_p.distance_to(p) * routing_explore_weight_factor;
-                    boost::add_edge(u, v, distance, g_i);
+                    // avoid self-loops
+                    if(u != v) {
+                        boost::add_edge(u, v, distance, g_i);
+                    }
                 }
             }
         }
@@ -508,6 +530,7 @@ private:
     const double routing_interlayer_factor;
     const double layer_overlap;
     bool debug;
+    bool debug_trigger;
 };
 }
 
