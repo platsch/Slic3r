@@ -1092,7 +1092,78 @@ void PrintObject::_slice()
         }
         this->delete_layer(int(this->layers.size()) - 1);
     }
-    
+
+    if(this->layers.size() > 35) {
+        auto &slice_1 = this->layers[10]->regions[0]->slices.surfaces[0].expolygon;
+        auto &slice_40 = this->layers[30]->regions[0]->slices.surfaces[0].expolygon;
+
+        SVG svg_baseline("layer_1.svg");
+        for(auto &l : slice_1.contour.lines()) {
+            svg_baseline.draw(l, "black", scale_(0.9));
+        }
+        for(auto &p : slice_1.holes) {
+            for(auto &l : p.lines()) {
+                svg_baseline.draw(l, "black", scale_(0.9));
+            }
+        }
+        svg_baseline.draw(slice_1, "red", scale_(0.9));
+        svg_baseline.Close();
+
+        SVG svg_topline("layer_40.svg");
+        for(auto &l : slice_40.contour.lines()) {
+            svg_topline.draw(l, "black", scale_(0.9));
+        }
+        for(auto &p : slice_40.holes) {
+            for(auto &l : p.lines()) {
+                svg_topline.draw(l, "black", scale_(0.9));
+            }
+        }
+        svg_topline.draw(slice_40, "red", scale_(0.9));
+        svg_topline.Close();
+    }
+
+    // remove collinear points from slice polygons (artifacts from stl-triangulation)
+    std::queue<SurfaceCollection*> queue;
+    for (Layer* layer : this->layers) {
+        for (LayerRegion* layerm : layer->regions) {
+            queue.push(&layerm->slices);
+        }
+    }
+    parallelize<SurfaceCollection*>(
+        queue,
+        boost::bind(&Slic3r::SurfaceCollection::remove_collinear_points, _1),
+        this->_print->config.threads.value
+    );
+
+    if(this->layers.size() > 35) {
+        auto &slice_1 = this->layers[10]->regions[0]->slices.surfaces[0].expolygon;
+        auto &slice_40 = this->layers[30]->regions[0]->slices.surfaces[0].expolygon;
+
+        SVG svg_baseline("layer_1_no_collinear.svg");
+        for(auto &l : slice_1.contour.lines()) {
+            svg_baseline.draw(l, "black", scale_(0.9));
+        }
+        for(auto &p : slice_1.holes) {
+            for(auto &l : p.lines()) {
+                svg_baseline.draw(l, "black", scale_(0.9));
+            }
+        }
+        svg_baseline.draw(slice_1, "red", scale_(0.9));
+        svg_baseline.Close();
+
+        SVG svg_topline("layer_40_no_collinear.svg");
+        for(auto &l : slice_40.contour.lines()) {
+            svg_topline.draw(l, "black", scale_(0.9));
+        }
+        for(auto &p : slice_40.holes) {
+            for(auto &l : p.lines()) {
+                svg_topline.draw(l, "black", scale_(0.9));
+            }
+        }
+        svg_topline.draw(slice_40, "red", scale_(0.9));
+        svg_topline.Close();
+    }
+
     // Apply size compensation and perform clipping of multi-part objects.
     const coord_t xy_size_compensation = scale_(this->config.xy_size_compensation.value);
     for (Layer* layer : this->layers) {
