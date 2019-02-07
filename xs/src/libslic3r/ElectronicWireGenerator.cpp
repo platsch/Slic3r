@@ -83,11 +83,11 @@ ElectronicWireGenerator::get_wire_segments(Lines& wire, const double routing_per
     }
 
     WireSegments segments;
-    double edge_weight_factor = 1.0 + this->max_perimeters * routing_perimeter_factor;
     for(auto &line : wire) {
         WireSegment segment;
         segment.line = line;
         for(int current_perimeters = 0; current_perimeters < this->max_perimeters; current_perimeters++) {
+            double edge_weight_factor = 1.0 + (this->max_perimeters-current_perimeters-1) * routing_perimeter_factor;
             Line iteration_line = line;
             Line collision_line = line; // reset line for next iteration
             while(true) {
@@ -152,19 +152,17 @@ ElectronicWireGenerator::generate_wires()
     // collect routed wires
     for(Polyline &pl : this->routed_wires) {
         Lines ls = pl.lines();
-        //lines.insert(lines.end(), ls.begin(), ls.end());
         std::copy(ls.begin(), ls.end(), std::back_inserter(lines));
     }
 
     this->routed_wires.clear();
     while(lines.size() > 0) {
         Polyline pl;
-        std::list<Line>::const_iterator line2;
         // find an endpoint
-        for (std::list<Line>::iterator line1 = lines.begin(); line1 != lines.end(); ++line1) {
+        for (std::list<Line>::const_iterator line1 = lines.begin(); line1 != lines.end(); ++line1) {
             int hitsA = 0;
             int hitsB = 0;
-            for (std::list<Line>::iterator line2 = lines.begin(); line2 != lines.end(); ++line2) {
+            for (std::list<Line>::const_iterator line2 = lines.begin(); line2 != lines.end(); ++line2) {
                 if(line1 == line2) {
                     continue;
                 }
@@ -187,6 +185,15 @@ ElectronicWireGenerator::generate_wires()
                 lines.erase(line1);
                 break;
             }
+        }
+
+        if(pl.points.size() < 1) {
+            std::cerr << "ERROR: routed wire has no endpoint! This should never happen" << std::endl;
+            std::cerr << "remaining lines are: " << std::endl;
+            for(Line &l : lines) {
+                std::cerr << l.wkt() << std::endl;
+            }
+            break;
         }
 
         // we now have an endpoint, traverse lines
