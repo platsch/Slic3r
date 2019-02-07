@@ -163,6 +163,7 @@ class PrintObjectConfig : public virtual StaticPrintConfig
     ConfigOptionFloatOrPercent      conductive_wire_extrusion_width;
     ConfigOptionFloat               conductive_wire_first_extrusion_overlap;
     ConfigOptionFloat               conductive_wire_overlap_min_extrusion_length;
+    ConfigOptionFloat               conductive_wire_routing_astar_factor;
     ConfigOptionFloat               conductive_wire_routing_perimeter_factor;
     ConfigOptionFloat               conductive_wire_routing_hole_factor;
     ConfigOptionFloat               conductive_wire_routing_interlayer_factor;
@@ -209,6 +210,7 @@ class PrintObjectConfig : public virtual StaticPrintConfig
         OPT_PTR(conductive_wire_extrusion_width);
         OPT_PTR(conductive_wire_first_extrusion_overlap);
         OPT_PTR(conductive_wire_overlap_min_extrusion_length);
+        OPT_PTR(conductive_wire_routing_astar_factor);
         OPT_PTR(conductive_wire_routing_perimeter_factor);
         OPT_PTR(conductive_wire_routing_hole_factor);
         OPT_PTR(conductive_wire_routing_interlayer_factor);

@@ -3,8 +3,10 @@
 
 namespace Slic3r {
 
-ElectronicWireRouter::ElectronicWireRouter(const double layer_overlap, const double routing_perimeter_factor,
-        const double routing_hole_factor, const double routing_interlayer_factor, const int layer_count) :
+ElectronicWireRouter::ElectronicWireRouter(const double layer_overlap, const double routing_astar_factor,
+        const double routing_perimeter_factor, const double routing_hole_factor,
+        const double routing_interlayer_factor, const int layer_count) :
+        routing_astar_factor(routing_astar_factor),
         routing_perimeter_factor(routing_perimeter_factor),
         routing_hole_factor(routing_hole_factor),
         routing_interlayer_factor(routing_interlayer_factor),
@@ -309,7 +311,7 @@ ElectronicWireRouter::route(const RubberBand* rb, const Point3 offset)
             this->routing_interlayer_factor,
             this->layer_overlap);
     // distance heuristic
-    distance_heuristic<routing_graph_t, coord_t, boost::property_map<routing_graph_t, Point3 PointVertex::*>::type> dist_heuristic(pointmap, goal);
+    distance_heuristic<routing_graph_t, coord_t, boost::property_map<routing_graph_t, Point3 PointVertex::*>::type> dist_heuristic(pointmap, goal, this->routing_astar_factor);
     // init start vertex
     routing_graph[start].distance = 0;
     routing_graph[start].cost = dist_heuristic(start);

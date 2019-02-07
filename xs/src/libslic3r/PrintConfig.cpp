@@ -244,6 +244,14 @@ PrintConfigDef::PrintConfigDef()
     def->min = 0;
     def->default_value = new ConfigOptionFloat(0.0);
 
+    def = this->add("conductive_wire_routing_astar_factor", coFloat);
+    def->label = "A* heuristic";
+    def->tooltip = "Controls how much A* is 'dragged' towards the target. Values > 1 generate non-optimal but faster solutions";
+    def->sidetext = "";
+    def->cli = "conductive_wire_astar_perimeter_factor=f";
+    def->min = 0;
+    def->default_value = new ConfigOptionFloat(1.0);
+
     def = this->add("conductive_wire_routing_perimeter_factor", coFloat);
     def->label = "Routing perimeter factor";
     def->tooltip = "Outer perimeters will be weighed with n * factor to draw routing towards infill.";

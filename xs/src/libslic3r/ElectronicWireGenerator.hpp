@@ -102,6 +102,7 @@ class ElectronicWireRouter {
 public:
     ElectronicWireRouter(
             const double layer_overlap,
+            const double routing_astar_factor,
             const double routing_perimeter_factor,
             const double routing_hole_factor,
             const double routing_interlayer_factor,
@@ -117,6 +118,7 @@ private:
     ElectronicWireGenerators ewgs;
     std::map<coord_t, ElectronicWireGenerator*> z_map;
     const double layer_overlap;
+    const double routing_astar_factor;
     const double routing_perimeter_factor;
     const double routing_hole_factor;
     const double routing_interlayer_factor;
@@ -191,18 +193,19 @@ class distance_heuristic : public boost::astar_heuristic<Graph, CostType>
 {
 public:
     typedef typename boost::graph_traits<Graph>::vertex_descriptor Vertex;
-    distance_heuristic(LocMap l, Vertex goal)
-        : m_location(l), m_goal(goal) {}
+    distance_heuristic(LocMap l, Vertex goal, const double astar_factor)
+        : m_location(l), m_goal(goal), astar_factor(astar_factor) {}
     CostType operator()(Vertex u)
     {
         CostType dx = m_location[m_goal].x - m_location[u].x;
         CostType dy = m_location[m_goal].y - m_location[u].y;
         CostType dz = m_location[m_goal].z - m_location[u].z;
-        return ::sqrt(dx * dx + dy * dy + dz * dz)*1;
+        return ::sqrt(dx * dx + dy * dy + dz * dz)*astar_factor;
     }
 private:
     LocMap m_location;
     Vertex m_goal;
+    double astar_factor;
 };
 
 // Visitor that terminates when we find the goal

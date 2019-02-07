@@ -416,6 +416,7 @@ void PrintObject::make_electronic_wires()
         coord_t layer_overlap = scale_(this->print()->default_object_config.conductive_wire_slope_overlap);
         const double conductive_wire_channel_width = this->print()->default_object_config.conductive_wire_channel_width;
 
+        const double conductive_wire_routing_astar_factor = this->print()->default_object_config.conductive_wire_routing_astar_factor;
         const double conductive_wire_routing_perimeter_factor = this->print()->default_object_config.conductive_wire_routing_perimeter_factor;
         const double conductive_wire_routing_hole_factor = this->print()->default_object_config.conductive_wire_routing_hole_factor;
         const double conductive_wire_routing_interlayer_factor = this->print()->default_object_config.conductive_wire_routing_interlayer_factor;
@@ -458,6 +459,7 @@ void PrintObject::make_electronic_wires()
         // are routed by contour following, clipped, longest segment first etc.
         // this could be parallelized
         ElectronicWireRouter ewr(layer_overlap,
+                conductive_wire_routing_astar_factor,
                 conductive_wire_routing_perimeter_factor,
                 conductive_wire_routing_hole_factor,
                 conductive_wire_routing_interlayer_factor,
