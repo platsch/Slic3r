@@ -1,11 +1,7 @@
 #ifndef slic3r_ElectronicRoutingGraph_hpp_
 #define slic3r_ElectronicRoutingGraph_hpp_
 
-//#include "libslic3r.h"
-//#include "RubberBand.hpp"
-//#include "Polyline.hpp"
 #include "Polygon.hpp"
-//#include "ExPolygonCollection.hpp"
 #include  "SVG.hpp"
 
 #include <boost/graph/adjacency_list.hpp>
