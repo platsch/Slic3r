@@ -37,10 +37,12 @@ typedef boost::adjacency_list<boost::setS, boost::hash_setS, boost::undirectedS,
 typedef boost::graph_traits<routing_graph_t>::vertex_descriptor routing_vertex_t;
 typedef boost::graph_traits<routing_graph_t>::edge_descriptor routing_edge_t;
 typedef std::unordered_map<Point3, routing_vertex_t> point_index_t;
+typedef boost::geometry::index::rtree<Point, boost::geometry::index::quadratic<16> > spatial_index_t;
 
 typedef std::map<routing_edge_t, Polyline> InterlayerOverlaps;
 typedef std::map<coord_t, ExPolygonCollection*> ExpolygonsMap;
 typedef std::map<coord_t, Polylines> PolylinesMap;
+typedef std::map<coord_t, spatial_index_t> RtreeMap;
 
 class ElectronicRoutingGraph {
 public:
@@ -49,7 +51,8 @@ public:
     bool add_vertex(const Point3& p);
     bool add_edge(const Line3& l, routing_edge_t* edge, const double& edge_weight_factor);
     bool add_polygon(const Polygon& p, const double& weight_factor, const coord_t print_z);
-    Point3 nearest_point(const Point3& p);
+    bool nearest_point(const Point3& dest, Point3* point);
+    bool points_in_boxrange(const Point3& dest, const coord_t range, Points* points);
     void append_z_position(coord_t z);
     bool astar_route(const Point3& start_p, const Point3& goal_p, PolylinesMap* result, const double routing_explore_weight_factor, const double routing_interlayer_factor, const double layer_overlap, const double astar_factor);
     void fill_svg(SVG* svg, const coord_t z, const ExPolygonCollection& s = ExPolygonCollection()) const;
@@ -64,7 +67,7 @@ private:
     point_index_t point_index; // Index Point->Vertex
 
     // boost RTree datastructure for fast range / nearest point access of graph points
-    boost::geometry::index::rtree<Point, boost::geometry::index::quadratic<16> > rtree_index;
+    RtreeMap rtree_index; // spatial index
 
     std::vector<coord_t> z_positions;
 };
@@ -111,7 +114,7 @@ public:
     : m_goal(goal), graph(graph), surfaces(surfaces), z_positions(z_positions), interlayer_overlaps(interlayer_overlaps), step_distance(step_distance), point_index(point_index), routing_explore_weight_factor(routing_explore_weight_factor), routing_interlayer_factor(routing_interlayer_factor), layer_overlap(layer_overlap), debug(true), debug_trigger(true) {}
 
     void black_target(Edge e, BoostGraph const& g) {
-        std::cout << "REOPEN VERTEX!!!" << std::endl;
+        //std::cout << "REOPEN VERTEX!!!" << std::endl;
     }
 
     void examine_vertex(Vertex u, BoostGraph const& g) {
@@ -232,20 +235,15 @@ public:
             pts.back().align_to_grid(spacing, base);
 
             // check existing points within grid distance
-            vertex_iterator i, iend;
-            coord_t diagonal_distance = sqrt(step_distance*step_distance*2);
-            for (boost::tie(i, iend) = boost::vertices(g); i != iend; ++i) {
-                if(g[*i].point.z == print_z) {
-                    if(vertex_p.distance_to((Point)g[*i].point) < diagonal_distance) {
-                        pts.push_back((Point)g[*i].point);
-                    }
-                }
+            Points near_pts;
+            if(this->graph->points_in_boxrange(g[u].point, step_distance, &near_pts)) {
+                pts.insert(pts.end(), near_pts.begin(), near_pts.end());
             }
 
+            // insert vertices and edges to graph
             for(auto &p : pts) {
                 if(surfaces[print_z]->contains_b(p)) { // is this point inside infill?
                     Vertex v;
-                    //Slic3r::add_point_vertex(Point3(p, print_z), g_i, *point_index, &v);
                     this->graph->add_vertex(Point3(p, print_z), &v);
                     coord_t distance = vertex_p.distance_to(p) * routing_explore_weight_factor;
                     // avoid self-loops

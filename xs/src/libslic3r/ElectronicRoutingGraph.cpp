@@ -11,11 +11,12 @@ ElectronicRoutingGraph::add_vertex(const Point3& p, routing_vertex_t* vertex)
 {
     bool result = false;
     if(this->point_index.find(p) == this->point_index.end()) { // is this point already in the graph?
-        (*vertex) = boost::add_vertex(this->graph);
-        (this->graph)[(*vertex)].index = boost::num_vertices(this->graph)-1;
-        (this->graph)[(*vertex)].point = p;
-        (this->graph)[(*vertex)].predecessor = (*vertex);
-        this->point_index[p] = (*vertex); // add vertex to reverse lookup table
+        *vertex = boost::add_vertex(this->graph);
+        (this->graph)[*vertex].index = boost::num_vertices(this->graph)-1;
+        (this->graph)[*vertex].point = p;
+        (this->graph)[*vertex].predecessor = (*vertex);
+        this->point_index[p] = *vertex; // add vertex to reverse lookup table
+        this->rtree_index[p.z].insert((Point)p);
         result = true;
     }else{
         // return existing vertex
@@ -77,15 +78,34 @@ ElectronicRoutingGraph::add_polygon(const Polygon& p, const double& weight_facto
     return result;
 }
 
-Point3
-ElectronicRoutingGraph::nearest_point(const Point3& p)
+bool
+ElectronicRoutingGraph::nearest_point(const Point3& dest, Point3* point)
 {
-    // stupid inefficient and broken implementation
-    Point3 result;
-    boost::graph_traits<routing_graph_t>::vertex_iterator k, kend;
-    for (boost::tie(k, kend) = boost::vertices(this->graph); k != kend; ++k) {
-        if(p.coincides_with_epsilon(this->graph[*k].point)) {
-            result = this->graph[*k].point;
+    bool result = false;
+    if(std::find(this->z_positions.begin(), this->z_positions.end(), dest.z) != this->z_positions.end()) {
+        std::vector<Point> query_result;
+        this->rtree_index[dest.z].query(boost::geometry::index::nearest((Point)dest, 1), std::back_inserter(query_result));
+        if(query_result.size() > 0) {
+            *point = Point3(query_result.front(), dest.z);
+            result = true;
+        }else{
+            std::cerr << "WARNING: point " << dest << " is not in spatial index!" << std::endl;
+        }
+    }
+    return result;
+}
+
+bool
+ElectronicRoutingGraph::points_in_boxrange(const Point3& dest, const coord_t range, Points* points)
+{
+    bool result = false;
+    if(std::find(this->z_positions.begin(), this->z_positions.end(), dest.z) != this->z_positions.end()) {
+        boost::geometry::model::box<Point> box(Point(dest.x-range, dest.y-range), Point(dest.x+range, dest.y+range));
+        this->rtree_index[dest.z].query(boost::geometry::index::within(box), std::back_inserter(*points));
+        if(points->size() > 0) {
+            result = true;
+        }else{
+            std::cerr << "WARNING: point " << dest << " is not in spatial index!" << std::endl;
         }
     }
     return result;
@@ -95,6 +115,7 @@ void
 ElectronicRoutingGraph::append_z_position(coord_t z)
 {
     this->z_positions.push_back(z);
+    this->rtree_index[z] = spatial_index_t();
 }
 
 bool
