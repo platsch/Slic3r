@@ -1,0 +1,249 @@
+#include "ElectronicRoutingGraph.hpp"
+
+namespace Slic3r {
+
+ElectronicRoutingGraph::ElectronicRoutingGraph(){
+    this->vertex_index = boost::get(&PointVertex::point, this->graph); // Index Vertex->Point
+}
+
+bool
+ElectronicRoutingGraph::add_vertex(const Point3& p, routing_vertex_t* vertex)
+{
+    bool result = false;
+    if(this->point_index.find(p) == this->point_index.end()) { // is this point already in the graph?
+        (*vertex) = boost::add_vertex(this->graph);
+        (this->graph)[(*vertex)].index = boost::num_vertices(this->graph)-1;
+        (this->graph)[(*vertex)].point = p;
+        (this->graph)[(*vertex)].predecessor = (*vertex);
+        this->point_index[p] = (*vertex); // add vertex to reverse lookup table
+        result = true;
+    }else{
+        // return existing vertex
+        *vertex = this->point_index[p];
+    }
+    return result;
+}
+
+bool
+ElectronicRoutingGraph::add_vertex(const Point3& p)
+{
+    routing_vertex_t v;
+    return this->add_vertex(p, &v);
+}
+
+bool
+ElectronicRoutingGraph::add_edge(const Line3& l, routing_edge_t* edge, const double& edge_weight_factor)
+{
+    bool result = true;
+    try {
+        routing_vertex_t vertex_a = this->point_index.at(l.a); // unordered_map::at throws an out-of-range
+        routing_vertex_t vertex_b = this->point_index.at(l.b); // unordered_map::at throws an out-of-range
+        coord_t distance = l.length() * edge_weight_factor;
+        *edge = boost::add_edge(vertex_a, vertex_b, distance, this->graph).first;
+    } catch (const std::out_of_range& oor) {
+        std::cerr << "Unable to find vertex for point while adding an edge: " << oor.what() << '\n';
+        std::cout << "Line was: " << l << std::endl;
+        result = false;
+    }
+    return result;
+}
+
+bool
+ElectronicRoutingGraph::add_polygon(const Polygon& p, const double& weight_factor, const coord_t print_z)
+{
+    bool result = false;
+    if(p.is_valid()) {
+        routing_vertex_t last_vertex, this_vertex, first_vertex;
+        result = this->add_vertex(Point3(p.points.front(), print_z) , &last_vertex); // add first point
+        first_vertex = last_vertex;
+        if(result) {
+            for (Points::const_iterator it = p.points.begin(); it != p.points.end()-1; ++it) {
+                // add next vertex
+                result = this->add_vertex(Point3(*(it+1), print_z), &this_vertex);
+                if(!result) break;
+
+                // add edge
+                coord_t distance = it->distance_to(*(it+1)) * weight_factor;
+                // Add factor to prioritize routing with high distance to external perimeter
+                boost::add_edge(last_vertex, this_vertex, distance, this->graph);
+                last_vertex = this_vertex;
+            }
+        }
+        // add final edge to close the loop
+        coord_t distance = p.points.back().distance_to(p.points.front()) * weight_factor;
+        // Add factor to prioritize routing with high distance to external perimeter
+        boost::add_edge(last_vertex, first_vertex, distance, this->graph);
+    }
+    return result;
+}
+
+Point3
+ElectronicRoutingGraph::nearest_point(const Point3& p)
+{
+    // stupid inefficient and broken implementation
+    Point3 result;
+    boost::graph_traits<routing_graph_t>::vertex_iterator k, kend;
+    for (boost::tie(k, kend) = boost::vertices(this->graph); k != kend; ++k) {
+        if(p.coincides_with_epsilon(this->graph[*k].point)) {
+            result = this->graph[*k].point;
+        }
+    }
+    return result;
+}
+
+void
+ElectronicRoutingGraph::append_z_position(coord_t z)
+{
+    this->z_positions.push_back(z);
+}
+
+bool
+ElectronicRoutingGraph::astar_route(
+        const Point3& start_p,
+        const Point3& goal_p,
+        PolylinesMap* route_map,
+        const double routing_explore_weight_factor,
+        const double routing_interlayer_factor,
+        const double layer_overlap,
+        const double astar_factor
+        )
+{
+    bool result = false;
+
+    routing_vertex_t start = this->point_index[start_p];
+    routing_vertex_t goal = this->point_index[goal_p];
+
+    // generate required maps for A* search
+    boost::property_map<routing_graph_t, routing_vertex_t PointVertex::*>::type predmap = boost::get(&PointVertex::predecessor, this->graph);
+    // init maps
+    boost::graph_traits<routing_graph_t>::vertex_iterator i, iend;
+    unsigned int idx = 0;
+    for (boost::tie(i, iend) = boost::vertices(this->graph); i != iend; ++i, ++idx) {
+        predmap[*i] = *i;
+        this->graph[*i].index = idx;
+        this->graph[*i].distance = INF;
+        this->graph[*i].color = boost::white_color;
+    }
+
+    // A* visitor
+    astar_visitor<routing_graph_t, routing_vertex_t, routing_edge_t, ElectronicRoutingGraph, ExpolygonsMap> vis(
+            goal,
+            this,
+            this->infill_surfaces_map,
+            this->z_positions,
+            &this->interlayer_overlaps,
+            scale_(1),
+            &this->point_index,
+            routing_explore_weight_factor,
+            routing_interlayer_factor,
+            layer_overlap);
+    // distance heuristic
+    distance_heuristic<routing_graph_t, coord_t, boost::property_map<routing_graph_t, Point3 PointVertex::*>::type> dist_heuristic(this->vertex_index, goal, astar_factor);
+
+    // init start vertex
+    this->graph[start].distance = 0;
+    this->graph[start].cost = dist_heuristic(start);
+
+    try {
+        // call astar named parameter interface
+        astar_search_no_init
+        (this->graph, start,
+            dist_heuristic,
+            vertex_index_map(boost::get(&PointVertex::index, this->graph)).
+            predecessor_map(predmap).
+            color_map(boost::get(&PointVertex::color, this->graph)).
+            distance_map(boost::get(&PointVertex::distance, this->graph)).
+            rank_map( boost::get(&PointVertex::cost, this->graph)).
+            visitor(vis).
+            distance_compare(std::less<coord_t>()).
+            distance_combine(boost::closed_plus<coord_t>(INF)).
+            distance_inf(INF)
+            );
+    } catch(found_goal fg) { // found a path to the goal
+        std::cout << "FOUND GOAL!!!" << std::endl;
+        coord_t last_z = this->vertex_index[goal].z;
+        routing_vertex_t last_v;
+        Polyline routed_wire;
+        for(routing_vertex_t v = goal;; v = predmap[v]) {
+            if(predmap[v] == v) {
+                routed_wire.append((Point)this->vertex_index[v]);
+                break;
+            }
+
+            // layer change
+            if(last_z != this->vertex_index[v].z) {
+
+                // apply interlayer overlaps
+                routing_edge_t edge = boost::edge(v, last_v, this->graph).first;
+
+                Polyline overlap;
+                try {
+                   overlap = interlayer_overlaps.at(edge); // map::at throws an out-of-range
+               } catch (const std::out_of_range& oor) {
+                   std::cerr << "Unable to find overlap for edge: " << oor.what() << '\n';
+                   std::cout << "Edge was: " << edge << std::endl;
+               }
+
+                // correct direction?
+                if(!overlap.first_point().coincides_with_epsilon(routed_wire.last_point())) {
+                    overlap.reverse();
+                }
+
+                for (Points::iterator p = overlap.points.begin()+1; p != overlap.points.end(); ++p) {
+                    routed_wire.append(*p);
+                }
+                (*route_map)[last_z].push_back(routed_wire);
+                routed_wire.points.clear();
+
+                for (Points::iterator p = overlap.points.begin(); p != overlap.points.end()-1; ++p) {
+                    routed_wire.append(*p);
+                }
+            }
+            last_z = this->vertex_index[v].z;
+            last_v = v;
+            routed_wire.append((Point)this->vertex_index[v]);
+        }
+
+        (*route_map)[last_z].push_back(routed_wire);
+        result = true;
+    }
+
+    return result;
+}
+
+void
+ElectronicRoutingGraph::fill_svg(SVG* svg, const coord_t z, const ExPolygonCollection& s) const
+{
+    //background (infill)
+    svg->draw(s, "black");
+    boost::graph_traits<routing_graph_t>::edge_iterator ei, ei_end;
+    for (boost::tie(ei, ei_end) = edges(this->graph); ei != ei_end; ++ei) {
+        if(this->graph[boost::source(*ei, this->graph)].point.z == z || this->graph[boost::target(*ei, this->graph)].point.z == z) {
+            Line l((Point)this->graph[boost::source(*ei, this->graph)].point, (Point)this->graph[boost::target(*ei, this->graph)].point);
+            boost::property_map<routing_graph_t, boost::edge_weight_t>::const_type EdgeWeightMap = boost::get(boost::edge_weight_t(), this->graph);
+            coord_t weight = boost::get(EdgeWeightMap, *ei);
+            double w = weight / l.length();
+            int w_int = std::min((int)((w-1)*1000), 255);
+            std::ostringstream ss;
+            ss << "rgb(" << 100 << "," << w_int << "," << w_int << ")";
+            std::string color = ss.str();
+            //std::cout << "color: " << color << std::endl;
+            //if(g[boost::source(*ei, g)].color == boost::white_color) {
+            //    svg_graph.draw(l,  "white", scale_(0.1));
+            //}else{
+            //    svg_graph.draw(l,  "blue", scale_(0.1));
+            //}
+            svg->draw(l,  color, scale_(0.2));
+        }
+    }
+}
+
+void
+ElectronicRoutingGraph::write_svg(const std::string filename, const coord_t z) const
+{
+    SVG svg(filename.c_str());
+    this->fill_svg(&svg, z);
+    svg.Close();
+}
+
+}
