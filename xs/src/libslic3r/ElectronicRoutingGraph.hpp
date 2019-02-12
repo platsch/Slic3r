@@ -51,7 +51,7 @@ public:
     bool points_in_boxrange(const Point3& dest, const coord_t range, Points* points);
     void append_z_position(coord_t z);
     bool astar_route(const Point3& start_p, const Point3& goal_p, PolylinesMap* result, const double routing_explore_weight_factor, const double routing_interlayer_factor, const double layer_overlap, const double astar_factor);
-    void fill_svg(SVG* svg, const coord_t z, const ExPolygonCollection& s = ExPolygonCollection()) const;
+    void fill_svg(SVG* svg, const coord_t z, const ExPolygonCollection& s = ExPolygonCollection(), const routing_vertex_t& current_v = NULL) const;
     void write_svg(const std::string filename, const coord_t z) const;
 
     InterlayerOverlaps interlayer_overlaps;
@@ -114,14 +114,13 @@ public:
     }
 
     void examine_vertex(Vertex u, BoostGraph const& g) {
-        //std::cout << "examine vertex " << u << " vs goal " << m_goal <<  std::endl;
-
         typedef typename boost::graph_traits<BoostGraph>::vertex_iterator vertex_iterator;
-
         BoostGraph& g_i = const_cast<BoostGraph&>(g);
+
         coord_t print_z = g[u].point.z;
         if(debug || (u == m_goal)) {
             std::cout << "explore factor: " << this->routing_explore_weight_factor << " interlayer factor: " << this->routing_interlayer_factor << " layer_overlap: " << this->layer_overlap << std::endl;
+
             // debug output graph
             std::ostringstream ss;
             ss << "graph_visitor_";
@@ -129,56 +128,7 @@ public:
             ss << ".svg";
             std::string filename = ss.str();
             SVG svg_graph(filename.c_str());
-            svg_graph.draw(*surfaces[print_z], "black");
-            boost::graph_traits<routing_graph_t>::edge_iterator ei, ei_end;
-            for (boost::tie(ei, ei_end) = edges(g); ei != ei_end; ++ei) {
-                if(g[boost::source(*ei, g)].point.z == print_z || g[boost::target(*ei, g)].point.z == print_z) {
-                    Line l = Line((Point)g[boost::source(*ei, g)].point, (Point)g[boost::target(*ei, g)].point);
-                    boost::property_map<routing_graph_t, boost::edge_weight_t>::type EdgeWeightMap = boost::get(boost::edge_weight_t(), g_i);
-                    coord_t weight = boost::get(EdgeWeightMap, *ei);
-                    double w = weight / l.length();
-                    w = w*20;
-                    int w_int = std::min((int)w, 255);
-                    std::string color;
-                    if(w_int < 0) {
-                        color = "green";
-                    }else{
-                        std::ostringstream ss;
-                        ss << "rgb(" << 100 << "," << w_int << "," << w_int << ")";
-                        color = ss.str();
-                    }
-                    // interlayer-connections
-                    if(g[boost::source(*ei, g)].point.z != g[boost::target(*ei, g)].point.z) {
-                        color = "green";
-                    }
-                    //std::cout << "color: " << color << std::endl;
-                    //if(g[boost::source(*ei, g)].color == boost::white_color) {
-                    //    svg_graph.draw(l,  "white", scale_(0.1));
-                    //}else{
-                    //    svg_graph.draw(l,  "blue", scale_(0.1));
-                    //}
-                    svg_graph.draw(l, color, scale_(0.1));
-                    svg_graph.draw(l.a, "red", scale_(0.1));
-                    svg_graph.draw(l.b, "red", scale_(0.1));
-                    if(l.length() < 2) {
-                        svg_graph.draw(l.a, "red", scale_(0.2));
-                        std::cout << "line lenght 0, z_a: " << g[boost::source(*ei, g)].point.z << " z_b: " << g[boost::target(*ei, g)].point.z << std::endl;
-                    }
-                }
-            }
-
-
-            // draw current route
-            auto predmap = boost::get(&PointVertex::predecessor, g);
-            Point last_point = (Point)g[u].point;
-            for(routing_vertex_t v = u;; v = predmap[v]) {
-                Line l = Line(last_point, (Point)g[v].point);
-                svg_graph.draw(l,  "blue", scale_(0.07));
-                last_point = (Point)g[v].point;
-                if(predmap[v] == v)
-                    break;
-            }
-
+            this->graph->fill_svg(&svg_graph, print_z, *surfaces[print_z], u);
             svg_graph.Close();
 
             char ch;

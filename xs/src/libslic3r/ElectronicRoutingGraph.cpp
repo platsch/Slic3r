@@ -233,7 +233,7 @@ ElectronicRoutingGraph::astar_route(
 }
 
 void
-ElectronicRoutingGraph::fill_svg(SVG* svg, const coord_t z, const ExPolygonCollection& s) const
+ElectronicRoutingGraph::fill_svg(SVG* svg, const coord_t z, const ExPolygonCollection& s, const routing_vertex_t& current_v) const
 {
     //background (infill)
     svg->draw(s, "black");
@@ -244,10 +244,16 @@ ElectronicRoutingGraph::fill_svg(SVG* svg, const coord_t z, const ExPolygonColle
             boost::property_map<routing_graph_t, boost::edge_weight_t>::const_type EdgeWeightMap = boost::get(boost::edge_weight_t(), this->graph);
             coord_t weight = boost::get(EdgeWeightMap, *ei);
             double w = weight / l.length();
-            int w_int = std::min((int)((w-1)*1000), 255);
+            int w_int = std::min((int)((w-1)*200), 255);
             std::ostringstream ss;
             ss << "rgb(" << 100 << "," << w_int << "," << w_int << ")";
             std::string color = ss.str();
+
+            // interlayer-connections
+            if(this->graph[boost::source(*ei, this->graph)].point.z != this->graph[boost::target(*ei, this->graph)].point.z) {
+                color = "green";
+            }
+
             //std::cout << "color: " << color << std::endl;
             //if(g[boost::source(*ei, g)].color == boost::white_color) {
             //    svg_graph.draw(l,  "white", scale_(0.1));
@@ -255,6 +261,19 @@ ElectronicRoutingGraph::fill_svg(SVG* svg, const coord_t z, const ExPolygonColle
             //    svg_graph.draw(l,  "blue", scale_(0.1));
             //}
             svg->draw(l,  color, scale_(0.2));
+        }
+    }
+
+    // draw current route
+    if(current_v) {
+        auto predmap = boost::get(&PointVertex::predecessor, this->graph);
+        Point last_point = (Point)this->graph[current_v].point;
+        for(routing_vertex_t v = current_v;; v = predmap[v]) {
+            Line l = Line(last_point, (Point)this->graph[v].point);
+            svg->draw(l,  "blue", scale_(0.07));
+            last_point = (Point)this->graph[v].point;
+            if(predmap[v] == v)
+                break;
         }
     }
 }
