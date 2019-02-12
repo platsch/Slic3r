@@ -264,67 +264,6 @@ public:
             {
                 //
             }
-            // do we have a matching line?
-      /*      if(traverse_upper && upper_trace.length() >= this->layer_overlap) {
-                std::cout << "found matching upper line" << std::endl;
-                // debug output graph
-                std::ostringstream ss;
-                ss << "graph_visitor_";
-                ss << print_z;
-                ss << ".svg";
-                std::string filename = ss.str();
-                SVG svg_graph(filename.c_str());
-//                SVG svg_graph("graph_visitor", BoundingBox(Point(0, 0), Point(scale_(50), scale_(50))));
-                svg_graph.draw(*surfaces[print_z], "black");
-                boost::graph_traits<routing_graph_t>::edge_iterator ei, ei_end;
-                for (boost::tie(ei, ei_end) = edges(g); ei != ei_end; ++ei) {
-                    if(g[boost::source(*ei, g)].point.z == print_z || g[boost::target(*ei, g)].point.z == print_z) {
-                        Line l = Line((Point)g[boost::source(*ei, g)].point, (Point)g[boost::target(*ei, g)].point);
-                        boost::property_map<routing_graph_t, boost::edge_weight_t>::type EdgeWeightMap = boost::get(boost::edge_weight_t(), g_i);
-                        coord_t weight = boost::get(EdgeWeightMap, *ei);
-                        double w = weight / l.length();
-                        w -=0.99;
-                        w = w*50;
-                        int w_int = std::min((int)w, 255);
-                        std::ostringstream ss;
-                        ss << "rgb(" << 100 << "," << w_int << "," << w_int << ")";
-                        std::string color = ss.str();
-                        //std::cout << "color: " << color << std::endl;
-                        //if(g[boost::source(*ei, g)].color == boost::white_color) {
-                        //    svg_graph.draw(l,  "white", scale_(0.1));
-                        //}else{
-                        //    svg_graph.draw(l,  "blue", scale_(0.1));
-                        //}
-                        svg_graph.draw(l,  color, scale_(0.1));
-                    }
-                }
-
-                // draw current route
-                auto predmap = boost::get(&PointVertex::predecessor, g);
-                Point last_point = (Point)g[u].point;
-                for(routing_vertex_t v = u;; v = predmap[v]) {
-                    Line l = Line(last_point, (Point)g[v].point);
-                    svg_graph.draw(l,  "green", scale_(0.15));
-                    svg_graph.draw((Point)g[v].point, "green", scale_(0.3));
-                    last_point = (Point)g[v].point;
-                    if(predmap[v] == v)
-                        break;
-                }
-
-                // draw new connection
-                svg_graph.draw(upper_trace,  "blue", scale_(0.15));
-                for(Point &p : upper_trace.points) {
-                    svg_graph.draw(p, "blue", scale_(0.3));
-                }
-
-                svg_graph.Close();
-
-                char ch;
-                std::cin >> ch;
-            }
-*/
-
-
 
 
             // add upper edge connections
