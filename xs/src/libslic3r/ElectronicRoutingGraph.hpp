@@ -110,7 +110,9 @@ public:
     : m_goal(goal), graph(graph), surfaces(surfaces), z_positions(z_positions), interlayer_overlaps(interlayer_overlaps), step_distance(step_distance), point_index(point_index), routing_explore_weight_factor(routing_explore_weight_factor), routing_interlayer_factor(routing_interlayer_factor), layer_overlap(layer_overlap), debug(true), debug_trigger(true) {}
 
     void black_target(Edge e, BoostGraph const& g) {
-        //std::cout << "REOPEN VERTEX!!!" << std::endl;
+        std::cout << "REOPEN VERTEX!!!" << std::endl;
+        std::cout << "a: " << g[boost::source(e, g)].point << std::endl;
+        std::cout << "b: " << g[boost::target(e, g)].point << std::endl;
     }
 
     void examine_vertex(Vertex u, BoostGraph const& g) {
@@ -127,7 +129,9 @@ public:
             ss << print_z;
             ss << ".svg";
             std::string filename = ss.str();
-            SVG svg_graph(filename.c_str());
+            BoundingBox bb = surfaces[print_z]->convex_hull().bounding_box();
+            bb.offset(scale_(5));
+            SVG svg_graph(filename.c_str(), bb);
             this->graph->fill_svg(&svg_graph, print_z, *surfaces[print_z], u);
             svg_graph.Close();
 

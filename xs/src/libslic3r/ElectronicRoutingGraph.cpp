@@ -2,7 +2,8 @@
 
 namespace Slic3r {
 
-ElectronicRoutingGraph::ElectronicRoutingGraph(){
+ElectronicRoutingGraph::ElectronicRoutingGraph()
+{
     this->vertex_index = boost::get(&PointVertex::point, this->graph); // Index Vertex->Point
 }
 
@@ -275,13 +276,18 @@ ElectronicRoutingGraph::fill_svg(SVG* svg, const coord_t z, const ExPolygonColle
             if(predmap[v] == v)
                 break;
         }
+        // highlight current vertex
+        svg->draw((Point)this->graph[current_v].point, "blue", scale_(0.15));
     }
 }
 
 void
 ElectronicRoutingGraph::write_svg(const std::string filename, const coord_t z) const
 {
-    SVG svg(filename.c_str());
+    ExpolygonsMap surfaces = this->infill_surfaces_map;
+    BoundingBox bb = surfaces[z]->convex_hull().bounding_box();
+    bb.offset(scale_(5));
+    SVG svg(filename.c_str(), bb);
     this->fill_svg(&svg, z);
     svg.Close();
 }
