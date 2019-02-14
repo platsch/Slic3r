@@ -153,55 +153,62 @@ public:
 
         // add vertices in 45° steps if they are inside the infill region
         Point vertex_p = (Point)g[u].point;
+        Points pts;
         if(surfaces[print_z]->contains_b(vertex_p)) { // is this point inside infill?
-            Points pts;
-
             // generate grid candidates
             Point spacing(step_distance, step_distance);
             Point base(0, 0);
             pts.push_back(Point(vertex_p));
             pts.back().translate(step_distance, 0);
             pts.back().align_to_grid(spacing, base);
+            if(!surfaces[print_z]->contains_b(pts.back())) pts.pop_back();
             pts.push_back(Point(vertex_p));
             pts.back().translate(step_distance, -step_distance);
             pts.back().align_to_grid(spacing, base);
+            if(!surfaces[print_z]->contains_b(pts.back())) pts.pop_back();
             pts.push_back(Point(vertex_p));
             pts.back().translate(0, -step_distance);
             pts.back().align_to_grid(spacing, base);
+            if(!surfaces[print_z]->contains_b(pts.back())) pts.pop_back();
             pts.push_back(Point(vertex_p));
             pts.back().translate(-step_distance, -step_distance);
             pts.back().align_to_grid(spacing, base);
+            if(!surfaces[print_z]->contains_b(pts.back())) pts.pop_back();
             pts.push_back(Point(vertex_p));
             pts.back().translate(-step_distance, 0);
             pts.back().align_to_grid(spacing, base);
+            if(!surfaces[print_z]->contains_b(pts.back())) pts.pop_back();
             pts.push_back(Point(vertex_p));
             pts.back().translate(-step_distance, step_distance);
             pts.back().align_to_grid(spacing, base);
+            if(!surfaces[print_z]->contains_b(pts.back())) pts.pop_back();
             pts.push_back(Point(vertex_p));
             pts.back().translate(0, step_distance);
             pts.back().align_to_grid(spacing, base);
+            if(!surfaces[print_z]->contains_b(pts.back())) pts.pop_back();
             pts.push_back(Point(vertex_p));
             pts.back().translate(step_distance, step_distance);
             pts.back().align_to_grid(spacing, base);
+            if(!surfaces[print_z]->contains_b(pts.back())) pts.pop_back();
+        }
 
-            // check existing points within grid distance
-            Points near_pts;
-            if(this->graph->points_in_boxrange(g[u].point, step_distance, &near_pts)) {
-                pts.insert(pts.end(), near_pts.begin(), near_pts.end());
-            }
+        // check existing points within grid distance
+        Points near_pts;
+        if(this->graph->points_in_boxrange(g[u].point, step_distance, &near_pts)) {
+            pts.insert(pts.end(), near_pts.begin(), near_pts.end());
+        }
 
-            // insert vertices and edges to graph
-            for(auto &p : pts) {
-                if(surfaces[print_z]->contains_b(p)) { // is this point inside infill?
-                    Vertex v;
-                    this->graph->add_vertex(Point3(p, print_z), &v);
-                    coord_t distance = vertex_p.distance_to(p) * routing_explore_weight_factor;
-                    // avoid self-loops
-                    if(u != v) {
-                        boost::add_edge(u, v, distance, g_i);
-                    }
-                }
+        // insert vertices and edges to graph
+        for(auto &p : pts) {
+            //if(surfaces[print_z]->contains_b(p)) { // is this point inside infill?
+            Vertex v;
+            this->graph->add_vertex(Point3(p, print_z), &v);
+            coord_t distance = vertex_p.distance_to(p) * routing_explore_weight_factor;
+            // avoid self-loops
+            if(u != v) {
+                boost::add_edge(u, v, distance, g_i);
             }
+            //}
         }
 
         // traverse back (for overlap) and check for matching points in the neighbor-layers
