@@ -43,6 +43,7 @@ public:
     const coord_t get_scaled_print_z() const;
     const coordf_t get_bottom_z() const;
     const coordf_t get_scaled_bottom_z() const;
+    const ExPolygonCollection* get_layer_slices() const;
     ExPolygonCollections* get_contour_set();
     WireSegments get_wire_segments(Lines& wire, const double routing_perimeter_factor, const double routing_hole_factor);
     void add_routed_wire(Polyline &routed_wire);
@@ -69,7 +70,6 @@ private:
     double overlap_min_extrusion_length;
     double conductive_wire_channel_width;
     int max_perimeters;
-    const ExPolygonCollection* slices;
     ExPolygonCollections deflated_slices;
 
     friend class ElectronicWireRouter;

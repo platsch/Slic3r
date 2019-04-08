@@ -13,7 +13,6 @@ ElectronicWireGenerator::ElectronicWireGenerator(Layer* layer, ElectronicWireGen
         first_extrusion_overlap(first_extrusion_overlap),
         overlap_min_extrusion_length(overlap_min_extrusion_length),
         conductive_wire_channel_width(conductive_wire_channel_width),
-        slices(&(layer->slices)),
         unrouted_wires(layer->unrouted_wires)
 {
     // number of applicable perimeters
@@ -47,6 +46,12 @@ const coordf_t
 ElectronicWireGenerator::get_scaled_bottom_z() const
 {
     return scale_(this->layer->print_z - this->layer->height);
+}
+
+const ExPolygonCollection*
+ElectronicWireGenerator::get_layer_slices() const
+{
+    return &(this->layer->slices);
 }
 
 // generate set of deflated expolygons. Inflate by perimeter width per region and channel width.

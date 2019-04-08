@@ -135,6 +135,8 @@ ElectronicRoutingGraph::astar_route(
     routing_vertex_t start = this->point_index[start_p];
     routing_vertex_t goal = this->point_index[goal_p];
 
+    std::cout << "start: " << start_p << " goal: " << goal_p << std::endl;
+
     // generate required maps for A* search
     boost::property_map<routing_graph_t, routing_vertex_t PointVertex::*>::type predmap = boost::get(&PointVertex::predecessor, this->graph);
     // init maps
@@ -151,6 +153,7 @@ ElectronicRoutingGraph::astar_route(
     astar_visitor<routing_graph_t, routing_vertex_t, routing_edge_t, ElectronicRoutingGraph, ExpolygonsMap> vis(
             goal,
             this,
+            this->slices_surfaces_map,
             this->infill_surfaces_map,
             this->z_positions,
             &this->interlayer_overlaps,
@@ -182,11 +185,13 @@ ElectronicRoutingGraph::astar_route(
             distance_inf(INF)
             );
     } catch(found_goal fg) { // found a path to the goal
-        std::cout << "FOUND GOAL!!!" << std::endl;
+        std::cout << "FOUND GOAL: " << this->vertex_index[goal] << std::endl;
+        std::cout << "nr of vertices: " << boost::num_vertices(this->graph) << std::endl;
         coord_t last_z = this->vertex_index[goal].z;
         routing_vertex_t last_v;
         Polyline routed_wire;
         for(routing_vertex_t v = goal;; v = predmap[v]) {
+            //std::cout << "goal to start: " << this->vertex_index[v] << std::endl;
             if(predmap[v] == v) {
                 routed_wire.append((Point)this->vertex_index[v]);
                 break;
@@ -285,11 +290,13 @@ void
 ElectronicRoutingGraph::write_svg(const std::string filename, const coord_t z) const
 {
     ExpolygonsMap surfaces = this->infill_surfaces_map;
-    BoundingBox bb = surfaces[z]->convex_hull().bounding_box();
-    bb.offset(scale_(5));
-    SVG svg(filename.c_str(), bb);
-    this->fill_svg(&svg, z);
-    svg.Close();
+    if(((Points)(*surfaces[z])).size() > 3) {
+        BoundingBox bb = surfaces[z]->convex_hull().bounding_box();
+        bb.offset(scale_(5));
+        SVG svg(filename.c_str(), bb);
+        this->fill_svg(&svg, z);
+        svg.Close();
+    }
 }
 
 }

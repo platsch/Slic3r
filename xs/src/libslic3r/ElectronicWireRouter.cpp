@@ -72,21 +72,22 @@ ElectronicWireRouter::route(const RubberBand* rb, const Point3 offset)
             }
          }
         graph.infill_surfaces_map[print_z] = &(contours->back());
+        graph.slices_surfaces_map[print_z] = ewg.get_layer_slices();
 
         // debug output graph
         //SVG svg_graph("graph_visitor");
-        std::ostringstream ss1;
-        ss1 << "base_contours_";
-        ss1 << print_z;
-        ss1 << ".svg";
-        std::string filename1 = ss1.str();
-        SVG svg_graph1(filename1.c_str());
-        graph.fill_svg(&svg_graph1, print_z, *(ewg.slices));
+//        std::ostringstream ss1;
+//        ss1 << "base_contours_";
+//        ss1 << print_z;
+//        ss1 << ".svg";
+//        std::string filename1 = ss1.str();
+//        SVG svg_graph1(filename1.c_str());
+//        graph.fill_svg(&svg_graph1, print_z, *(ewg.get_layer_slices()));
 
         // add wire segments to the graph
         for(auto &segment : wire_segments) {
 
-            svg_graph1.draw(segment.line, "blue", scale_(0.1));
+//            svg_graph1.draw(segment.line, "blue", scale_(0.1));
             float connecting_l_offset = 1;
             if(std::abs(segment.line.a.y - segment.line.b.y) < 1000) {
                 connecting_l_offset = 0;
@@ -110,7 +111,7 @@ ElectronicWireRouter::route(const RubberBand* rb, const Point3 offset)
                 int w = std::min((int)((edge_weight_factor-1)*1000), 255);
                 ss << "rgb(" << 100 << "," << w << "," << w << ")";
                 std::string color = ss.str();
-                svg_graph1.draw(dbg, color, scale_(0.2));
+//                svg_graph1.draw(dbg, color, scale_(0.2));
                 float debug_offset = 0.0;
 
                 for(int j=i+1; j<segment.connecting_lines.size(); j++) {
@@ -138,14 +139,14 @@ ElectronicWireRouter::route(const RubberBand* rb, const Point3 offset)
 
                         Line d = Line(segment.connecting_lines[i].first.a, segment.connecting_lines[j].first.b);
                         //d.translate(scale_(connecting_l_offset+debug_offset+0.15), 0);
-                        svg_graph1.draw(d, color, scale_(0.1));
+//                        svg_graph1.draw(d, color, scale_(0.1));
 
                         graph.add_edge(Line3(segment.connecting_lines[j].first.a, segment.connecting_lines[i].first.b, print_z), &edge, edge_weight_factor);
                         segment.edges.insert(edge);
 
                         d = Line(segment.connecting_lines[j].first.a, segment.connecting_lines[i].first.b);
                         //d.translate(scale_(connecting_l_offset+debug_offset+0.3), 0);
-                        svg_graph1.draw(d, color, scale_(0.1));
+//                        svg_graph1.draw(d, color, scale_(0.1));
                         debug_offset += 0.4;
                     }
                 }
@@ -183,9 +184,9 @@ ElectronicWireRouter::route(const RubberBand* rb, const Point3 offset)
                 if(graph.nearest_point(a, &a) &&
                    graph.nearest_point(b, &b)) {
 
-                    svg_graph1.draw(last_wire, "yellow", scale_(0.2));
-                    svg_graph1.draw(wire, "blue", scale_(0.15));
-                    svg_graph1.draw((Point)b, "green", scale_(0.1));
+//                    svg_graph1.draw(last_wire, "yellow", scale_(0.2));
+//                    svg_graph1.draw(wire, "blue", scale_(0.15));
+//                    svg_graph1.draw((Point)b, "green", scale_(0.1));
 
 
                     coord_t distance = ((Point)a).distance_to((Point)b) * edge_weight_factor;
@@ -211,7 +212,7 @@ ElectronicWireRouter::route(const RubberBand* rb, const Point3 offset)
 
         last_wire = wire;
 
-        svg_graph1.Close();
+//        svg_graph1.Close();
     }
 
     // A* search on routing graph
