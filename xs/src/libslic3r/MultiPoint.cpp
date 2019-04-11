@@ -195,6 +195,29 @@ MultiPoint::first_intersection(const Line& line, Point* intersection, bool* ccw)
     return result;
 }
 
+bool
+MultiPoint::upsample(const double min_dist)
+{
+    bool result = false;
+    // append first point to close loop
+    points.push_back(points.front());
+    for (Points::iterator it = points.begin(); it != points.end()-1; ++it) {
+        double dist = (*it).distance_to(*(it+1));
+        if(dist > min_dist) {
+            Line l(*it, *(it+1));
+            int new_points = std::ceil(dist/min_dist)-1;
+            double spacing = dist / (new_points+1);
+            for(int i = 1; i <= new_points; i++) {
+                it = this->points.insert(it+1, l.point_at(i * spacing));
+            }
+            result = true;
+        }
+    }
+    // remove duplicated last point
+    points.pop_back();
+    return result;
+}
+
 std::string
 MultiPoint::dump_perl() const
 {
