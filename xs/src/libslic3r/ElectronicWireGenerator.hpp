@@ -37,7 +37,8 @@ public:
         double                     extrusion_overlap,
         double                     first_extrusion_overlap,
         double                     overlap_min_extrusion_length,
-        double                     conductive_wire_channel_width);
+        double                     conductive_wire_channel_width,
+        const double               grid_step_size);
 
     const coordf_t get_print_z() const;
     const coord_t get_scaled_print_z() const;
@@ -56,7 +57,6 @@ private:
     void apply_overlap(Polylines input, Polylines *output);
     coord_t offset_width(const LayerRegion* region, int perimeters) const;
     void _align_to_prev_perimeters();
-    //void polygon_to_graph(const Polygon& p, routing_graph_t* g, point_index_t* index, const double& weight_factor = 1.0) const;
 
     // Inputs:
     Layer* layer;             ///< pointer to layer object
@@ -69,6 +69,7 @@ private:
     double first_extrusion_overlap;
     double overlap_min_extrusion_length;
     double conductive_wire_channel_width;
+    const double grid_step_size;
     int max_perimeters;
     ExPolygonCollections deflated_slices;
 
@@ -84,6 +85,7 @@ public:
             const double routing_perimeter_factor,
             const double routing_hole_factor,
             const double routing_interlayer_factor,
+            const double grid_step_size,
             const int layer_count);
     void append_wire_generator(ElectronicWireGenerator& ewg);
     ElectronicWireGenerator* last_ewg();
@@ -100,6 +102,7 @@ private:
     const double routing_perimeter_factor;
     const double routing_hole_factor;
     const double routing_interlayer_factor;
+    const double grid_step_size;
 };
 
 }

@@ -5,7 +5,7 @@
 namespace Slic3r {
 
 ElectronicWireGenerator::ElectronicWireGenerator(Layer* layer, ElectronicWireGenerator* previous_ewg, double extrusion_width,
-        double extrusion_overlap, double first_extrusion_overlap, double overlap_min_extrusion_length, double conductive_wire_channel_width) :
+        double extrusion_overlap, double first_extrusion_overlap, double overlap_min_extrusion_length, double conductive_wire_channel_width, const double grid_step_size) :
         layer(layer),
         previous_ewg(previous_ewg),
         extrusion_width(extrusion_width),
@@ -13,7 +13,8 @@ ElectronicWireGenerator::ElectronicWireGenerator(Layer* layer, ElectronicWireGen
         first_extrusion_overlap(first_extrusion_overlap),
         overlap_min_extrusion_length(overlap_min_extrusion_length),
         conductive_wire_channel_width(conductive_wire_channel_width),
-        unrouted_wires(layer->unrouted_wires)
+        unrouted_wires(layer->unrouted_wires),
+        grid_step_size(grid_step_size)
 {
     // number of applicable perimeters
     this->max_perimeters = 9999;
@@ -402,43 +403,116 @@ coord_t ElectronicWireGenerator::offset_width(const LayerRegion* region, int per
 
 /* Check all points of this layers deflated perimeters against
  * previous layer and align if within epsilon distance
- * to avoid roundoff mismatches in hash-maps.
+ * or project upwards from previous layer if within layer overlap tolerance.
+ * After the projection step, the polygons are upsampled to
+ * ensure a maximum distance between adjacent points < grid_step_distance.
  * WARNING: Currently very inefficient!!
  */
 void
 ElectronicWireGenerator::_align_to_prev_perimeters() {
     if(this->previous_ewg != nullptr) {
-        // collect all points from prev layer deflated slices
-        Points prev_p;
-        for(ExPolygonCollection  &epc : this->previous_ewg->deflated_slices) {
-            Points ps = epc;
-            prev_p.insert(prev_p.end(), ps.begin(), ps.end());
-        }
+        // make sure previous ewg is already aligned
+        this->previous_ewg->get_contour_set();
 
-        for(auto &epc : this->deflated_slices) {
-            for(auto &ep : epc.expolygons) {
-                // check all contour points
-                for(Point &p : ep.contour.points) {
-                    for(Point &other_p : prev_p) {
-                        if(p.coincides_with_epsilon(other_p)) {
-                            p = other_p;
-                            break;
-                        }
-                    }
+        //std::ostringstream ss;
+        //ss << "alignment_orig_";
+        //ss << this->layer->print_z;
+        //ss << ".svg";
+        //std::string filename = ss.str();
+        //SVG svg_graph(filename.c_str());
+
+        //svg_graph.draw(this->deflated_slices[0], "black");
+        //svg_graph.draw((Points)this->deflated_slices[0], "red", scale_(0.3));
+
+        //svg_graph.Close();
+
+        //std::ostringstream ss1;
+        //ss1 << "alignment_done_";
+        //ss1 << this->layer->print_z;
+        //ss1 << ".svg";
+        //std::string filename1 = ss1.str();
+        //SVG svg_graph1(filename1.c_str());
+
+        //svg_graph1.draw(this->deflated_slices[0], "black");
+
+        for(int i = 0; i < this->deflated_slices.size(); i++) {
+            std::vector<Polygon*> polygons;
+            for(auto &ep : this->deflated_slices[i].expolygons) {
+                // contour
+                polygons.push_back(&ep.contour);
+                // holes
+                for (Polygon &hole : ep.holes) {
+                    polygons.push_back(&hole);
                 }
-                // check all holes points
-                for (Polygon &polygon : ep.holes) {
-                    for(Point &p : polygon.points) {
-                        for(Point &other_p : prev_p) {
-                            if(p.coincides_with_epsilon(other_p)) {
-                                p = other_p;
-                                break;
+            }
+            if(this->previous_ewg->deflated_slices.size() > i) {
+                // collect points from prev layer deflated slices
+                Points prev_p = this->previous_ewg->deflated_slices[i];
+
+                // iterate over all collected points from previous layer
+                for(Point &other_p : prev_p) {
+                    for(Polygon *poly : polygons) {
+                        Point projection = other_p.projection_onto(*poly);
+                        // TODO: also check threshold with layer height??
+                        if(other_p.distance_to(projection) < scale_(this->extrusion_width/2)) {
+                            // does this point already exist?
+                            bool known_point = false;
+                            for(Point &p : poly->points) {
+
+                                // points match approximately, don't insert a new point
+                                if(p.distance_to(other_p) < scale_(this->extrusion_width/2)) {
+                                    known_point = true;
+                                    if(p.coincides_with_epsilon(other_p)) { // points actually are the same
+                                        p = other_p;
+                                        if(i == 0) {
+                                            //svg_graph1.draw(p, "green", scale_(0.6));
+                                        }
+                                        break;
+                                    }//else{ // points are not same but projection from near point
+                                     //   p = projection;
+                                     //   if(i == 0) {
+                                     //       svg_graph1.draw(p, "orange", scale_(0.6));
+                                     //   }
+                                    //}
+                                }
+
+                                /*if(p.coincides_with_epsilon(projection)) { // points match
+                                    if(projection.coincides_with_epsilon(other_p)) { // points actually are the same
+                                        p = other_p;
+                                        if(i == 0) {
+                                            svg_graph1.draw(p, "green", scale_(0.6));
+                                        }
+                                    }else{ // points are not same but projection from near point
+                                        p = projection;
+                                        if(i == 0) {
+                                            svg_graph1.draw(p, "orange", scale_(0.6));
+                                        }
+                                    }
+                                    known_point = true;
+                                    break;
+                                }*/
+                            }
+                            // insert it otherwise
+                            if(!known_point) {
+                                //std::cout << "inserting point. Nearest point was: " << min_distance << "scaled epsilon: " << SCALED_EPSILON << std::endl;
+                                poly->insert(projection);
+                                if(i == 0) {
+                                    //svg_graph1.draw(projection, "blue", scale_(0.4));
+                                }
                             }
                         }
                     }
                 }
             }
+
+            // insert new points if distance between adjacent points is too high
+            for(Polygon *poly : polygons) {
+                poly->upsample(this->grid_step_size); // TODO: this should be a configurable parameter! based on interlayer_overlap and grid step distance
+            }
         }
+
+        //svg_graph1.draw((Points)this->deflated_slices[0], "red", scale_(0.2));
+        //svg_graph1.Close();
     }
 }
 

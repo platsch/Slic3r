@@ -36,7 +36,7 @@ typedef std::unordered_map<Point3, routing_vertex_t> point_index_t;
 typedef boost::geometry::index::rtree<Point, boost::geometry::index::quadratic<16> > spatial_index_t;
 //typedef boost::geometry::index::rtree<Point, boost::geometry::index::rstar<4> > spatial_index_t;
 
-typedef std::map<routing_edge_t, Polyline> InterlayerOverlaps;
+typedef std::map<routing_edge_t, std::pair<Polyline, Polyline>> InterlayerOverlaps;
 typedef std::map<coord_t, const ExPolygonCollection*> ExpolygonsMap;
 typedef std::map<coord_t, Polylines> PolylinesMap;
 typedef std::map<coord_t, spatial_index_t> RtreeMap;
@@ -47,11 +47,11 @@ public:
     bool add_vertex(const Point3& p, routing_vertex_t* vertex);
     bool add_vertex(const Point3& p);
     bool add_edge(const Line3& l, routing_edge_t* edge, const double& edge_weight_factor);
-    bool add_polygon(const Polygon& p, const double& weight_factor, const coord_t print_z);
+    void add_polygon(const Polygon& p, const double& weight_factor, const coord_t print_z);
     bool nearest_point(const Point3& dest, Point3* point);
     bool points_in_boxrange(const Point3& dest, const coord_t range, Points* points);
     void append_z_position(coord_t z);
-    bool astar_route(const Point3& start_p, const Point3& goal_p, PolylinesMap* result, const double routing_explore_weight_factor, const double routing_interlayer_factor, const double layer_overlap, const double astar_factor);
+    bool astar_route(const Point3& start_p, const Point3& goal_p, PolylinesMap* result, const double routing_explore_weight_factor, const double routing_interlayer_factor, const double grid_step_size, const double layer_overlap, const double overlap_tolerance, const double astar_factor);
     void fill_svg(SVG* svg, const coord_t z, const ExPolygonCollection& s = ExPolygonCollection(), const routing_vertex_t& current_v = NULL) const;
     void write_svg(const std::string filename, const coord_t z) const;
 
@@ -109,8 +109,9 @@ public:
             Slic3r::point_index_t* point_index,
             const double routing_explore_weight_factor,
             const double routing_interlayer_factor,
-            const double layer_overlap)
-    : m_goal(goal), graph(graph), slices_surfaces(slices_surfaces), infill_surfaces(infill_surfaces), z_positions(z_positions), interlayer_overlaps(interlayer_overlaps), step_distance(step_distance), point_index(point_index), routing_explore_weight_factor(routing_explore_weight_factor), routing_interlayer_factor(routing_interlayer_factor), layer_overlap(layer_overlap), debug(false), debug_trigger(true) {}
+            const double layer_overlap,
+            const double overlap_tolerance)
+    : m_goal(goal), graph(graph), slices_surfaces(slices_surfaces), infill_surfaces(infill_surfaces), z_positions(z_positions), interlayer_overlaps(interlayer_overlaps), step_distance(step_distance), point_index(point_index), routing_explore_weight_factor(routing_explore_weight_factor), routing_interlayer_factor(routing_interlayer_factor), layer_overlap(layer_overlap), overlap_tolerance(overlap_tolerance), debug(false), debug_trigger(true), debug_100(false), iteration(0) {}
 
     void black_target(Edge e, BoostGraph const& g) {
  /*       std::cout << "REOPEN VERTEX!!! " << e << std::endl;
@@ -141,30 +142,38 @@ public:
         BoostGraph& g_i = const_cast<BoostGraph&>(g);
 
         coord_t print_z = g[u].point.z;
-        if(debug || (u == m_goal)) {
+
+        this->iteration++;
+        if((debug && !debug_100) || (debug && debug_100 && this->iteration > 100) || (u == m_goal)) {
             std::cout << "explore factor: " << this->routing_explore_weight_factor << " interlayer factor: " << this->routing_interlayer_factor << " layer_overlap: " << this->layer_overlap << std::endl;
 
             // debug output graph
-            //std::ostringstream ss;
-            //ss << "graph_visitor_";
-            //ss << print_z;
-            //ss << ".svg";
-            //std::string filename = ss.str();
-            //BoundingBox bb = infill_surfaces[print_z]->convex_hull().bounding_box();
-            //bb.offset(scale_(5));
-            //SVG svg_graph(filename.c_str(), bb);
-            //this->graph->fill_svg(&svg_graph, print_z, *infill_surfaces[print_z], u);
-            //svg_graph.Close();
+            std::ostringstream ss;
+            ss << "graph_visitor_";
+            ss << print_z;
+            ss << ".svg";
+            std::string filename = ss.str();
+            BoundingBox bb = infill_surfaces[print_z]->convex_hull().bounding_box();
+            bb.offset(scale_(5));
+            SVG svg_graph(filename.c_str(), bb);
+            this->graph->fill_svg(&svg_graph, print_z, *infill_surfaces[print_z], u);
+            svg_graph.Close();
 
             char ch;
             char d = 'd';
             char c = 'c';
+            char h = 'h';
             if(debug && debug_trigger) {
                 std::cin >> ch;
             }
 
             if(ch == c) debug_trigger = false;
             if(ch == d) debug = false;
+            if(ch == h) {
+                std::cout << "activating iterative debug output every 100 iterations" << std::endl;
+                debug_100 = true;
+            }
+            this->iteration = 0;
         }
 
         if(u == m_goal) {
@@ -174,10 +183,7 @@ public:
             //    std::string filename = ss.str();
             //    this->graph->write_svg(filename, z);
             //}
-        }
 
-
-        if(u == m_goal) {
             throw found_goal();
         }
 
@@ -198,18 +204,16 @@ public:
         Point3 p = g[u].point;
 
         // generate infill grid around current vertex and connections to adjacent existing vertices
-        if(this->slices_surfaces[p.z]->contains_b(p)) { // is this point inside material (including perimeters)?
-            this->make_grid_connections(p, g_i);
+        this->make_grid_connections(p, g_i);
 
-            // do the same for prev / next layer
-            if(prev_z > 0) {
-                Point3 pp((Point)p, prev_z);
-                this->make_grid_connections(pp, g_i);
-            }
-            if(next_z > 0) {
-                Point3 pp((Point)p, next_z);
-                this->make_grid_connections(pp, g_i);
-            }
+        // do the same for prev / next layer
+        if(prev_z > 0) {
+            Point3 pp((Point)p, prev_z);
+            this->make_grid_connections(pp, g_i);
+        }
+        if(next_z > 0) {
+            Point3 pp((Point)p, next_z);
+            this->make_grid_connections(pp, g_i);
         }
         //this->graph->write_svg("next_z_infill.svg", next_z);
 
@@ -223,7 +227,7 @@ public:
         double lower_weight = 0;
         Point3 last_point = g[u].point;
         Vertex last_vertex = u;
-        Polyline upper_trace, lower_trace;
+        Polyline this_trace, upper_trace, lower_trace;
         bool traverse_upper = (next_z > 0);
         bool traverse_lower = (prev_z >= 0);
         for(routing_vertex_t v = u;; v = predmap[v]) {
@@ -243,22 +247,30 @@ public:
 
             // matching existing points????
             if(traverse_upper) {
-                try {
-                    Point3 p(((Point)g[v].point), next_z);
-                    routing_vertex_t vertex = point_index->at(p); // unordered_map::at throws an out-of-range
-                    upper_trace.append((Point)(g[vertex].point));
-                    upper_weight += w;
-                } catch (const std::out_of_range& oor) {
+                Point3 p(((Point)g[v].point), next_z);
+                Point3 nearest;
+                if(this->graph->nearest_point(p, &nearest)) {
+                    if(p.distance_to(nearest) <= overlap_tolerance) {
+                        upper_trace.append((Point)nearest);
+                        upper_weight += w;
+                    }else{
+                        traverse_upper = false;
+                    }
+                }else{
                     traverse_upper = false;
                 }
             }
             if(traverse_lower) {
-                try {
-                    Point3 p(((Point)g[v].point), prev_z);
-                    routing_vertex_t vertex = point_index->at(p); // unordered_map::at throws an out-of-range
-                    lower_trace.append((Point)(g[vertex].point));
-                    lower_weight += w;
-                } catch (const std::out_of_range& oor) {
+                Point3 p(((Point)g[v].point), prev_z);
+                Point3 nearest;
+                if(this->graph->nearest_point(p, &nearest)) {
+                    if(p.distance_to(nearest) <= overlap_tolerance) {
+                        lower_trace.append((Point)nearest);
+                        lower_weight += w;
+                    }else{
+                        traverse_lower = false;
+                    }
+                }else{
                     traverse_lower = false;
                 }
             }
@@ -268,29 +280,60 @@ public:
                 //
             }
 
+            this_trace.append(g[v].point);
 
             // add upper edge connections
             if(traverse_upper && upper_trace.length() >= this->layer_overlap) {
-                Point3 a(upper_trace.last_point(), print_z);
-                Point3 b_upper((Point)g[u].point, next_z);
+                Point3 a(this_trace.last_point(), print_z);
+                //Point3 b_upper((Point)g[u].point, next_z);
+                Point3 b_upper(upper_trace.first_point(), next_z);
 
                 //coord_t distance = upper_trace.length() * this->routing_interlayer_factor;
                 coord_t distance = upper_weight + scale_(this->routing_interlayer_factor);
                 // we directly add the edge to get the length correct. (not just point-to point distance)
                 routing_edge_t edge = boost::add_edge(point_index->at(a), point_index->at(b_upper), distance, g_i).first;
-                (*this->interlayer_overlaps)[edge] = upper_trace;
+                (*this->interlayer_overlaps)[edge] = std::make_pair(this_trace, upper_trace);
                 //std::cout << "upper_trace weight: " << upper_weight << " vs length: " << upper_trace.length() << " vs factor: " << scale_(this->routing_interlayer_factor) << std::endl;
+
+             /*   // debug output graph
+                std::ostringstream ss;
+                ss << "interlayer_";
+                ss << print_z;
+                ss << ".svg";
+                std::string filename = ss.str();
+                BoundingBox bb = infill_surfaces[print_z]->convex_hull().bounding_box();
+                bb.offset(scale_(5));
+                SVG svg_graph(filename.c_str(), bb);
+                this->graph->fill_svg(&svg_graph, print_z, *infill_surfaces[print_z], u);
+                svg_graph.draw(this_trace, "red", scale_(0.08));
+                svg_graph.draw(upper_trace, "orange", scale_(0.06));
+                svg_graph.Close();
+
+                std::cout << "from " << this_trace.first_point() << " to " << this_trace.last_point() << std::endl;
+                std::cout << "u: " << u << std::endl;
+
+                char h = 'h';
+                char ch;
+                if(!debug_100) {
+                    std::cin >> ch;
+                }
+
+                if(ch == h) {
+                    debug_100 = true;
+                }
+             */
             }
             // add lower edge connections
             if(traverse_lower && lower_trace.length() >= this->layer_overlap) {
-                Point3 a(lower_trace.last_point(), print_z);
-                Point3 b_lower((Point)g[u].point, prev_z);
+                Point3 a(this_trace.last_point(), print_z);
+                //Point3 b_lower((Point)g[u].point, prev_z);
+                Point3 b_lower(lower_trace.first_point(), prev_z);
 
                 //coord_t distance = lower_trace.length() * this->routing_interlayer_factor;
                 coord_t distance = lower_weight + scale_(this->routing_interlayer_factor);
                 // we directly add the edge to get the length correct. (not just point-to point distance)
                 routing_edge_t edge = boost::add_edge(point_index->at(a), point_index->at(b_lower), distance, g_i).first;
-                (*this->interlayer_overlaps)[edge] = lower_trace;
+                (*this->interlayer_overlaps)[edge] = std::make_pair(lower_trace, this_trace);
             }
 
             last_point = g[v].point;
@@ -341,49 +384,62 @@ public:
     }
 
     void make_grid_connections(const Point3& p, BoostGraph& g) {
-        // add p to graph, gets vertex handle if p already exists
-        Vertex u;
-        this->graph->add_vertex(p, &u);
-
-        // add vertices in 45° steps if they are inside the infill region
-        Point3s pts;
-        if(this->infill_surfaces[p.z]->contains_b(p)) { // is this point inside infill?
-            pts = generate_grid_points(p);
-        }
-
-        // check existing points within grid distance
-        Points near_pts;
-        if(this->graph->points_in_boxrange(p, this->step_distance, &near_pts)) {
-            for(Point &pt : near_pts) {
-                if(this->slices_surfaces[p.z]->contains_b(pt)) { // skip points outside of material
-                    pts.push_back(Point3(pt, p.z));
-                }
+        Point3 nearest = p;
+        // is there already a matching point on this layer?
+        if(this->graph->nearest_point(p, &nearest)) {
+            if(p.distance_to(nearest) > overlap_tolerance) {
+                // no, stay with the original point
+                nearest = p;
             }
         }
 
-        // insert vertices and edges to graph
-        for(Point3 &pt : pts) {
-            Vertex v;
-            this->graph->add_vertex(pt, &v);
-            coord_t distance = p.distance_to(pt) * this->routing_explore_weight_factor;
-            // avoid self-loops
-            if(u != v) {
-                /*std::pair<routing_edge_t, bool> old_edge = boost::edge(u,v,g);
-                std::pair<routing_edge_t, bool> new_edge = boost::add_edge(u, v, distance, g);
+        // is this point inside material (including perimeters)?
+        if(this->slices_surfaces[p.z]->contains_b(nearest)) {
+            // add p to graph, gets vertex handle if p already exists
+            Vertex u;
+            this->graph->add_vertex(nearest, &u);
 
-                if(old_edge.second) {
-                    if(old_edge.first != new_edge.first) {
-                        std::cout << "Edge " << old_edge.first << "already exists and is overwritten by new edge " << new_edge.first << std::endl;
+
+            // add vertices in 45° steps if they are inside the infill region
+            Point3s pts;
+            if(this->infill_surfaces[p.z]->contains_b(p)) { // is this point inside infill?
+                pts = generate_grid_points(p);
+            }
+
+            // check existing points within grid distance
+            Points near_pts;
+            if(this->graph->points_in_boxrange(p, this->step_distance, &near_pts)) {
+                for(Point &pt : near_pts) {
+                    if(this->slices_surfaces[p.z]->contains_b(pt)) { // skip points outside of material
+                        pts.push_back(Point3(pt, p.z));
                     }
                 }
-                if(!new_edge.second) {
+            }
+
+            // insert vertices and edges to graph
+            for(Point3 &pt : pts) {
+                Vertex v;
+                this->graph->add_vertex(pt, &v);
+                coord_t distance = p.distance_to(pt) * this->routing_explore_weight_factor;
+                // avoid self-loops
+                if(u != v) {
+                    /*std::pair<routing_edge_t, bool> old_edge = boost::edge(u,v,g);
+                    std::pair<routing_edge_t, bool> new_edge = boost::add_edge(u, v, distance, g);
+
                     if(old_edge.second) {
-                        std::cout << "new edge could not be inserted!!! old edge is: " << old_edge.first << std::endl;
-                    }else{
-                        std::cout << "new edge could not be inserted!!! NO OLD EDGE!!!" << std::endl;
+                        if(old_edge.first != new_edge.first) {
+                            std::cout << "Edge " << old_edge.first << "already exists and is overwritten by new edge " << new_edge.first << std::endl;
+                        }
                     }
-                }*/
-                boost::add_edge(u, v, distance, g);
+                    if(!new_edge.second) {
+                        if(old_edge.second) {
+                            std::cout << "new edge could not be inserted!!! old edge is: " << old_edge.first << std::endl;
+                        }else{
+                            std::cout << "new edge could not be inserted!!! NO OLD EDGE!!!" << std::endl;
+                        }
+                    }*/
+                    boost::add_edge(u, v, distance, g);
+                }
             }
         }
     }
@@ -400,8 +456,11 @@ private:
     const double routing_explore_weight_factor;
     const double routing_interlayer_factor;
     const double layer_overlap;
+    const double overlap_tolerance;
     bool debug;
     bool debug_trigger;
+    bool debug_100;
+    unsigned int iteration;
 };
 }
 

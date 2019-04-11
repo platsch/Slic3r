@@ -5,12 +5,14 @@ namespace Slic3r {
 
 ElectronicWireRouter::ElectronicWireRouter(const double layer_overlap, const double routing_astar_factor,
         const double routing_perimeter_factor, const double routing_hole_factor,
-        const double routing_interlayer_factor, const int layer_count) :
+        const double routing_interlayer_factor, const double grid_step_size, const int layer_count) :
+        layer_overlap(layer_overlap),
         routing_astar_factor(routing_astar_factor),
         routing_perimeter_factor(routing_perimeter_factor),
         routing_hole_factor(routing_hole_factor),
         routing_interlayer_factor(routing_interlayer_factor),
-        layer_overlap(layer_overlap){
+        grid_step_size(grid_step_size)
+        {
     this->ewgs.reserve(layer_count + 1); // required to avoid reallocations -> invalid previous_ewg references
 }
 
@@ -203,7 +205,7 @@ ElectronicWireRouter::route(const RubberBand* rb, const Point3 offset)
                     Polyline pl;
                     pl.append((Point)a);
                     pl.append((Point)b);
-                    graph.interlayer_overlaps[edge] = pl;
+                    graph.interlayer_overlaps[edge] = std::make_pair(pl, pl);
                 }else{
                     std::cerr << "WARNING: unable to add direct interlayer interconnect to routing graph! skipping this connection..." << std::endl;
                 }
@@ -235,7 +237,9 @@ ElectronicWireRouter::route(const RubberBand* rb, const Point3 offset)
             &route_map,
             (1.0 + max_perimeters * this->routing_perimeter_factor),
             this->routing_interlayer_factor,
+            this->grid_step_size,
             this->layer_overlap,
+            scale_(this->ewgs.front().extrusion_width/2),
             this->routing_astar_factor))
     {
         // push resulting routes to EWG objects

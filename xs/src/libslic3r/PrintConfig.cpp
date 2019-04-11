@@ -196,6 +196,14 @@ PrintConfigDef::PrintConfigDef()
     def->height = 120;
     def->default_value = new ConfigOptionString("G91\nG1 Z10 F2000\nG90\nM0\n");
 
+    def = this->add("conductive_grid_resolution", coFloat);
+    def->label = "Grid resolution";
+    def->tooltip = "Grid resolution for wire routing. Limited by slope overlap.";
+    def->sidetext = "mm";
+    def->cli = "conductive_grid_resolution=f";
+    def->min = 0.1;
+    def->default_value = new ConfigOptionFloat(1.5);
+
     def = this->add("conductive_wire_channel_width", coFloat);
     def->label = "Channel width";
     def->tooltip = "The absolute amount a channel for a conductive wire will be expanded additional to the extrusion width.";

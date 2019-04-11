@@ -50,33 +50,28 @@ ElectronicRoutingGraph::add_edge(const Line3& l, routing_edge_t* edge, const dou
     return result;
 }
 
-bool
+void
 ElectronicRoutingGraph::add_polygon(const Polygon& p, const double& weight_factor, const coord_t print_z)
 {
-    bool result = false;
     if(p.is_valid()) {
         routing_vertex_t last_vertex, this_vertex, first_vertex;
-        result = this->add_vertex(Point3(p.points.front(), print_z) , &last_vertex); // add first point
+        this->add_vertex(Point3(p.points.front(), print_z) , &last_vertex); // add first point
         first_vertex = last_vertex;
-        if(result) {
-            for (Points::const_iterator it = p.points.begin(); it != p.points.end()-1; ++it) {
-                // add next vertex
-                result = this->add_vertex(Point3(*(it+1), print_z), &this_vertex);
-                if(!result) break;
+        for (Points::const_iterator it = p.points.begin(); it != p.points.end()-1; ++it) {
+            // add next vertex
+            this->add_vertex(Point3(*(it+1), print_z), &this_vertex);
 
-                // add edge
-                coord_t distance = it->distance_to(*(it+1)) * weight_factor;
-                // Add factor to prioritize routing with high distance to external perimeter
-                boost::add_edge(last_vertex, this_vertex, distance, this->graph);
-                last_vertex = this_vertex;
-            }
+            // add edge
+            coord_t distance = it->distance_to(*(it+1)) * weight_factor;
+            // Add factor to prioritize routing with high distance to external perimeter
+            boost::add_edge(last_vertex, this_vertex, distance, this->graph);
+            last_vertex = this_vertex;
         }
         // add final edge to close the loop
         coord_t distance = p.points.back().distance_to(p.points.front()) * weight_factor;
         // Add factor to prioritize routing with high distance to external perimeter
         boost::add_edge(last_vertex, first_vertex, distance, this->graph);
     }
-    return result;
 }
 
 bool
@@ -126,7 +121,9 @@ ElectronicRoutingGraph::astar_route(
         PolylinesMap* route_map,
         const double routing_explore_weight_factor,
         const double routing_interlayer_factor,
+        const double grid_step_size,
         const double layer_overlap,
+        const double overlap_tolerance,
         const double astar_factor
         )
 {
@@ -157,11 +154,12 @@ ElectronicRoutingGraph::astar_route(
             this->infill_surfaces_map,
             this->z_positions,
             &this->interlayer_overlaps,
-            scale_(1),
+            grid_step_size,
             &this->point_index,
             routing_explore_weight_factor,
             routing_interlayer_factor,
-            layer_overlap);
+            layer_overlap,
+            overlap_tolerance);
     // distance heuristic
     distance_heuristic<routing_graph_t, coord_t, boost::property_map<routing_graph_t, Point3 PointVertex::*>::type> dist_heuristic(this->vertex_index, goal, astar_factor);
 
@@ -203,26 +201,34 @@ ElectronicRoutingGraph::astar_route(
                 // apply interlayer overlaps
                 routing_edge_t edge = boost::edge(v, last_v, this->graph).first;
 
-                Polyline overlap;
+                Polyline last_overlap, this_overlap;
                 try {
-                   overlap = interlayer_overlaps.at(edge); // map::at throws an out-of-range
+                   std::pair<Polyline, Polyline> overlap = interlayer_overlaps.at(edge); // map::at throws an out-of-range
+                   if(last_z < this->vertex_index[v].z) {
+                       last_overlap = overlap.first;
+                       this_overlap = overlap.second;
+                   }else{
+                       last_overlap = overlap.second;
+                       this_overlap = overlap.first;
+                   }
                } catch (const std::out_of_range& oor) {
                    std::cerr << "Unable to find overlap for edge: " << oor.what() << '\n';
                    std::cout << "Edge was: " << edge << std::endl;
                }
 
                 // correct direction?
-                if(!overlap.first_point().coincides_with_epsilon(routed_wire.last_point())) {
-                    overlap.reverse();
+                if(!last_overlap.first_point().coincides_with_epsilon(routed_wire.last_point())) {
+                    last_overlap.reverse();
+                    this_overlap.reverse();
                 }
 
-                for (Points::iterator p = overlap.points.begin()+1; p != overlap.points.end(); ++p) {
+                for (Points::iterator p = last_overlap.points.begin()+1; p != last_overlap.points.end(); ++p) {
                     routed_wire.append(*p);
                 }
                 (*route_map)[last_z].push_back(routed_wire);
                 routed_wire.points.clear();
 
-                for (Points::iterator p = overlap.points.begin(); p != overlap.points.end()-1; ++p) {
+                for (Points::iterator p = this_overlap.points.begin(); p != this_overlap.points.end()-1; ++p) {
                     routed_wire.append(*p);
                 }
             }
@@ -266,7 +272,7 @@ ElectronicRoutingGraph::fill_svg(SVG* svg, const coord_t z, const ExPolygonColle
             //}else{
             //    svg_graph.draw(l,  "blue", scale_(0.1));
             //}
-            svg->draw(l,  color, scale_(0.2));
+            svg->draw(l,  color, scale_(0.1));
         }
     }
 

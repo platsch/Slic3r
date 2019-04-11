@@ -158,6 +158,7 @@ class PrintObjectConfig : public virtual StaticPrintConfig
     ConfigOptionPercent             adaptive_slicing_quality;
     ConfigOptionFloat               conductive_cavity_offset;
     ConfigOptionString              conductive_pnp_manual_gcode;
+    ConfigOptionFloat               conductive_grid_resolution;
     ConfigOptionFloat               conductive_wire_channel_width;
     ConfigOptionFloat               conductive_wire_extrusion_overlap;
     ConfigOptionFloatOrPercent      conductive_wire_extrusion_width;
@@ -205,6 +206,7 @@ class PrintObjectConfig : public virtual StaticPrintConfig
         OPT_PTR(adaptive_slicing_quality);
         OPT_PTR(conductive_cavity_offset);
         OPT_PTR(conductive_pnp_manual_gcode);
+        OPT_PTR(conductive_grid_resolution);
         OPT_PTR(conductive_wire_channel_width);
         OPT_PTR(conductive_wire_extrusion_overlap);
         OPT_PTR(conductive_wire_extrusion_width);
