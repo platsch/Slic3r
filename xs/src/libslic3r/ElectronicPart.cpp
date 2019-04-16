@@ -446,31 +446,53 @@ stl_file ElectronicPart::generateCube(double x, double y, double z, double dx, d
 
     x -= dx/2;
     y -= dy/2;
+    int radius = dx;
 
-    facet = generateFacet(x, y, z, x, y+dy, z, x+dx, y+dy, z); //bottom
-    stl_add_facet(&stl, &facet);
-    facet = generateFacet(x, y, z, x+dx, y, z, x+dx, y+dy, z); //bottom
-    stl_add_facet(&stl, &facet);
-    facet = generateFacet(x, y, z, x, y+dy, z, x, y+dy, z+dz); //left
-    stl_add_facet(&stl, &facet);
-    facet = generateFacet(x, y, z, x, y, z+dz, x, y+dy, z+dz); //left
-    stl_add_facet(&stl, &facet);
-    facet = generateFacet(x, y+dy, z, x+dx, y+dy, z, x+dx, y+dy, z+dz); //back
-    stl_add_facet(&stl, &facet);
-    facet = generateFacet(x, y+dy, z, x, y+dy, z+dz, x+dx, y+dy, z+dz); //back
-    stl_add_facet(&stl, &facet);
-    facet = generateFacet(x+dx, y, z, x+dx, y+dy, z, x+dx, y+dy, z+dz); //right
-    stl_add_facet(&stl, &facet);
-    facet = generateFacet(x+dx, y, z, x+dx, y, z+dz, x+dx, y+dy, z+dz); //right
-    stl_add_facet(&stl, &facet);
-    facet = generateFacet(x, y, z, x+dx, y, z, x+dx, y, z+dz); //front
-    stl_add_facet(&stl, &facet);
-    facet = generateFacet(x, y, z, x, y, z+dz, x+dx, y, z+dz); //front
-    stl_add_facet(&stl, &facet);
-    facet = generateFacet(x, y, z+dz, x, y+dy, z+dz, x+dx, y+dy, z+dz); //top
-    stl_add_facet(&stl, &facet);
-    facet = generateFacet(x, y, z+dz, x+dx, y, z+dz, x+dx, y+dy, z+dz); //top
-    stl_add_facet(&stl, &facet);
+    for(size_t i = 0; i <= 360; i += 60)
+    {
+        double rad = i / 180.0 * PI;
+        double next_rad = (i - 60) / 180.0 * PI;
+        facet = generateFacet(x, y, z, x + sin(rad) * radius, y + cos(rad) * radius, z, x + sin(next_rad) * radius, y + cos(next_rad) * radius, z); //bottom
+        stl_add_facet(&stl, &facet);
+
+        facet = generateFacet(x + sin(rad) * radius, y + cos(rad) * radius, z, x + sin(next_rad) * radius, y + cos(next_rad) * radius, z, x + sin(next_rad) * radius, y + cos(next_rad) * radius, z + dz); //bottom
+        stl_add_facet(&stl, &facet);
+        facet = generateFacet(x + sin(rad) * radius, y + cos(rad) * radius, z + dz, x + sin(next_rad) * radius, y + cos(next_rad) * radius, z + dz, x + sin(next_rad) * radius, y + cos(next_rad) * radius, z); //bottom
+        stl_add_facet(&stl, &facet);
+
+        facet = generateFacet(x, y, z + dz, x + sin(rad) * radius, y + cos(rad) * radius, z + dz, x + sin(next_rad) * radius, y + cos(next_rad) * radius, z + dz); //bottom
+        stl_add_facet(&stl, &facet);
+    }
+    // double rad = 0.0 / 180.0 * PI;
+    // double next = 60.0 / 180.0 * PI;
+    // facet = generateFacet(x, y, z, x + sin(rad) * radius, y + cos(rad) * radius, z, x + sin(rad - next) * radius, y + cos(rad - next) * radius, z); //bottom
+    // stl_add_facet(&stl, &facet);
+    
+
+    // facet = generateFacet(x, y, z, x, y+dy, z, x+dx, y+dy, z); //bottom
+    // stl_add_facet(&stl, &facet);
+    // facet = generateFacet(x, y, z, x+dx, y, z, x+dx, y+dy, z); //bottom
+    // stl_add_facet(&stl, &facet);
+    // facet = generateFacet(x, y, z, x, y+dy, z, x, y+dy, z+dz); //left
+    // stl_add_facet(&stl, &facet);
+    // facet = generateFacet(x, y, z, x, y, z+dz, x, y+dy, z+dz); //left
+    // stl_add_facet(&stl, &facet);
+    // facet = generateFacet(x, y+dy, z, x+dx, y+dy, z, x+dx, y+dy, z+dz); //back
+    // stl_add_facet(&stl, &facet);
+    // facet = generateFacet(x, y+dy, z, x, y+dy, z+dz, x+dx, y+dy, z+dz); //back
+    // stl_add_facet(&stl, &facet);
+    // facet = generateFacet(x+dx, y, z, x+dx, y+dy, z, x+dx, y+dy, z+dz); //right
+    // stl_add_facet(&stl, &facet);
+    // facet = generateFacet(x+dx, y, z, x+dx, y, z+dz, x+dx, y+dy, z+dz); //right
+    // stl_add_facet(&stl, &facet);
+    // facet = generateFacet(x, y, z, x+dx, y, z, x+dx, y, z+dz); //front
+    // stl_add_facet(&stl, &facet);
+    // facet = generateFacet(x, y, z, x, y, z+dz, x+dx, y, z+dz); //front
+    // stl_add_facet(&stl, &facet);
+    // facet = generateFacet(x, y, z+dz, x, y+dy, z+dz, x+dx, y+dy, z+dz); //top
+    // stl_add_facet(&stl, &facet);
+    // facet = generateFacet(x, y, z+dz, x+dx, y, z+dz, x+dx, y+dy, z+dz); //top
+    // stl_add_facet(&stl, &facet);
 
     return stl;
 }
