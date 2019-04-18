@@ -448,7 +448,7 @@ stl_file ElectronicPart::generateCube(double x, double y, double z, double dx, d
     y -= dy/2;
     int radius = dx;
 
-    for(size_t i = 0; i <= 360; i += 60)
+    for(size_t i = 60; i <= 360; i += 60)
     {
         double rad = i / 180.0 * PI;
         double next_rad = (i - 60) / 180.0 * PI;
