@@ -455,9 +455,15 @@ stl_file ElectronicPart::generateCube(double x, double y, double z, double dx, d
         facet = generateFacet(x, y, z, x + sin(rad) * radius, y + cos(rad) * radius, z, x + sin(next_rad) * radius, y + cos(next_rad) * radius, z); //bottom
         stl_add_facet(&stl, &facet);
 
-        facet = generateFacet(x + sin(rad) * radius, y + cos(rad) * radius, z, x + sin(next_rad) * radius, y + cos(next_rad) * radius, z, x + sin(next_rad) * radius, y + cos(next_rad) * radius, z + dz); //bottom
+        facet = generateFacet(
+            x + sin(rad) * radius,      y + cos(rad) * radius,      z,
+            x + sin(rad) * radius,      y + cos(rad) * radius, z + dz,
+            x + sin(next_rad) * radius, y + cos(next_rad) * radius, z); //bottom
         stl_add_facet(&stl, &facet);
-        facet = generateFacet(x + sin(rad) * radius, y + cos(rad) * radius, z + dz, x + sin(next_rad) * radius, y + cos(next_rad) * radius, z + dz, x + sin(next_rad) * radius, y + cos(next_rad) * radius, z); //bottom
+        facet = generateFacet(
+            x + sin(rad) * radius,      y + cos(rad) * radius,      z + dz,
+            x + sin(next_rad) * radius, y + cos(next_rad) * radius, z + dz,
+            x + sin(next_rad) * radius, y + cos(next_rad) * radius, z); //bottom
         stl_add_facet(&stl, &facet);
 
         facet = generateFacet(x, y, z + dz, x + sin(rad) * radius, y + cos(rad) * radius, z + dz, x + sin(next_rad) * radius, y + cos(next_rad) * radius, z + dz); //bottom
