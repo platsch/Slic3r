@@ -71,6 +71,7 @@ private:
     double conductive_wire_channel_width;
     const double grid_step_size;
     int max_perimeters;
+    ExPolygonCollection slices;
     ExPolygonCollections deflated_slices;
 
     friend class ElectronicWireRouter;

@@ -49,10 +49,11 @@ ElectronicWireGenerator::get_scaled_bottom_z() const
     return scale_(this->layer->print_z - this->layer->height);
 }
 
+/// return intersection of previous n slices to determine regions with solid material for wires
 const ExPolygonCollection*
 ElectronicWireGenerator::get_layer_slices() const
 {
-    return &(this->layer->slices);
+    return &(this->slices);
 }
 
 // generate set of deflated expolygons. Inflate by perimeter width per region and channel width.
@@ -60,15 +61,62 @@ ExPolygonCollections*
 ElectronicWireGenerator::get_contour_set()
 {
     if(this->deflated_slices.size() < 1) {
+
+        // collect slices from n previous layers and compute intersection to
+        // use only regions which are supported by at least n layers
+        int prev_shells = 3;
+        int next_shells = 3;
+
+        size_t region_count = this->layer->region_count();
+        ExPolygonCollections slices;
+        slices.resize(region_count);
+
+        if(this->layer->lower_layer != nullptr && prev_shells > 0) {
+            Layer* current_layer = this->layer->lower_layer;
+            for(size_t r = 0; r < region_count; r++) {
+                slices[r] = ExPolygonCollection(current_layer->regions[r]->slices);
+            }
+            for(int i = 1; i < prev_shells; i++) {
+                if(current_layer->lower_layer != nullptr) {
+                    current_layer = current_layer->lower_layer;
+                    for(size_t r = 0; r < region_count; r++) {
+                        slices[r] = intersection_ex((Polygons)slices[r], (Polygons)current_layer->regions[r]->slices);
+                    }
+                }
+            }
+        }else{
+            for(size_t r = 0; r < region_count; r++) {
+                slices[r] = ExPolygonCollection(this->layer->regions[r]->slices);
+            }
+        }
+
+        // how to handle next layers? coverage doesn't matter, only routed wires must be avoided
+
         for(int i=0; i < max_perimeters; i++) {
             // initialize vector element
             this->deflated_slices.push_back(ExPolygonCollection());
 
-            for(const auto &region : this->layer->regions) {
-                const coord_t perimeters_thickness = this->offset_width(region, i+1);
-                this->deflated_slices[i].append(offset_ex((Polygons)region->slices, -perimeters_thickness));
+            //for(const auto &region : this->layer->regions) {
+            //    const coord_t perimeters_thickness = this->offset_width(region, i+1);
+            //    this->deflated_slices[i].append(offset_ex((Polygons)region->slices, -perimeters_thickness));
+           // }
+
+            for(int r = 0; r < this->layer->region_count(); r++) {
+                const coord_t perimeters_thickness = this->offset_width(this->layer->regions[r], i+1);
+                this->deflated_slices[i].append(offset_ex((Polygons)slices[r], -perimeters_thickness));
+            }
+            // intersection / offsetting introduces collinear points
+            for(ExPolygon &ep : this->deflated_slices[i].expolygons) {
+                ep.remove_colinear_points();
             }
         }
+
+        // store slices in one collection for in/outside of material checking in graph search
+        this->slices.expolygons.clear();
+        for(ExPolygonCollection &epc : slices) {
+            this->slices.append(epc);
+        }
+
         this->_align_to_prev_perimeters();
     }
 
@@ -422,7 +470,7 @@ ElectronicWireGenerator::_align_to_prev_perimeters() {
         //SVG svg_graph(filename.c_str());
 
         //svg_graph.draw(this->deflated_slices[0], "black");
-        //svg_graph.draw((Points)this->deflated_slices[0], "red", scale_(0.3));
+        //svg_graph.draw((Points)this->deflated_slices[0], "red", scale_(0.6));
 
         //svg_graph.Close();
 
@@ -458,46 +506,24 @@ ElectronicWireGenerator::_align_to_prev_perimeters() {
                             // does this point already exist?
                             bool known_point = false;
                             for(Point &p : poly->points) {
-
                                 // points match approximately, don't insert a new point
                                 if(p.distance_to(other_p) < scale_(this->extrusion_width/2)) {
                                     known_point = true;
                                     if(p.coincides_with_epsilon(other_p)) { // points actually are the same
                                         p = other_p;
                                         if(i == 0) {
-                                            //svg_graph1.draw(p, "green", scale_(0.6));
+                                            //svg_graph1.draw(p, "green", scale_(0.8));
                                         }
                                         break;
-                                    }//else{ // points are not same but projection from near point
-                                     //   p = projection;
-                                     //   if(i == 0) {
-                                     //       svg_graph1.draw(p, "orange", scale_(0.6));
-                                     //   }
-                                    //}
-                                }
-
-                                /*if(p.coincides_with_epsilon(projection)) { // points match
-                                    if(projection.coincides_with_epsilon(other_p)) { // points actually are the same
-                                        p = other_p;
-                                        if(i == 0) {
-                                            svg_graph1.draw(p, "green", scale_(0.6));
-                                        }
-                                    }else{ // points are not same but projection from near point
-                                        p = projection;
-                                        if(i == 0) {
-                                            svg_graph1.draw(p, "orange", scale_(0.6));
-                                        }
                                     }
-                                    known_point = true;
-                                    break;
-                                }*/
+                                }
                             }
                             // insert it otherwise
                             if(!known_point) {
                                 //std::cout << "inserting point. Nearest point was: " << min_distance << "scaled epsilon: " << SCALED_EPSILON << std::endl;
                                 poly->insert(projection);
                                 if(i == 0) {
-                                    //svg_graph1.draw(projection, "blue", scale_(0.4));
+                                    //svg_graph1.draw(projection, "blue", scale_(0.8));
                                 }
                             }
                         }
@@ -511,7 +537,7 @@ ElectronicWireGenerator::_align_to_prev_perimeters() {
             }
         }
 
-        //svg_graph1.draw((Points)this->deflated_slices[0], "red", scale_(0.2));
+        //svg_graph1.draw((Points)this->deflated_slices[0], "red", scale_(0.6));
         //svg_graph1.Close();
     }
 }

@@ -111,7 +111,7 @@ public:
             const double routing_interlayer_factor,
             const double layer_overlap,
             const double overlap_tolerance)
-    : m_goal(goal), graph(graph), slices_surfaces(slices_surfaces), infill_surfaces(infill_surfaces), z_positions(z_positions), interlayer_overlaps(interlayer_overlaps), step_distance(step_distance), point_index(point_index), routing_explore_weight_factor(routing_explore_weight_factor), routing_interlayer_factor(routing_interlayer_factor), layer_overlap(layer_overlap), overlap_tolerance(overlap_tolerance), debug(false), debug_trigger(true), debug_100(false), iteration(0) {}
+    : m_goal(goal), graph(graph), slices_surfaces(slices_surfaces), infill_surfaces(infill_surfaces), z_positions(z_positions), interlayer_overlaps(interlayer_overlaps), step_distance(step_distance), point_index(point_index), routing_explore_weight_factor(routing_explore_weight_factor), routing_interlayer_factor(routing_interlayer_factor), layer_overlap(layer_overlap), overlap_tolerance(overlap_tolerance), debug(true), debug_trigger(true), debug_100(false), iteration(0) {}
 
     void black_target(Edge e, BoostGraph const& g) {
  /*       std::cout << "REOPEN VERTEX!!! " << e << std::endl;
@@ -153,10 +153,14 @@ public:
             ss << print_z;
             ss << ".svg";
             std::string filename = ss.str();
-            BoundingBox bb = infill_surfaces[print_z]->convex_hull().bounding_box();
+            BoundingBox bb = BoundingBox(Point(0, 0), Point(100000, 1000000));
+            if(((Points)*(infill_surfaces[print_z])).size() > 3) {
+                BoundingBox bb = infill_surfaces[print_z]->convex_hull().bounding_box();
+            }
             bb.offset(scale_(5));
             SVG svg_graph(filename.c_str(), bb);
             this->graph->fill_svg(&svg_graph, print_z, *infill_surfaces[print_z], u);
+            //svg_graph.draw(*infill_surfaces[print_z], "black");
             svg_graph.Close();
 
             char ch;
@@ -177,12 +181,14 @@ public:
         }
 
         if(u == m_goal) {
-            //for(const coord_t &z : this->z_positions) {
-            //    std::ostringstream ss;
-            //    ss << "final_graph" << z << ".svg";
-            //    std::string filename = ss.str();
-            //    this->graph->write_svg(filename, z);
-            //}
+            for(const coord_t &z : this->z_positions) {
+                std::ostringstream ss;
+                ss << "final_graph" << z << ".svg";
+                std::string filename = ss.str();
+                SVG svg_graph(filename.c_str());
+                this->graph->fill_svg(&svg_graph, z, *infill_surfaces[z], u);
+                svg_graph.Close();
+            }
 
             throw found_goal();
         }
@@ -322,6 +328,7 @@ public:
                     debug_100 = true;
                 }
              */
+                traverse_upper = false;
             }
             // add lower edge connections
             if(traverse_lower && lower_trace.length() >= this->layer_overlap) {
@@ -334,6 +341,7 @@ public:
                 // we directly add the edge to get the length correct. (not just point-to point distance)
                 routing_edge_t edge = boost::add_edge(point_index->at(a), point_index->at(b_lower), distance, g_i).first;
                 (*this->interlayer_overlaps)[edge] = std::make_pair(lower_trace, this_trace);
+                traverse_lower = false;
             }
 
             last_point = g[v].point;
@@ -394,7 +402,8 @@ public:
         }
 
         // is this point inside material (including perimeters)?
-        if(this->slices_surfaces[p.z]->contains_b(nearest)) {
+        //if(this->slices_surfaces[p.z]->contains_b(nearest)) {
+        if(this->infill_surfaces[p.z]->contains_b(nearest)) {
             // add p to graph, gets vertex handle if p already exists
             Vertex u;
             this->graph->add_vertex(nearest, &u);
