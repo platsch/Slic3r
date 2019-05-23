@@ -1,0 +1,59 @@
+%module{Slic3r::XS};
+
+%{
+#include <xsinit.h>
+#include "libslic3r/AdditionalPart.hpp"
+%}
+
+%name{Slic3r::Electronics::AdditionalPart} class AdditionalPart {
+    AdditionalPart(std::string name, std::string library, std::string deviceset, std::string device, std::string package);
+    //~AdditionalPart(); -- No destructor, perl garbage collector would destroy the object under certain circumstances
+    Clone<AdditionalPart> clone()
+        %code{% RETVAL = THIS; %};
+    int getPartID();
+    std::string getName();
+    double getFootprintHeight();
+    void setFootprintHeight(double height);
+    void setSize(double x, double y, double z);
+    void setPosition(double x, double y, double z);
+    void setPartHeight(double height);
+    double getPartHeight();
+    Clone<Pointf3> getPosition();
+    void resetPosition();
+    void setRotation(double x, double y, double z);
+    Clone<Pointf3> getRotation();
+    void setPartOrigin(double x, double y, double z);
+    void setVisibility(bool visible);
+    bool isVisible();
+    bool isPlaced();
+    void setPlaced(bool placed);
+    void setPlacingMethod(PlacingMethod method);
+    PlacingMethod getPlacingMethod();
+    Clone<TriangleMesh> getFootprintMesh();
+    Clone<TriangleMesh> getPartMesh();
+    Clone<TriangleMesh> getMesh();
+    Clone<Polygon> getHullPolygon(double z_lower, double z_upper, double hull_offset);
+    std::string getPlaceGcode(double print_z, std::string automaticGcode, std::string manualGcode);
+    std::string getPlaceDescription(Pointf* offset)
+    	%code{% RETVAL = THIS->getPlaceDescription(*offset); %};
+    void resetPrintedStatus();
+};
+
+%package{Slic3r::AdditionalPart};
+%{
+
+IV
+_constant()
+  ALIAS:
+    PM_AUTOMATIC            = PM_AUTOMATIC
+    PM_MANUAL               = PM_MANUAL
+    PM_NONE                 = PM_NONE
+    CM_NONE                 = CM_NONE
+    CM_LAYER                = CM_LAYER
+    CM_PART                 = CM_PART
+  PROTOTYPE:
+  CODE:
+    RETVAL = ix;
+  OUTPUT: RETVAL
+
+%}

@@ -180,6 +180,11 @@
 %typemap{Ref<ElectronicPart>}{simple};
 %typemap{Clone<ElectronicPart>}{simple};
 
+%typemap{AdditionalPart*};
+%typemap{AdditionalParts*};
+%typemap{Ref<AdditionalPart>}{simple};
+%typemap{Clone<AdditionalPart>}{simple};
+
 %typemap{ElectronicNet*};
 %typemap{Ref<ElectronicNet>}{simple};
 %typemap{Clone<ElectronicNet>}{simple};

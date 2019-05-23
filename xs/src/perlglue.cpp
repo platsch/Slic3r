@@ -65,6 +65,7 @@ REGISTER_CLASS(TriangleMesh, "TriangleMesh");
 REGISTER_CLASS(GLVertexArray, "GUI::_3DScene::GLVertexArray");
 REGISTER_CLASS(Schematic, "Electronics::Schematic");
 REGISTER_CLASS(ElectronicPart, "Electronics::ElectronicPart");
+REGISTER_CLASS(AdditionalPart, "Electronics::AdditionalPart");
 REGISTER_CLASS(ElectronicNet, "Electronics::ElectronicNet");
 REGISTER_CLASS(RubberBand, "Electronics::RubberBand");
 REGISTER_CLASS(NetPoint, "Electronics::NetPoint");

@@ -250,6 +250,10 @@ ElectronicPart*                 O_OBJECT_SLIC3R
 Ref<ElectronicPart>             O_OBJECT_SLIC3R_T
 Clone<ElectronicPart>           O_OBJECT_SLIC3R_T
 
+AdditionalPart*                 O_OBJECT_SLIC3R
+Ref<AdditionalPart>             O_OBJECT_SLIC3R_T
+Clone<AdditionalPart>           O_OBJECT_SLIC3R_T
+
 ElectronicNet*                 O_OBJECT_SLIC3R
 Ref<ElectronicNet>             O_OBJECT_SLIC3R_T
 Clone<ElectronicNet>           O_OBJECT_SLIC3R_T

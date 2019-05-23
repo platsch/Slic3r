@@ -60,6 +60,7 @@ use utf8;
 
 use Slic3r::Print::State ':steps';
 use Slic3r::ElectronicPart qw(:PlacingMethods :ConnectionMethods);
+use Slic3r::AdditionalPart qw(:PlacingMethods);
 use Slic3r::GUI::Electronics3DScene;
 use Slic3r::Config;
 use File::Basename qw(basename);
