@@ -48,7 +48,7 @@ class RubberBand : public Linef3
     const bool pointBSelected() const {return this->netPointBSelected;};
     bool getLayerSegments(const double z_bottom, const double z_top, coord_t const layer_overlap, Lines* segments, bool* overlap_a, bool* overlap_b) const;
     /// returns rubberband inlcuding potential pin contact extensions
-    Line3s getExtendedSegmets() const;
+    Line3s getExtendedSegmets(bool* extend_a, bool* extend_b) const;
 
     // Rubberband inherits from Linef3 and uses points a and b.
 

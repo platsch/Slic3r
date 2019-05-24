@@ -221,7 +221,7 @@ bool RubberBand::getLayerSegments(const double z_bottom, const double z_top, con
  * Endpoints connecting an smd-pin are extended to the opposite of the pin if extendPinX is true.
  * extension_length and result in scaled coordinates.
  */
-Line3s RubberBand::getExtendedSegmets() const
+Line3s RubberBand::getExtendedSegmets(bool* extend_a, bool* extend_b) const
 {
     Line3s result;
 
@@ -229,6 +229,7 @@ Line3s RubberBand::getExtendedSegmets() const
     if(!this->_pinAExtension.coincides_with(this->a)) {
         Line3 padExtension(this->_pinAExtension.scaled_point3(), this->a.scaled_point3());
         result.push_back(padExtension);
+        *extend_a = true;
     }
     // actual rubberband line
     result.push_back(Line3(this->a.scaled_point3(), this->b.scaled_point3()));
@@ -237,6 +238,7 @@ Line3s RubberBand::getExtendedSegmets() const
     if(!this->_pinBExtension.coincides_with(this->b)) {
         Line3 padExtension(this->b.scaled_point3(), this->_pinBExtension.scaled_point3());
         result.push_back(padExtension);
+        *extend_b = true;
     }
 
     return result;

@@ -219,7 +219,9 @@ ElectronicWireRouter::route(const RubberBand* rb, const Point3 offset)
 
     // A* search on routing graph
     // start / goal vertex
-    Line3s lines = rb->getExtendedSegmets();
+    bool extend_a = false;
+    bool extend_b = false;
+    Line3s lines = rb->getExtendedSegmets(&extend_a, &extend_b);
     for(auto &l : lines) {
         l.translate(offset.x, offset.y, 0);
         // map to next layer boundary
@@ -229,13 +231,21 @@ ElectronicWireRouter::route(const RubberBand* rb, const Point3 offset)
 
     Point3 start = lines.front().a;
     Point3 goal = lines.back().b;
+
+    if(extend_a) {
+        start = lines.front().b;
+    }
+    if(extend_b) {
+        goal = lines.back().a;
+    }
+
     PolylinesMap route_map;
 
     if(graph.astar_route(
             start,
             goal,
             &route_map,
-            (1.0 + max_perimeters * this->routing_perimeter_factor),
+            (1.0 + (max_perimeters-1) * this->routing_perimeter_factor),
             this->routing_interlayer_factor,
             this->grid_step_size,
             this->layer_overlap,
@@ -247,6 +257,20 @@ ElectronicWireRouter::route(const RubberBand* rb, const Point3 offset)
             for (Polyline& pl : it.second) {
                 this->z_map[it.first]->add_routed_wire(pl);
             }
+        }
+
+        // add pin extensions
+        if(extend_a) {
+            Polyline pl;
+            pl.append((Point)lines.front().a);
+            pl.append((Point)lines.front().b);
+            this->z_map[lines.front().a.z]->add_routed_wire(pl);
+        }
+        if(extend_b) {
+            Polyline pl;
+            pl.append((Point)lines.back().a);
+            pl.append((Point)lines.back().b);
+            this->z_map[lines.back().b.z]->add_routed_wire(pl);
         }
         //this->z_map[last_z]->add_routed_wire(routed_wire);
     } else {
