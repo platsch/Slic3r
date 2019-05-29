@@ -54,6 +54,7 @@ public:
 private:
     void sort_unrouted_wires();
     void channel_from_wire(Polyline &wire);
+    Polygons inflate_wire(const Polyline &wire) const;
     void apply_overlap(Polylines input, Polylines *output);
     coord_t offset_width(const LayerRegion* region, int perimeters) const;
     void _align_to_prev_perimeters();
@@ -61,6 +62,7 @@ private:
     // Inputs:
     Layer* layer;             ///< pointer to layer object
     ElectronicWireGenerator* previous_ewg;  ///< pointer to previous wire generator to align polygons
+    ElectronicWireGenerator* next_ewg;  ///< pointer to previous wire generator to align polygons
     Polylines unrouted_wires; ///< copy of original path collection,
                               /// will be deleted during process()
     Polylines routed_wires;   ///< intermediate state after contour following
@@ -71,6 +73,8 @@ private:
     double conductive_wire_channel_width;
     const double grid_step_size;
     int max_perimeters;
+    int prev_shells;
+    int next_shells;
     ExPolygonCollection slices;
     ExPolygonCollections deflated_slices;
 

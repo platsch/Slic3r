@@ -20,7 +20,10 @@ void
 ElectronicWireRouter::append_wire_generator(ElectronicWireGenerator& ewg)
 {
     this->ewgs.push_back(ewg);
-    this->z_map[ewg.get_scaled_print_z()] = &ewgs.back();
+    this->z_map[ewg.get_scaled_print_z()] = &(this->ewgs.back());
+    if(this->ewgs.size() > 1) {
+        this->ewgs.at(this->ewgs.size()-2).next_ewg = &(this->ewgs.back());
+    }
 }
 
 ElectronicWireGenerator*

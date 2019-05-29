@@ -23,6 +23,10 @@ ElectronicWireGenerator::ElectronicWireGenerator(Layer* layer, ElectronicWireGen
     }
     // ensure at least 1 perimeter for polygon offsetting
     this->max_perimeters = std::max(1, this->max_perimeters);
+
+    // TODO: this should be coupled to the shell thickness!!!
+    this->prev_shells = 3;
+    this->next_shells = 4;
 }
 
 const coordf_t
@@ -64,19 +68,17 @@ ElectronicWireGenerator::get_contour_set()
 
         // collect slices from n previous layers and compute intersection to
         // use only regions which are supported by at least n layers
-        int prev_shells = 3;
-        int next_shells = 3;
 
         size_t region_count = this->layer->region_count();
         ExPolygonCollections slices;
         slices.resize(region_count);
 
-        if(this->layer->lower_layer != nullptr && prev_shells > 0) {
+        if(this->layer->lower_layer != nullptr && this->prev_shells > 0) {
             Layer* current_layer = this->layer->lower_layer;
             for(size_t r = 0; r < region_count; r++) {
                 slices[r] = ExPolygonCollection(current_layer->regions[r]->slices);
             }
-            for(int i = 1; i < prev_shells; i++) {
+            for(int i = 1; i < this->prev_shells; i++) {
                 if(current_layer->lower_layer != nullptr) {
                     current_layer = current_layer->lower_layer;
                     for(size_t r = 0; r < region_count; r++) {
@@ -90,7 +92,34 @@ ElectronicWireGenerator::get_contour_set()
             }
         }
 
-        // how to handle next layers? coverage doesn't matter, only routed wires must be avoided
+        // remove cavity polygons again on this layer as we don't want the wires running through components
+        for(const Polygon &p : this->layer->electronic_component_polyongs) {
+            for(size_t r = 0; r < region_count; r++) {
+                slices[r] = diff_ex((Polygons)slices[r], p);
+            }
+        }
+
+        // handle next layers, coverage doesn't matter, only routed wires must be avoided
+        ElectronicWireGenerator* current_ewg = this;
+        for(int i = 0; i < this->next_shells; i++) {
+            for(size_t r = 0; r < region_count; r++) {
+                // routed wires
+                for(Polyline &pl : current_ewg->routed_wires) {
+                    slices[r] = diff_ex((Polygons)slices[r], this->inflate_wire(pl));
+                }
+                // cavities
+                for(const Polygon &p : current_ewg->layer->electronic_component_polyongs) {
+                    for(size_t r = 0; r < region_count; r++) {
+                        slices[r] = diff_ex((Polygons)slices[r], p);
+                    }
+                }
+            }
+            if(current_ewg->next_ewg != nullptr) {
+                current_ewg = current_ewg->next_ewg;
+            }else{
+                break;
+            }
+        }
 
         for(int i=0; i < max_perimeters; i++) {
             // initialize vector element
@@ -141,7 +170,8 @@ ElectronicWireGenerator::get_wire_segments(Lines& wire, const double routing_per
         WireSegment segment;
         segment.line = line;
         for(int current_perimeters = 0; current_perimeters < this->max_perimeters; current_perimeters++) {
-            double edge_weight_factor = 1.0 + (this->max_perimeters-current_perimeters-1) * routing_perimeter_factor;
+            //double edge_weight_factor = 1.0 + (this->max_perimeters-current_perimeters-1) * routing_perimeter_factor;
+            double edge_weight_factor = 1.0 + (this->max_perimeters-1) * routing_perimeter_factor;
             Line iteration_line = line;
             Line collision_line = line; // reset line for next iteration
             while(true) {
@@ -193,6 +223,27 @@ ElectronicWireGenerator::add_routed_wire(Polyline &routed_wire)
     this->channel_from_wire(routed_wire);
     this->routed_wires.push_back(routed_wire);
     this->deflated_slices.clear();
+
+    // also clear slices from affected prev / next layers
+    ElectronicWireGenerator* current_ewg = this;
+    for(int i = 0; i < this->prev_shells; i++) {
+        if(current_ewg != nullptr) {
+            current_ewg = current_ewg->next_ewg;
+        }else{
+            break;
+        }
+        current_ewg->deflated_slices.clear();
+    }
+
+    current_ewg = this;
+    for(int i = 0; i < this->next_shells; i++) {
+        if(current_ewg != nullptr) {
+            current_ewg = current_ewg->previous_ewg;
+        }else{
+            break;
+        }
+        current_ewg->deflated_slices.clear();
+    }
 }
 
 /* Generate a set of extrudable wires by sorting all segments
@@ -242,12 +293,16 @@ ElectronicWireGenerator::generate_wires()
         }
 
         if(pl.points.size() < 1) {
-            std::cerr << "ERROR: routed wire has no endpoint! This should never happen" << std::endl;
+            std::cerr << "ERROR: routed wire has no endpoint! This should never happen, probably a loop." << std::endl;
             std::cerr << "remaining lines are: " << std::endl;
             for(Line &l : lines) {
                 std::cerr << l.wkt() << std::endl;
             }
-            break;
+            // use first line as starting point
+            pl.append(lines.front().a);
+            pl.append(lines.front().b);
+            lines.erase(lines.begin());
+            //break;
         }
 
         // we now have an endpoint, traverse lines
@@ -361,8 +416,7 @@ void ElectronicWireGenerator::channel_from_wire(Polyline &wire)
 
     // double offsetting for channels. 1 step generates a polygon from the polyline,
     // 2. step extends the polygon to avoid cropped angles.
-    bed_polygons = offset(wire, scale_(0.01));
-    channel_polygons = offset(bed_polygons, scale_(this->extrusion_width/2 + this->conductive_wire_channel_width/2 - 0.01));
+    channel_polygons = inflate_wire(wire);
 
     // remove beds and channels from layer
     for(const auto &region : this->layer->regions) {
@@ -371,6 +425,7 @@ void ElectronicWireGenerator::channel_from_wire(Polyline &wire)
 
     // if lower_layer is defined, use channel to create a "bed" by offsetting only a small amount
     // generate a bed by offsetting a small amount to trigger perimeter generation
+    bed_polygons = offset(wire, scale_(0.01));
     if (this->layer->lower_layer != nullptr) {
         FOREACH_LAYERREGION(this->layer->lower_layer, layerm) {
             (*layerm)->modify_slices(bed_polygons, false);
@@ -378,6 +433,15 @@ void ElectronicWireGenerator::channel_from_wire(Polyline &wire)
         this->layer->lower_layer->setDirty(true);
     }
     this->layer->setDirty(true);
+}
+
+// double offsetting for channels. 1 step generates a polygon from the polyline,
+// 2. step extends the polygon to avoid cropped angles.
+Polygons ElectronicWireGenerator::inflate_wire(const Polyline &wire) const {
+    Polygons channel_polygons;
+    channel_polygons = offset(wire, scale_(0.01));
+    channel_polygons = offset(channel_polygons, scale_(this->extrusion_width/2 + this->conductive_wire_channel_width/2 - 0.01));
+    return channel_polygons;
 }
 
 // clip wires to extrude from center to smd-pad and add overlaps

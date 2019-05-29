@@ -130,6 +130,8 @@ class Layer {
                                                /// are generated independent of regions.
                                                /// (this collection contains only ExtrusionEntityCollection objects)
 
+    Polygons electronic_component_polyongs; ///< outlines of cavities for electronic components, required for wire routing
+
     /// Returns the number of regions
     size_t region_count() const;
     /// Gets a region at a specific id
