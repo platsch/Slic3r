@@ -359,7 +359,7 @@ PrintObject::embed_electronic_parts()
                         if(hull.is_valid()) {
                             hull.translate(bb_offset);
                             polygons.push_back(hull);
-                            layer->electronic_component_polyongs.push_back(hull);
+                            layer->electronic_component_polyons.push_back(hull);
                         }
 
                         // perl debug code, should be translated

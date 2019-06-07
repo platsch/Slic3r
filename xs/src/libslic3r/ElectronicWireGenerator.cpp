@@ -93,7 +93,7 @@ ElectronicWireGenerator::get_contour_set()
         }
 
         // remove cavity polygons again on this layer as we don't want the wires running through components
-        for(const Polygon &p : this->layer->electronic_component_polyongs) {
+        for(const Polygon &p : this->layer->electronic_component_polyons) {
             for(size_t r = 0; r < region_count; r++) {
                 slices[r] = diff_ex((Polygons)slices[r], p);
             }
@@ -108,7 +108,7 @@ ElectronicWireGenerator::get_contour_set()
                     slices[r] = diff_ex((Polygons)slices[r], this->inflate_wire(pl));
                 }
                 // cavities
-                for(const Polygon &p : current_ewg->layer->electronic_component_polyongs) {
+                for(const Polygon &p : current_ewg->layer->electronic_component_polyons) {
                     for(size_t r = 0; r < region_count; r++) {
                         slices[r] = diff_ex((Polygons)slices[r], p);
                     }
