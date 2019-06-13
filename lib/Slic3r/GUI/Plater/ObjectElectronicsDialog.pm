@@ -80,6 +80,7 @@ use constant {
 	ICON_SOLIDMESH     => 1,
 	ICON_MODIFIERMESH  => 2,
 	ICON_PCB           => 3,
+	ICON_HEX_NUT       => 4,
 };
 
 use constant {
@@ -141,6 +142,7 @@ sub new {
         $self->{tree_icons}->Add(Wx::Bitmap->new($Slic3r::var->("package.png"), wxBITMAP_TYPE_PNG));   # ICON_SOLIDMESH
         $self->{tree_icons}->Add(Wx::Bitmap->new($Slic3r::var->("plugin.png"), wxBITMAP_TYPE_PNG));    # ICON_MODIFIERMESH
         $self->{tree_icons}->Add(Wx::Bitmap->new($Slic3r::var->("PCB-icon.png"), wxBITMAP_TYPE_PNG));  # ICON_PCB
+        $self->{tree_icons}->Add(Wx::Bitmap->new($Slic3r::var->("hex_nut_icon.png"), wxBITMAP_TYPE_PNG));   # ICON_HEX_NUT
         
         my $rootId = $tree->AddRoot("Object", ICON_OBJECT);
         $tree->SetPlData($rootId, { type => 'object' });
@@ -707,7 +709,33 @@ sub reload_tree {
             volume      => $volume,
         });
     }
-    
+
+    # populate tree with hex nuts
+
+    my $hexIcon = ICON_HEX_NUT;
+    my $hexItemId = $tree->AppendItem($rootId, "Hex nuts", $hexIcon);
+    $tree->SetPlData($hexItemId, {
+        type        => 'hex-nuts',
+        volume_id   => 0,
+    });
+
+    my $aaaItemId = $tree->AppendItem($hexItemId, "placed");
+    $tree->SetPlData($aaaItemId, {
+        type        => 'placed-hex-nuts',
+        volume_id   => 0,
+    });
+
+    $itemId = $tree->AppendItem($hexItemId, "M3 nut", $hexIcon);
+    $tree->SetPlData($itemId, {
+        type        => 'nut',
+        part        => 'Slic3r::Electronics::AdditionalPart',
+    });
+    $itemId = $tree->AppendItem($hexItemId, "M4 nut", $hexIcon);
+    $tree->SetPlData($itemId, {
+        type        => 'nut',
+        part        => 'Slic3r::Electronics::AdditionalPart',
+    });
+
     if (defined $self->{schematic}) {
     	my $partlist = $self->{schematic}->getPartlist();
         if ($#{$partlist} >= 0) {
@@ -801,7 +829,13 @@ sub tree_selection_changed {
     	$self->loadPartProperties($part);
     	$self->{property_selected_type} = PROPERTY_PART;
     	$self->{property_selected_object} = $part;
-    }else {
+    } elsif ($selection->{type} eq 'nut') {
+        my $part = $selection->{part};
+        if($part->isPlaced)
+        {}
+        # TODO!
+    }
+    else {
         $self->{propgrid}->Clear;
     }
 }

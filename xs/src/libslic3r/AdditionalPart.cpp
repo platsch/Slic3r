@@ -166,11 +166,6 @@ Polygon AdditionalPart::getHullPolygon(const double z_lower, const double z_uppe
             points.push_back(Point(scale_(x + sin(rad) * radius), scale_(y + cos(rad) * radius)));
         }
 
-        // points.push_back(Point(scale_(this->origin[0]+dx), scale_(this->origin[1]+dy)));
-        // points.push_back(Point(scale_(this->origin[0]+dx), scale_(this->origin[1]-dy)));
-        // points.push_back(Point(scale_(this->origin[0]-dx), scale_(this->origin[1]-dy)));
-        // points.push_back(Point(scale_(this->origin[0]-dx), scale_(this->origin[1]+dy)));
-
         // generate polygon
         result = Slic3r::Geometry::convex_hull(points);
 

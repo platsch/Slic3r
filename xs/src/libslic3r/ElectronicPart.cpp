@@ -254,8 +254,8 @@ TriangleMesh ElectronicPart::getFootprintMesh()
             merge_stl(&stl, &pad_stl);
         }
         if(pad->type == "pad") {
-            // stl_file pad_stl = this->generateCylinder(pad->position[0], pad->position[1], pad->position[2], pad->drill/2, this->getFootprintHeight());
-            // merge_stl(&stl, &pad_stl);
+            stl_file pad_stl = this->generateCylinder(pad->position[0], pad->position[1], pad->position[2], pad->drill/2, this->getFootprintHeight());
+            merge_stl(&stl, &pad_stl);
         }
     }
 
@@ -314,25 +314,12 @@ Polygon ElectronicPart::getHullPolygon(const double z_lower, const double z_uppe
         }
 
         // outline of smd body
-        //double dx = this->size[0]/2;
-        //double dy = this->size[1]/2;
-
-        int radius = this->size[0];
-
-        for(size_t i = 60; i <= 360; i += 60)
-        {
-            double rad = i / 180.0 * PI;
-            double next_rad = (i - 60) / 180.0 * PI;
-            double x = this->origin[0];
-            double y = this->origin[1];
-
-            points.push_back(Point(scale_(x + sin(rad) * radius), scale_(y + cos(rad) * radius)));
-        }
-
-        // points.push_back(Point(scale_(this->origin[0]+dx), scale_(this->origin[1]+dy)));
-        // points.push_back(Point(scale_(this->origin[0]+dx), scale_(this->origin[1]-dy)));
-        // points.push_back(Point(scale_(this->origin[0]-dx), scale_(this->origin[1]-dy)));
-        // points.push_back(Point(scale_(this->origin[0]-dx), scale_(this->origin[1]+dy)));
+        double dx = this->size[0]/2;
+        double dy = this->size[1]/2;
+        points.push_back(Point(scale_(this->origin[0]+dx), scale_(this->origin[1]+dy)));
+        points.push_back(Point(scale_(this->origin[0]+dx), scale_(this->origin[1]-dy)));
+        points.push_back(Point(scale_(this->origin[0]-dx), scale_(this->origin[1]-dy)));
+        points.push_back(Point(scale_(this->origin[0]-dx), scale_(this->origin[1]+dy)));
 
         // generate polygon
         result = Slic3r::Geometry::convex_hull(points);
@@ -457,31 +444,33 @@ stl_file ElectronicPart::generateCube(double x, double y, double z, double dx, d
     stl_facet facet;
 
 
-    // x -= dx/2;
-    // y -= dy/2;
-    int radius = dx;
+    x -= dx/2;
+    y -= dy/2;
 
-    for(size_t i = 60; i <= 360; i += 60)
-    {
-        double rad = i / 180.0 * PI;
-        double next_rad = (i - 60) / 180.0 * PI;
-        facet = generateFacet(x, y, z, x + sin(rad) * radius, y + cos(rad) * radius, z, x + sin(next_rad) * radius, y + cos(next_rad) * radius, z); //bottom
-        stl_add_facet(&stl, &facet);
-
-        facet = generateFacet(
-            x + sin(rad) * radius,      y + cos(rad) * radius,      z,
-            x + sin(rad) * radius,      y + cos(rad) * radius,      z + dz,
-            x + sin(next_rad) * radius, y + cos(next_rad) * radius, z); //bottom
-        stl_add_facet(&stl, &facet);
-        facet = generateFacet(
-            x + sin(rad) * radius,      y + cos(rad) * radius,      z + dz,
-            x + sin(next_rad) * radius, y + cos(next_rad) * radius, z + dz,
-            x + sin(next_rad) * radius, y + cos(next_rad) * radius, z); //bottom
-        stl_add_facet(&stl, &facet);
-
-        facet = generateFacet(x, y, z + dz, x + sin(rad) * radius, y + cos(rad) * radius, z + dz, x + sin(next_rad) * radius, y + cos(next_rad) * radius, z + dz); //bottom
-        stl_add_facet(&stl, &facet);
-    }
+    facet = generateFacet(x, y, z, x, y+dy, z, x+dx, y+dy, z); //bottom
+    stl_add_facet(&stl, &facet);
+    facet = generateFacet(x, y, z, x+dx, y, z, x+dx, y+dy, z); //bottom
+    stl_add_facet(&stl, &facet);
+    facet = generateFacet(x, y, z, x, y+dy, z, x, y+dy, z+dz); //left
+    stl_add_facet(&stl, &facet);
+    facet = generateFacet(x, y, z, x, y, z+dz, x, y+dy, z+dz); //left
+    stl_add_facet(&stl, &facet);
+    facet = generateFacet(x, y+dy, z, x+dx, y+dy, z, x+dx, y+dy, z+dz); //back
+    stl_add_facet(&stl, &facet);
+    facet = generateFacet(x, y+dy, z, x, y+dy, z+dz, x+dx, y+dy, z+dz); //back
+    stl_add_facet(&stl, &facet);
+    facet = generateFacet(x+dx, y, z, x+dx, y+dy, z, x+dx, y+dy, z+dz); //right
+    stl_add_facet(&stl, &facet);
+    facet = generateFacet(x+dx, y, z, x+dx, y, z+dz, x+dx, y+dy, z+dz); //right
+    stl_add_facet(&stl, &facet);
+    facet = generateFacet(x, y, z, x+dx, y, z, x+dx, y, z+dz); //front
+    stl_add_facet(&stl, &facet);
+    facet = generateFacet(x, y, z, x, y, z+dz, x+dx, y, z+dz); //front
+    stl_add_facet(&stl, &facet);
+    facet = generateFacet(x, y, z+dz, x, y+dy, z+dz, x+dx, y+dy, z+dz); //top
+    stl_add_facet(&stl, &facet);
+    facet = generateFacet(x, y, z+dz, x+dx, y, z+dz, x+dx, y+dy, z+dz); //top
+    stl_add_facet(&stl, &facet);
 
     return stl;
 }
