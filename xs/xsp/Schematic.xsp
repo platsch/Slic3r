@@ -14,6 +14,8 @@
     void addElectronicNet(ElectronicNet* net);
     ElectronicParts* getPartlist()
         %code{% RETVAL = THIS->getPartlist(); %};
+    AdditionalParts* getAdditionalPartlist()
+        %code{% RETVAL = THIS->getAdditionalPartlist(); %};
     RubberBandPtrs* getRubberBands();
     void updateRubberBands();
     NetPointPtrs* getNetPoints();

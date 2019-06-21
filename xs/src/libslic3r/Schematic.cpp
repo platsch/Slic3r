@@ -93,6 +93,13 @@ ElectronicParts* Schematic::getPartlist()
     return &this->partlist;
 }
 
+AdditionalParts* Schematic::getAdditionalPartlist()
+{
+    this->additionalPartlist.push_back(new AdditionalPart("M2.5"));
+    this->additionalPartlist.push_back(new AdditionalPart("M3"));
+    return &this->additionalPartlist;
+}
+
 void Schematic::setFilename(std::string filename)
 {
     this->filename = filename;

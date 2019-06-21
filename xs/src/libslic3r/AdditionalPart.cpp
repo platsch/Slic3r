@@ -2,7 +2,7 @@
 
 namespace Slic3r {
 
-AdditionalPart::AdditionalPart(std::string name, std::string library, std::string deviceset, std::string device, std::string package)
+AdditionalPart::AdditionalPart(std::string name)
 {
     this->partID = this->s_idGenerator++;
     this->name = name;

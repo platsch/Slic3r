@@ -20,11 +20,12 @@ enum PlacingMethod {PM_AUTOMATIC, PM_MANUAL, PM_NONE};
 static const std::vector<std::string> PlacingMethodStrings = { "Automatic", "Manual", "None" }; // used for serialization to 3ds file
 
 class AdditionalPart;
+typedef std::vector<AdditionalPart*> AdditionalParts;
 
 class AdditionalPart
 {
     public:
-    AdditionalPart(std::string name, std::string library, std::string deviceset, std::string device, std::string package);
+    AdditionalPart(std::string name);
     ~AdditionalPart();
     unsigned int getPartID() {return this->partID;};
     std::string getName(){return this->name;};

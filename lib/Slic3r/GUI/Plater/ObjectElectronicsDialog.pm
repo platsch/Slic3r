@@ -737,6 +737,23 @@ sub reload_tree {
     });
 
     if (defined $self->{schematic}) {
+    	my $additionPartList = $self->{schematic}->getAdditionalPartlist();
+        if ($#{$additionPartList} >= 0) {
+            foreach my $part (@{$additionPartList}) {
+                $itemId = $tree->AppendItem($hexItemId, $part->getName(), $hexIcon);
+                $tree->SetPlData($itemId, {
+                    type        => 'nut',
+                    partID		=> '42',
+                    part        => $part,
+                });
+                # if($part->getPartID() == $selected_volume_idx) {
+                #     $selectedId = $itemId;
+                # }
+            }
+        }
+    }
+
+    if (defined $self->{schematic}) {
     	my $partlist = $self->{schematic}->getPartlist();
         if ($#{$partlist} >= 0) {
         	
