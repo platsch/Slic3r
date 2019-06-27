@@ -848,7 +848,7 @@ sub tree_selection_changed {
     			}
     		}
     	}
-    	$self->loadPartProperties($part);
+    	$self->loadElectronicPartProperties($part);
     	$self->{property_selected_type} = PROPERTY_PART;
     	$self->{property_selected_object} = $part;
     } elsif ($selection->{type} eq 'nut') {
@@ -866,6 +866,7 @@ sub tree_selection_changed {
     			}
     		}
         }
+        $self->loadAdditionalPartProperties($part);
     	$self->{property_selected_type} = PROPERTY_PART;
     	$self->{property_selected_object} = $part;
         # TODO!
@@ -912,7 +913,77 @@ sub property_selection_changed {
 # Returns    : none
 # Comment     :
 #######################################################################
-sub loadPartProperties {
+sub loadAdditionalPartProperties {
+    my $self = shift;
+    my ($part) = @_;
+    
+    # populate property grid
+    $self->{propgrid}->Clear;
+    my $prop;
+    # read only info values
+    $prop = $self->{propgrid}->Append(new Wx::StringProperty("Part name", "Part name", $part->getName()));
+    $prop->Enable(0);
+    # $prop = $self->{propgrid}->Append(new Wx::StringProperty("Library", "Library", $part->getLibrary()));
+    # $prop->Enable(0);
+    # $prop = $self->{propgrid}->Append(new Wx::StringProperty("Deviceset", "Deviceset", $part->getDeviceset()));
+    # $prop->Enable(0);
+    # $prop = $self->{propgrid}->Append(new Wx::StringProperty("Device", "Device", $part->getDevice()));
+    # $prop->Enable(0);
+    # $prop = $self->{propgrid}->Append(new Wx::StringProperty("Package", "Package", $part->getPackage()));
+    # $prop->Enable(0);
+    
+    # editable values
+    $prop = $self->{propgrid}->Append(new Wx::FloatProperty("Part height", "Part height", $part->getPartHeight()));
+    $prop->Enable(0) if(!$part->isPlaced);
+    $prop = $self->{propgrid}->Append(new Wx::FloatProperty("Footprint height", "Footprint height", $part->getFootprintHeight()));
+    $prop->Enable(0);
+    
+    # how to place this part?
+    my $placingMethod = new Wx::PGChoices();
+	$placingMethod->Add("Automatic", PM_AUTOMATIC);
+	$placingMethod->Add("Manual", PM_MANUAL);
+	$placingMethod->Add("None", PM_NONE);
+    
+    $prop = $self->{propgrid}->Append(new Wx::EnumProperty("Placing method", "Placing method", $placingMethod, $part->getPlacingMethod));
+    $prop->Enable(0) if(!$part->isPlaced);
+
+    # how to connect this part?
+    # my $connectionMethod = new Wx::PGChoices();
+    # $connectionMethod->Add("None", CM_NONE);
+    # $connectionMethod->Add("Layer", CM_LAYER);
+    # $connectionMethod->Add("Part", CM_PART);
+
+    # $prop = $self->{propgrid}->Append(new Wx::EnumProperty("Connection method", "Connection method", $connectionMethod, $part->getConnectionMethod));
+    # $prop->Enable(0) if(!$part->isPlaced);
+
+	# position    
+    my $position = $part->getPosition();
+    $self->{propgrid}->Append(new Wx::PropertyCategory("Position"));
+    $prop = $self->{propgrid}->Append(new Wx::FloatProperty("X", "X", $position->x));
+    $prop->Enable(0) if(!$part->isPlaced);
+    $prop = $self->{propgrid}->Append(new Wx::FloatProperty("Y", "Y", $position->y));
+    $prop->Enable(0) if(!$part->isPlaced);
+    $prop = $self->{propgrid}->Append(new Wx::FloatProperty("Z", "Z", $position->z));
+    $prop->Enable(0) if(!$part->isPlaced);
+    
+    #rotation
+    my $rotation = $part->getRotation();
+    $prop = $self->{propgrid}->Append(new Wx::PropertyCategory("Rotation"));
+    $self->{propgrid}->Append(new Wx::FloatProperty("X", "X", $rotation->x));
+    $prop->Enable(0) if(!$part->isPlaced);
+    $prop = $self->{propgrid}->Append(new Wx::FloatProperty("Y", "Y", $rotation->y));
+    $prop->Enable(0) if(!$part->isPlaced);
+    $prop = $self->{propgrid}->Append(new Wx::FloatProperty("Z", "Z", $rotation->z));
+    $prop->Enable(0) if(!$part->isPlaced);
+}
+
+#######################################################################
+# Purpose    : Shows the part info in the GUI
+# Parameters : part to display
+# Returns    : none
+# Comment     :
+#######################################################################
+sub loadElectronicPartProperties {
     my $self = shift;
     my ($part) = @_;
     
@@ -1092,7 +1163,7 @@ sub movePart {
         my $oldPos = $part->getPosition;
         $part->setPosition($oldPos->x + $x, $oldPos->y + $y, $oldPos->z + $self->get_layer_thickness($oldPos->z)*$z);
         
-        $self->loadPartProperties($part);
+        $self->loadElectronicPartProperties($part);
         $self->reload_tree($part->getPartID);
         # reload_tree implicitly triggeres the _updateWiredRubberbands method in schematic.cpp
         # which is nessecary to have correct wiring!
