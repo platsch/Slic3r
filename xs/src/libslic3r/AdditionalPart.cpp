@@ -16,9 +16,9 @@ AdditionalPart::AdditionalPart(std::string name)
 
     // determine part height by package name?
     // default is 1mm. This could be defined by a config value...
-    this->size[0] = 0.0;
-    this->size[1] = 0.0;
-    this->size[2] = 1.0;
+    this->size[0] = 5.0;
+    this->size[1] = 5.0;
+    this->size[2] = 5.0;
 
     this->visible = false;
     this->placed = false;

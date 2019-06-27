@@ -425,6 +425,13 @@ sub new {
         		$self->{canvas}->place_electronic_part($part);
         	}
         }
+        elsif ($selection->{type} eq 'nut') {
+        	my $part = $selection->{part};
+        	if(!$part->isPlaced) {
+        		my $mesh = $part->getMesh();
+        		$self->{canvas}->place_electronic_part($part);
+        	}
+        }
     });
     
     EVT_TREE_SEL_CHANGED($self, $tree, sub {
@@ -711,6 +718,7 @@ sub reload_tree {
     }
 
     # populate tree with hex nuts
+    # TODO only on create
 
     my $hexIcon = ICON_HEX_NUT;
     my $hexItemId = $tree->AppendItem($rootId, "Hex nuts", $hexIcon);
@@ -719,21 +727,10 @@ sub reload_tree {
         volume_id   => 0,
     });
 
-    my $aaaItemId = $tree->AppendItem($hexItemId, "placed");
-    $tree->SetPlData($aaaItemId, {
+    my $nutPlacedItemId = $tree->AppendItem($hexItemId, "placed");
+    $tree->SetPlData($nutPlacedItemId, {
         type        => 'placed-hex-nuts',
         volume_id   => 0,
-    });
-
-    $itemId = $tree->AppendItem($hexItemId, "M3 nut", $hexIcon);
-    $tree->SetPlData($itemId, {
-        type        => 'nut',
-        part        => 'Slic3r::Electronics::AdditionalPart',
-    });
-    $itemId = $tree->AppendItem($hexItemId, "M4 nut", $hexIcon);
-    $tree->SetPlData($itemId, {
-        type        => 'nut',
-        part        => 'Slic3r::Electronics::AdditionalPart',
     });
 
     if (defined $self->{schematic}) {
@@ -746,9 +743,17 @@ sub reload_tree {
                     partID		=> '42',
                     part        => $part,
                 });
-                # if($part->getPartID() == $selected_volume_idx) {
-                #     $selectedId = $itemId;
-                # }
+                if($part->isPlaced()) {
+                    my $itemId = $tree->AppendItem($nutPlacedItemId, $part->getName(), $hexIcon);
+                    $tree->SetPlData($itemId, {
+                        type        => 'nut',
+                        partID		=> '42',
+                        part        => $part,
+                    });
+                    if($part->getPartID() == $selected_volume_idx) {
+			            $selectedId = $itemId;
+			        }
+                }
             }
         }
     }
@@ -849,7 +854,20 @@ sub tree_selection_changed {
     } elsif ($selection->{type} eq 'nut') {
         my $part = $selection->{part};
         if($part->isPlaced)
-        {}
+        {
+            if($self->get_z < $part->getPosition->z || $self->get_z > $part->getPosition->z + $part->getPartHeight)
+            {
+    			for my $i (0 .. $#{$self->{layers_z}}) {
+    				if($self->{layers_z}[$i] >= $part->getPosition->z) {
+    					$self->{slider}->SetValue($i);
+    					$self->sliderMoved;
+    					last;
+    				}
+    			}
+    		}
+        }
+    	$self->{property_selected_type} = PROPERTY_PART;
+    	$self->{property_selected_object} = $part;
         # TODO!
     }
     else {
@@ -1079,6 +1097,21 @@ sub movePart {
         # reload_tree implicitly triggeres the _updateWiredRubberbands method in schematic.cpp
         # which is nessecary to have correct wiring!
                 
+        # trigger slicing steps to update modifications;
+		$self->triggerSlicing;
+
+    }
+    elsif ($selection->{type} eq 'nut') {
+        my $part = $selection->{part};
+
+        $self->{plater}->stop_background_process;
+        my $oldPos = $part->getPosition;
+        $part->setPosition($oldPos->x + $x, $oldPos->y + $y, $oldPos->z + $self->get_layer_thickness($oldPos->z)*$z);
+
+        $self->reload_tree($part->getPartID);
+        # reload_tree implicitly triggeres the _updateWiredRubberbands method in schematic.cpp
+        # which is nessecary to have correct wiring!
+
         # trigger slicing steps to update modifications;
 		$self->triggerSlicing;
 
