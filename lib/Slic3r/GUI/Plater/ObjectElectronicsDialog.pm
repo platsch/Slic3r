@@ -1067,10 +1067,13 @@ sub loadElectronicPartProperties {
 sub savePartProperties {
     my $self = shift;
     my ($part) = @_;
+    if($self->{type} eq 'part')
+    {
+	    $part->setConnectionMethod($self->{propgrid}->GetPropertyValue("Connection method")->GetLong);
+    }
     
 	$part->setPartHeight($self->{propgrid}->GetPropertyValue("Part height")->GetDouble);
 	$part->setPlacingMethod($self->{propgrid}->GetPropertyValue("Placing method")->GetLong);
-	$part->setConnectionMethod($self->{propgrid}->GetPropertyValue("Connection method")->GetLong);
 
 	$part->setPosition($self->{propgrid}->GetPropertyValue("Position.X")->GetDouble,
 		$self->{propgrid}->GetPropertyValue("Position.Y")->GetDouble,
