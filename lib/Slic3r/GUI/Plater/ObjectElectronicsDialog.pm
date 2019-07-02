@@ -601,6 +601,17 @@ sub render_print {
         }
         my $height =  $self->{layers_z}[$self->{slider}->GetValue];
         
+        # Display nuts
+        foreach my $part (@{$self->{schematic}->getAdditionalPartlist()}) {
+        	if($part->isPlaced()) {
+                my $mesh = $part->getMesh();
+                my $offset = $self->{model_object}->_bounding_box->center;
+                $mesh->translate($offset->x, $offset->y, 0);
+                my $object_id = $self->canvas->load_electronic_part($mesh);
+                # lookup table
+                $self->{part_lookup}[$object_id] = $part;
+        	}
+        }
         # Display SMD models
         foreach my $part (@{$self->{schematic}->getPartlist()}) {
         	if($part->isPlaced()) {
