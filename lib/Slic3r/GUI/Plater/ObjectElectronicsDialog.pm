@@ -1067,7 +1067,8 @@ sub loadElectronicPartProperties {
 sub savePartProperties {
     my $self = shift;
     my ($part) = @_;
-    if($self->{type} eq 'part')
+    my $selectedPart = $self->get_tree_selection;
+    if($selectedPart->{type} eq 'part')
     {
 	    $part->setConnectionMethod($self->{propgrid}->GetPropertyValue("Connection method")->GetLong);
     }
