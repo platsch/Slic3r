@@ -95,8 +95,8 @@ ElectronicParts* Schematic::getPartlist()
 
 AdditionalParts* Schematic::getAdditionalPartlist()
 {
-    this->additionalPartlist.push_back(new AdditionalPart("M2.5"));
-    this->additionalPartlist.push_back(new AdditionalPart("M3"));
+    this->additionalPartlist.push_back(new AdditionalPart("2.5"));
+    this->additionalPartlist.push_back(new AdditionalPart("3"));
     return &this->additionalPartlist;
 }
 

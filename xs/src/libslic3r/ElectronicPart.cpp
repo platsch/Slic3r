@@ -409,6 +409,7 @@ const std::string ElectronicPart::getPlaceDescription(Pointf offset)
     std::ostringstream gcode;
     if (this->printed) {
         gcode << ";<part id=\"" << this->partID << "\" name=\"" << this->name << "\">\n";
+        gcode << ";  <type identifier=\"electronic\"/>\n";
         gcode << ";  <position box=\"" << this->partID << "\"/>\n";
         gcode << ";  <size height=\"" << this->size[2] << "\"/>\n";
         gcode << ";  <shape>\n";

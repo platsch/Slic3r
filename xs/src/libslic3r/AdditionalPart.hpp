@@ -63,6 +63,7 @@ class AdditionalPart
     static unsigned int s_idGenerator;
     unsigned int partID;
     std::string name;
+    std::string thread;
     bool visible;
     bool placed;
     PlacingMethod placingMethod;

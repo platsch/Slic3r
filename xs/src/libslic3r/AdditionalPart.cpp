@@ -2,10 +2,11 @@
 
 namespace Slic3r {
 
-AdditionalPart::AdditionalPart(std::string name)
+AdditionalPart::AdditionalPart(std::string thread)
 {
     this->partID = this->s_idGenerator++;
-    this->name = name;
+    this->name = "M" + thread;
+    this->thread = thread;
 
     this->position.x = 0.0;
     this->position.y = 0.0;
@@ -14,8 +15,6 @@ AdditionalPart::AdditionalPart(std::string name)
     this->rotation.y = 0.0;
     this->rotation.z = 0.0;
 
-    // determine part height by package name?
-    // default is 1mm. This could be defined by a config value...
     this->size[0] = 5.0;
     this->size[1] = 5.0;
     this->size[2] = 5.0;
@@ -194,7 +193,7 @@ const std::string AdditionalPart::getPlaceGcode(double print_z, std::string auto
     if(this->placed && !this->printed && this->position.z + this->size[2] <= print_z) {
         this->printed = true;
         if(this->placingMethod == PM_AUTOMATIC) {
-            gcode << ";Automatically place part nr " << this->partID << "\n";
+            gcode << ";Automatically place part nr " << this->partID << " " << this->getName() << "\n";
             gcode << "M361 P" << this->partID << "\n";
             gcode << automaticGcode << "\n";
         }
@@ -206,7 +205,7 @@ const std::string AdditionalPart::getPlaceGcode(double print_z, std::string auto
             // TODO: implement placeholder variable replacement
         }
         if(this->placingMethod == PM_NONE) {
-            gcode << ";Placing of part nr " << this->partID << " is disabled\n";
+            gcode << ";Placing of part nr " << this->partID << " " << this->getName() << " is disabled\n";
         }
     }
     return gcode.str();
@@ -215,11 +214,14 @@ const std::string AdditionalPart::getPlaceGcode(double print_z, std::string auto
 /* Returns a description of this part in GCode format.
  * print_z parameter as in getPlaceGcode.
  */
+
+// TODO shape
 const std::string AdditionalPart::getPlaceDescription(Pointf offset)
 {
     std::ostringstream gcode;
     if (this->printed) {
         gcode << ";<part id=\"" << this->partID << "\" name=\"" << this->name << "\">\n";
+        gcode << ";  <type identifier=\"hexnut\" thread=\"" << this->thread << "\"/>\n";
         gcode << ";  <position box=\"" << this->partID << "\"/>\n";
         gcode << ";  <size height=\"" << this->size[2] << "\"/>\n";
         gcode << ";  <shape>\n";
@@ -228,7 +230,8 @@ const std::string AdditionalPart::getPlaceDescription(Pointf offset)
         gcode << ";    <point x=\"" <<  (this->origin[0]+this->size[0]/2) << "\" y=\"" << (this->origin[1]+this->size[1]/2) << "\"/>\n";
         gcode << ";    <point x=\"" <<  (this->origin[0]+this->size[0]/2) << "\" y=\"" << (this->origin[1]-this->size[1]/2) << "\"/>\n";
         gcode << ";  </shape>\n";
-        gcode << ";  <destination x=\"" << this->position.x + offset.x << "\" y=\"" << this->position.y + offset.y << "\" z=\"" << this->position.z << "\" orientation=\"" << this->rotation.z << "\"/>\n";
+        gcode << ";  <destination x=\"" << this->position.x + offset.x << "\" y=\"" << this->position.y + offset.y << "\" z=\"" << this->position.z << "\"/>\n";
+        gcode << ";  <rotation x=\"" << this->rotation.x << "\" y=\"" << this->rotation.y << "\" z=\"" << this->rotation.z << "\"/>\n";
         gcode << ";</part>\n\n";
     }
     return gcode.str();

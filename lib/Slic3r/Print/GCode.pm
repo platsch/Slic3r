@@ -354,15 +354,29 @@ sub export {
     
     # Export descriptions and box positions for electronic parts
     foreach my $object (@{$self->objects}) { # TODO: Shifted copies???
-	    my $partlist = $object->schematic->getPartlist;
-		my $length = @{$partlist};
+	    my $electronicPartlist = $object->schematic->getPartlist;
+		my $length = @{$electronicPartlist};
 		if ($length > 0){
 	    	my $bb = $self->objects->[0]->bounding_box;
 	    	# Currently only works for a single object on the plater!!!!!!!!!!!
 	    	my $copy = $self->objects->[0]->_shifted_copies->[0];
 	    	my $bb_offset = Slic3r::Pointf->new(unscale($bb->center->[0]+$copy->x), unscale($bb->center->[1]+$copy->y));
 	        print $fh "\n" . ';<object name="' . $object->model_object->name . '">' . "\n";
-	        foreach my $part (@{$partlist}) {
+	        foreach my $part (@{$electronicPartlist}) {
+	            print $fh $part->getPlaceDescription($bb_offset);
+	            $part->resetPrintedStatus;
+	        }
+	        print $fh ";</object>\n\n";
+	    }
+        my $nutPartlist = $object->schematic->getAdditionalPartlist;
+		my $length = @{$nutPartlist};
+		if ($length > 0){
+	    	my $bb = $self->objects->[0]->bounding_box;
+	    	# Currently only works for a single object on the plater!!!!!!!!!!!
+	    	my $copy = $self->objects->[0]->_shifted_copies->[0];
+	    	my $bb_offset = Slic3r::Pointf->new(unscale($bb->center->[0]+$copy->x), unscale($bb->center->[1]+$copy->y));
+	        print $fh "\n" . ';<object name="' . $object->model_object->name . '">' . "\n";
+	        foreach my $part (@{$nutPartlist}) {
 	            print $fh $part->getPlaceDescription($bb_offset);
 	            $part->resetPrintedStatus;
 	        }
@@ -696,6 +710,9 @@ sub process_layer {
         # place electronic parts for this layer
         my $placing_gcode = "";
         foreach my $part (@{$layer->object->schematic->getPartlist}) {
+            $placing_gcode .= $part->getPlaceGcode($layer->print_z, "", $layer->object->config->conductive_pnp_manual_gcode);
+        }
+        foreach my $part (@{$layer->object->schematic->getAdditionalPartlist}) {
             $placing_gcode .= $part->getPlaceGcode($layer->print_z, "", $layer->object->config->conductive_pnp_manual_gcode);
         }
         if(length($placing_gcode) > 0) {
