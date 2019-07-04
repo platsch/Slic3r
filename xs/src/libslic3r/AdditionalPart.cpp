@@ -33,6 +33,24 @@ AdditionalPart::AdditionalPart(std::string thread)
         this->size[1] = 5.5;
         this->size[2] = 2.4;
     }
+    else if(thread == "4")
+    {
+        this->size[0] = 7.66;
+        this->size[1] = 7;
+        this->size[2] = 3.2;
+    }
+    else if(thread == "5")
+    {
+        this->size[0] = 8.79;
+        this->size[1] = 8;
+        this->size[2] = 4.7;
+    }
+    else if(thread == "6")
+    {
+        this->size[0] = 11.05;
+        this->size[1] = 10;
+        this->size[2] = 5.2;
+    }
     
 
     this->visible = false;
