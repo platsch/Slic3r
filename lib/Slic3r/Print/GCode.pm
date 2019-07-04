@@ -355,8 +355,8 @@ sub export {
     # Export descriptions and box positions for electronic parts
     foreach my $object (@{$self->objects}) { # TODO: Shifted copies???
 	    my $electronicPartlist = $object->schematic->getPartlist;
-		my $length = @{$electronicPartlist};
-		if ($length > 0){
+		my $electroniclistLength = @{$electronicPartlist};
+		if ($electroniclistLength > 0){
 	    	my $bb = $self->objects->[0]->bounding_box;
 	    	# Currently only works for a single object on the plater!!!!!!!!!!!
 	    	my $copy = $self->objects->[0]->_shifted_copies->[0];
@@ -369,8 +369,8 @@ sub export {
 	        print $fh ";</object>\n\n";
 	    }
         my $nutPartlist = $object->schematic->getAdditionalPartlist;
-		my $length = @{$nutPartlist};
-		if ($length > 0){
+		my $nutlistLength = @{$nutPartlist};
+		if ($nutlistLength > 0){
 	    	my $bb = $self->objects->[0]->bounding_box;
 	    	# Currently only works for a single object on the plater!!!!!!!!!!!
 	    	my $copy = $self->objects->[0]->_shifted_copies->[0];
