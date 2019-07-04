@@ -15,9 +15,19 @@ AdditionalPart::AdditionalPart(std::string thread)
     this->rotation.y = 0.0;
     this->rotation.z = 0.0;
 
-    this->size[0] = 5.0;
-    this->size[1] = 5.0;
-    this->size[2] = 5.0;
+    if(thread == "2.5")
+    {
+        this->size[0] = 5.0;
+        this->size[1] = 4.0;
+        this->size[2] = 1.5;
+    }
+    else if(thread == "3")
+    {
+        this->size[0] = 7.0;
+        this->size[1] = 6.0;
+        this->size[2] = 2.5;
+    }
+    
 
     this->visible = false;
     this->placed = false;
