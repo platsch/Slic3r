@@ -21,17 +21,17 @@ AdditionalPart::AdditionalPart(std::string thread)
         this->size[1] = 4.0;
         this->size[2] = 1.6;
     }
-    else if(thread == "2.5")
+    else if (thread == "2.5")
+    {
+        this->size[0] = 5.45;
+        this->size[1] = 5.0;
+        this->size[2] = 2.0;
+    }
+    else if(thread == "3")
     {
         this->size[0] = 6.01;
         this->size[1] = 5.5;
         this->size[2] = 2.4;
-    }
-    else if(thread == "3")
-    {
-        this->size[0] = 7.0;
-        this->size[1] = 6.0;
-        this->size[2] = 2.5;
     }
     
 
