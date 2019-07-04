@@ -15,11 +15,17 @@ AdditionalPart::AdditionalPart(std::string thread)
     this->rotation.y = 0.0;
     this->rotation.z = 0.0;
 
-    if(thread == "2.5")
+    if(thread == "2")
     {
-        this->size[0] = 5.0;
+        this->size[0] = 4.32;
         this->size[1] = 4.0;
-        this->size[2] = 1.5;
+        this->size[2] = 1.6;
+    }
+    else if(thread == "2.5")
+    {
+        this->size[0] = 6.01;
+        this->size[1] = 5.5;
+        this->size[2] = 2.4;
     }
     else if(thread == "3")
     {
@@ -132,7 +138,7 @@ TriangleMesh AdditionalPart::getFootprintMesh()
 TriangleMesh AdditionalPart::getPartMesh()
 {
     TriangleMesh mesh;
-    mesh.stl = this->generateCube(this->origin[0], this->origin[1], this->origin[2], this->size[0], this->size[1], this->size[2] - this->getFootprintHeight());
+    mesh.stl = this->generateHexBody(this->origin[0], this->origin[1], this->origin[2], this->size[0], this->size[2] - this->getFootprintHeight());
     mesh.repair();
 
     mesh.rotate_z(Geometry::deg2rad(this->rotation.z));
@@ -159,11 +165,7 @@ Polygon AdditionalPart::getHullPolygon(const double z_lower, const double z_uppe
     if((z_upper-this->position.z > EPSILON)  && z_lower < (this->position.z + this->size[2])) {
         Points points;
 
-        // outline of smd body
-        //double dx = this->size[0]/2;
-        //double dy = this->size[1]/2;
-
-        int radius = this->size[0];
+        int radius = this->size[0] / 2.0;
 
         for(size_t i = 60; i <= 360; i += 60)
         {
@@ -252,7 +254,7 @@ void AdditionalPart::resetPrintedStatus()
     this->printed = false;
 }
 
-stl_file AdditionalPart::generateCube(double x, double y, double z, double dx, double dy, double dz)
+stl_file AdditionalPart::generateHexBody(double x, double y, double z, double diameter, double height)
 {
     stl_file stl;
     stl_initialize(&stl);
@@ -261,7 +263,7 @@ stl_file AdditionalPart::generateCube(double x, double y, double z, double dx, d
 
     // x -= dx/2;
     // y -= dy/2;
-    int radius = dx;
+    int radius = diameter / 2.0;
 
     for(size_t i = 60; i <= 360; i += 60)
     {
@@ -272,16 +274,16 @@ stl_file AdditionalPart::generateCube(double x, double y, double z, double dx, d
 
         facet = generateFacet(
             x + sin(rad) * radius,      y + cos(rad) * radius,      z,
-            x + sin(rad) * radius,      y + cos(rad) * radius,      z + dz,
+            x + sin(rad) * radius,      y + cos(rad) * radius,      z + height,
             x + sin(next_rad) * radius, y + cos(next_rad) * radius, z); //bottom
         stl_add_facet(&stl, &facet);
         facet = generateFacet(
-            x + sin(rad) * radius,      y + cos(rad) * radius,      z + dz,
-            x + sin(next_rad) * radius, y + cos(next_rad) * radius, z + dz,
+            x + sin(rad) * radius,      y + cos(rad) * radius,      z + height,
+            x + sin(next_rad) * radius, y + cos(next_rad) * radius, z + height,
             x + sin(next_rad) * radius, y + cos(next_rad) * radius, z); //bottom
         stl_add_facet(&stl, &facet);
 
-        facet = generateFacet(x, y, z + dz, x + sin(rad) * radius, y + cos(rad) * radius, z + dz, x + sin(next_rad) * radius, y + cos(next_rad) * radius, z + dz); //bottom
+        facet = generateFacet(x, y, z + height, x + sin(rad) * radius, y + cos(rad) * radius, z + height, x + sin(next_rad) * radius, y + cos(next_rad) * radius, z + height); //bottom
         stl_add_facet(&stl, &facet);
     }
 
