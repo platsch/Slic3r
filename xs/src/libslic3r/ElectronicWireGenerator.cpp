@@ -232,7 +232,9 @@ ElectronicWireGenerator::add_routed_wire(Polyline &routed_wire)
         }else{
             break;
         }
-        current_ewg->deflated_slices.clear();
+        if(current_ewg != nullptr) {
+            current_ewg->deflated_slices.clear();
+        }
     }
 
     current_ewg = this;
@@ -242,7 +244,9 @@ ElectronicWireGenerator::add_routed_wire(Polyline &routed_wire)
         }else{
             break;
         }
-        current_ewg->deflated_slices.clear();
+        if(current_ewg != nullptr) {
+            current_ewg->deflated_slices.clear();
+        }
     }
 }
 
