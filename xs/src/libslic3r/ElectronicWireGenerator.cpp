@@ -339,6 +339,10 @@ ElectronicWireGenerator::generate_wires()
                 lines.erase(stored_line);
             }
         }
+        // slightly extend extrusion at intersections to improve connectivity with a small overlap
+        if(hits > 1) {
+            pl.extend_end(scale_(this->extrusion_width/2));
+        }
         this->routed_wires.push_back(pl);
     }
 
