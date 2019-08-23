@@ -6,7 +6,7 @@
 %}
 
 %name{Slic3r::ExtrusionPoint} class ExtrusionPoint {
-    ExtrusionPoint(ExtrusionRole role);
+    ExtrusionPoint(Point3* point, float width, float height, ExtrusionRole role);
     ~ExtrusionPoint();
     Clone<ExtrusionPoint> clone()
         %code{% RETVAL = THIS; %};

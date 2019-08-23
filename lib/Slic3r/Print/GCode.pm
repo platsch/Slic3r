@@ -691,15 +691,40 @@ sub process_layer {
         
         # place electronic parts for this layer
         my $placing_gcode = "";
+        my $part_placing_gcode = "";
         foreach my $part (@{$layer->object->schematic->getPartlist}) {
-            $placing_gcode .= $part->getPlaceGcode($layer->print_z, "", $layer->object->config->conductive_pnp_manual_gcode);
+            # if component returns a placing g-code it has to be placed
+            $part_placing_gcode = $part->getPlaceGcode($layer->print_z, "", $layer->object->config->conductive_pnp_manual_gcode);
+            if(length($part_placing_gcode) > 0) {
+
+                # generate connection drops to increase adhesion if required for this component
+                my $points = $part->getConnectionPointsPart();
+                if(length($points) > 0) {
+                    # switch to conductive extruder
+                    $placing_gcode .= $self->_gcodegen->set_extruder($self->print->default_region_config->conductive_wire_extruder-1);
+                    foreach my $point (@{$points}) {
+                        $point->translate($object->size->x/2, $object->size->y/2, 0); # translate to objects origin
+                        my $width = $self->print->default_object_config->conductive_wire_extrusion_width;
+                        my $height = $part->getFootprintHeight(); # layer->height;
+	                    my $epoint = Slic3r::ExtrusionPoint->new($point, $width, $height, EXTR_ROLE_CONDUCTIVE_WIRE);
+	                    # epoint->mm3_per_mm is generated automatically by the ExtrusionPoint object
+	                    $placing_gcode .= $self->_gcodegen->extrude($epoint, 'conductive drop', -1);
+                    }
+                    # retract current extruder befor switching to vacuum nozzle
+                $placing_gcode .= $self->_gcodegen->retract(1);
+                }
+
+            }
+            # append actual PnP g-code
+            $placing_gcode .= $part_placing_gcode;
         }
         if(length($placing_gcode) > 0) {
-        	# retract current extruder befor switching to vacuum nozzle
-        	$gcode .= $self->_gcodegen->retract(1);
-        	# place parts
-        	$gcode .= $placing_gcode;
-        	# switch back to current extruder in case the printer was left on the PnP tool
+            # retract current extruder befor switching to vacuum nozzle.
+            # this has been done above, but we must do it again if components don't require connection drops
+            $gcode .= $self->_gcodegen->retract(1);
+            # place parts
+            $gcode .= $placing_gcode;
+            # switch back to current extruder in case the printer was left on the PnP tool
             #$gcode .= $self->_gcodegen->writer()->toolchange($self->_gcodegen->get_current_extruder);
         }
     }

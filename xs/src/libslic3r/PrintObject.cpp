@@ -557,7 +557,7 @@ void PrintObject::make_electronic_wires()
                     print_z = 999999;
                 }
 
-                Point3s connection_points = part->getConnectionPoints(print_z);
+                Point3s connection_points = part->getConnectionPointsLayer(print_z);
                 for(auto &point : connection_points) {
                     point.translate(this->size.x/2, this->size.y/2, 0); // translate to objects origin
                     ExtrusionPoint epoint(erConductiveWire);

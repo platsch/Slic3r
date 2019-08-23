@@ -186,6 +186,7 @@ class ExtrusionPoint : public ExtrusionEntity
     float height;     // this is used as vertical length of extrusion
 
     ExtrusionPoint(ExtrusionRole role = erConductiveWire) : role(role), width(-1), height(-1) {};
+    ExtrusionPoint(Point3* point, float width, float height, ExtrusionRole role = erConductiveWire) : point(*point), width(width), height(height), role(role) {};
     ~ExtrusionPoint() {};
     ExtrusionPoint* clone() const { return new ExtrusionPoint (*this); }
     void reverse() {};

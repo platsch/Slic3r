@@ -41,7 +41,7 @@
     Clone<TriangleMesh> getMesh();
     Clone<Polygon> getHullPolygon(double z_lower, double z_upper, double hull_offset);
     std::string getPlaceGcode(double print_z, std::string automaticGcode, std::string manualGcode);
-    Point3s getConnectionPoints(double print_z);
+    Point3s getConnectionPointsPart();
     std::string getPlaceDescription(Pointf* offset)
     	%code{% RETVAL = THIS->getPlaceDescription(*offset); %};
     void resetPrintedStatus();
