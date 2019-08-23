@@ -699,7 +699,7 @@ sub process_layer {
 
                 # generate connection drops to increase adhesion if required for this component
                 my $points = $part->getConnectionPointsPart();
-                if(length($points) > 0) {
+                if(scalar(@$points) > 0) {
                     # switch to conductive extruder
                     $placing_gcode .= $self->_gcodegen->set_extruder($self->print->default_region_config->conductive_wire_extruder-1);
                     foreach my $point (@{$points}) {
