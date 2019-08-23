@@ -35,12 +35,15 @@ ElectronicWireRouter::last_ewg() {
 }
 
 void
-ElectronicWireRouter::route(const RubberBand* rb, const Point3 offset)
+ElectronicWireRouter::route(const RubberBand* rb, const Point3 offset, bool autorouting)
 {
     // setup graph structure for routing
     ElectronicRoutingGraph graph;
 
     int max_perimeters = 0;
+
+    // dummy if autorouting is disabled
+    ExPolygonCollection dummy_epc;
 
     // (re-)build routing graph
     Lines wire, last_wire;
@@ -65,19 +68,24 @@ ElectronicWireRouter::route(const RubberBand* rb, const Point3 offset)
         }
         ExPolygonCollections* contours = ewg.get_contour_set();
 
-        // add contour polygons to graph
-        for(int i = 0; i < ewg.max_perimeters; i++) {
-            double edge_weight_factor = 1.0 + (ewg.max_perimeters-i-1) * this->routing_perimeter_factor;
-            for(ExPolygon &ep : (ExPolygons)(*contours)[i]) {
-                // iterate over contour and holes to avoid deep copy
-                graph.add_polygon(ep.contour, edge_weight_factor, print_z);
-                for(Polygon &p : ep.holes) {
-                    graph.add_polygon(p, edge_weight_factor, print_z);
+        if(autorouting) {
+            // add contour polygons to graph
+            for(int i = 0; i < ewg.max_perimeters; i++) {
+                double edge_weight_factor = 1.0 + (ewg.max_perimeters-i-1) * this->routing_perimeter_factor;
+                for(ExPolygon &ep : (ExPolygons)(*contours)[i]) {
+                    // iterate over contour and holes to avoid deep copy
+                    graph.add_polygon(ep.contour, edge_weight_factor, print_z);
+                    for(Polygon &p : ep.holes) {
+                        graph.add_polygon(p, edge_weight_factor, print_z);
+                    }
                 }
-            }
-         }
-        graph.infill_surfaces_map[print_z] = &(contours->back());
-        graph.slices_surfaces_map[print_z] = ewg.get_layer_slices();
+             }
+            graph.infill_surfaces_map[print_z] = &(contours->back());
+            graph.slices_surfaces_map[print_z] = ewg.get_layer_slices();
+        }else{
+            graph.infill_surfaces_map[print_z] = &dummy_epc;
+            graph.slices_surfaces_map[print_z] = &dummy_epc;
+        }
 
         // debug output graph
         //SVG svg_graph("graph_visitor");

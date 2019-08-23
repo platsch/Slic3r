@@ -94,7 +94,7 @@ public:
             const int layer_count);
     void append_wire_generator(ElectronicWireGenerator& ewg);
     ElectronicWireGenerator* last_ewg();
-    void route(const RubberBand* rb, const Point3 offset);
+    void route(const RubberBand* rb, const Point3 offset, bool autorouting = true);
     void generate_wires();
 
 private:

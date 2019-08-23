@@ -476,8 +476,8 @@ sub options {
         top_infill_extrusion_width support_material_extrusion_width conductive_wire_extrusion_width
         infill_overlap bridge_flow_ratio
         xy_size_compensation resolution shortcuts compatible_printers
-        conductive_cavity_offset conductive_wire_channel_width conductive_wire_extrusion_overlap conductive_wire_first_extrusion_overlap
-        conductive_wire_overlap_min_extrusion_length conductive_wire_slope_overlap
+        conductive_cavity_offset conductive_wire_autorouting conductive_wire_channel_width conductive_wire_extrusion_overlap
+        conductive_wire_first_extrusion_overlap conductive_wire_overlap_min_extrusion_length conductive_wire_slope_overlap
         conductive_wire_routing_astar_factor conductive_wire_routing_perimeter_factor conductive_wire_routing_hole_factor conductive_wire_routing_interlayer_factor
         conductive_pnp_manual_gcode conductive_grid_resolution
         print_settings_id
@@ -772,6 +772,7 @@ sub build {
         }
         {
             my $optgroup = $page->new_optgroup('Conductive wire routing');
+            $optgroup->append_single_option_line('conductive_wire_autorouting');
             $optgroup->append_single_option_line('conductive_grid_resolution');
             $optgroup->append_single_option_line('conductive_wire_routing_astar_factor');
             $optgroup->append_single_option_line('conductive_wire_routing_perimeter_factor');

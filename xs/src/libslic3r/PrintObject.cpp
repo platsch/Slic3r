@@ -484,7 +484,7 @@ void PrintObject::make_electronic_wires()
         Point3 offset(this->size.x/2, this->size.y/2);
         for (auto rb : *rbs) {
             if(rb->isWired()) {
-                ewr.route(rb, offset);
+                ewr.route(rb, offset, this->print()->default_object_config.conductive_wire_autorouting);
             }
         }
 

@@ -204,6 +204,12 @@ PrintConfigDef::PrintConfigDef()
     def->min = 0.1;
     def->default_value = new ConfigOptionFloat(1.5);
 
+    def = this->add("conductive_wire_autorouting", coBool);
+    def->label = "Autorouting";
+    def->tooltip = "Use local autorouting, i.e: between each pair of waypoints.";
+    def->cli = "conductive-wire-autorouting!";
+    def->default_value = new ConfigOptionBool(false);
+
     def = this->add("conductive_wire_channel_width", coFloat);
     def->label = "Channel width";
     def->tooltip = "The absolute amount a channel for a conductive wire will be expanded additional to the extrusion width.";
