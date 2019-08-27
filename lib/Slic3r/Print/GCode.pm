@@ -700,8 +700,11 @@ sub process_layer {
                 # generate connection drops to increase adhesion if required for this component
                 my $points = $part->getConnectionPointsPart();
                 if(scalar(@$points) > 0) {
-                    # switch to conductive extruder
+                    # switch to conductive extruder. First command triggers a normal toolchange, including wiping. Second command only inserts a Tx
+                    # to ensure that the conductive extruder is active which is important if the printer was left with a different
+                    # extruder active by the PnP controller since slic3r has no way to detect this.
                     $placing_gcode .= $self->_gcodegen->set_extruder($self->print->default_region_config->conductive_wire_extruder-1);
+                    $placing_gcode .= $self->_gcodegen->writer()->toolchange($self->print->default_region_config->conductive_wire_extruder-1);
                     foreach my $point (@{$points}) {
                         $point->translate($object->size->x/2, $object->size->y/2, 0); # translate to objects origin
                         my $width = $self->print->default_object_config->conductive_wire_extrusion_width;
