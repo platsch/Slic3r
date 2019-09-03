@@ -180,32 +180,56 @@ Polygon AdditionalPart::getHullPolygon(const double z_lower, const double z_uppe
 {
     Polygon result;
     // part affected?
-    if((z_upper-this->position.z > EPSILON)  && z_lower < (this->position.z + this->size[2])) {
+    if((z_upper-this->position.z > EPSILON)  && z_lower < (this->position.z + this->size[2])){
         Points points;
 
         int radius = this->size[0] / 2.0;
 
-        for(size_t i = 60; i <= 360; i += 60)
+        if (this->rotation.x == 90.0 or this->rotation.y == 90.0)
         {
-            double rad = i / 180.0 * PI;
-            double next_rad = (i - 60) / 180.0 * PI;
+            double x = this->origin[0];
+            double z = this->origin[1];
+            double width = this->size[2];
+
+            points.push_back(Point(scale_(x + radius), scale_(z + width / 2)));
+            points.push_back(Point(scale_(x - radius), scale_(z + width / 2)));
+            points.push_back(Point(scale_(x + radius), scale_(z - width / 2)));
+            points.push_back(Point(scale_(x - radius), scale_(z - width / 2)));
+
+            result = Slic3r::Geometry::convex_hull(points);
+
+            result = offset(Polygons(result), scale_(hull_offset), 100000, ClipperLib::jtSquare).front();
+
+            // rotate polygon
+            result.rotate(Geometry::deg2rad(this->rotation.z), Point(0, 0));
+
+            // apply object translation
+            result.translate(scale_(this->position.x), scale_(this->position.y));
+        }
+        else
+        {
             double x = this->origin[0];
             double y = this->origin[1];
+            for(size_t i = 60; i <= 360; i += 60)
+            {
+                double rad = i / 180.0 * PI;
+                double next_rad = (i - 60) / 180.0 * PI;
 
-            points.push_back(Point(scale_(x + sin(rad) * radius), scale_(y + cos(rad) * radius)));
+                points.push_back(Point(scale_(x + sin(rad) * radius), scale_(y + cos(rad) * radius)));
+            }
+
+            // generate polygon
+            result = Slic3r::Geometry::convex_hull(points);
+
+            // apply margin to have some space between part an extruded plastic
+            result = offset(Polygons(result), scale_(hull_offset), 100000, ClipperLib::jtSquare).front();
+
+            // rotate polygon
+            result.rotate(Geometry::deg2rad(this->rotation.z), Point(0,0));
+
+            // apply object translation
+            result.translate(scale_(this->position.x), scale_(this->position.y));
         }
-
-        // generate polygon
-        result = Slic3r::Geometry::convex_hull(points);
-
-        // apply margin to have some space between part an extruded plastic
-        result = offset(Polygons(result), scale_(hull_offset), 100000, ClipperLib::jtSquare).front();
-
-        // rotate polygon
-        result.rotate(Geometry::deg2rad(this->rotation.z), Point(0,0));
-
-        // apply object translation
-        result.translate(scale_(this->position.x), scale_(this->position.y));
     }
 
     return result;
