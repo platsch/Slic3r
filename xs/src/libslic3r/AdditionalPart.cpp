@@ -159,9 +159,9 @@ TriangleMesh AdditionalPart::getPartMesh()
     mesh.stl = this->generateHexBody(this->origin[0], this->origin[1], this->origin[2], this->size[0], this->size[2] - this->getFootprintHeight());
     mesh.repair();
 
-    mesh.rotate_z(Geometry::deg2rad(this->rotation.z));
-    mesh.rotate_y(Geometry::deg2rad(this->rotation.y));
     mesh.rotate_x(Geometry::deg2rad(this->rotation.x));
+    mesh.rotate_y(Geometry::deg2rad(this->rotation.y));
+    mesh.rotate_z(Geometry::deg2rad(this->rotation.z));
     mesh.translate(this->position.x, this->position.y, this->position.z + this->getFootprintHeight());
     return mesh;
 }
