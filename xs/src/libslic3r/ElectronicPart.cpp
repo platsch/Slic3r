@@ -296,7 +296,7 @@ Polygon ElectronicPart::getHullPolygon(const double z_lower, const double z_uppe
 {
     Polygon result;
     // part affected?
-    if((z_upper-this->position.z > EPSILON)  && z_lower < (this->position.z + this->size[2])) {
+    if((z_upper - this->position.z > EPSILON)  && z_lower < (this->position.z + this->size[2])) {
         Points points;
         // outline of smd (and TH) pads
         for (Padlist::const_iterator pad = this->padlist.begin(); pad != this->padlist.end(); ++pad) {
