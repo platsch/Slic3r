@@ -179,23 +179,36 @@ TriangleMesh AdditionalPart::getMesh()
 Polygon AdditionalPart::getHullPolygon(const double z_lower, const double z_upper, const double hull_offset) const
 {
     Polygon result;
-    // part affected?
-    if((z_upper-this->position.z > EPSILON)  && z_lower < (this->position.z + this->size[2])){
-        Points points;
-
-        int radius = this->size[0] / 2.0;
-
-        if (this->rotation.x == 90.0 or this->rotation.y == 90.0)
+    if (this->rotation.x == 90.0 or this->rotation.y == 90.0)
+    {
+        // part affected?
+        if (z_upper > this->position.z - this->size[1] / 3 && z_lower < this->position.z + this->size[1] / 2)
         {
+            Points points;
+
+            double radius = this->size[0] / 2;
+
             double x = this->origin[0];
             double z = this->origin[1];
             double width = this->size[2];
 
-            points.push_back(Point(scale_(x + radius), scale_(z + width / 2)));
-            points.push_back(Point(scale_(x - radius), scale_(z + width / 2)));
-            points.push_back(Point(scale_(x + radius), scale_(z - width / 2)));
-            points.push_back(Point(scale_(x - radius), scale_(z - width / 2)));
+            if (z_lower < this->position.z)
+           {
+                double height = this->position.z - this->size[1] / 2 - z_lower;
+                double crossSectionLength = radius / 2 + height / tan(Geometry::deg2rad(120));
 
+                points.push_back(Point(scale_(x + crossSectionLength), scale_(z - width)));
+                points.push_back(Point(scale_(x + crossSectionLength), scale_(z)));
+                points.push_back(Point(scale_(x - crossSectionLength), scale_(z - width)));
+                points.push_back(Point(scale_(x - crossSectionLength), scale_(z)));
+           }
+           else
+           {
+                points.push_back(Point(scale_(x + radius), scale_(z - width)));
+                points.push_back(Point(scale_(x - radius), scale_(z - width)));
+                points.push_back(Point(scale_(x + radius), scale_(z)));
+                points.push_back(Point(scale_(x - radius), scale_(z)));
+            }
             result = Slic3r::Geometry::convex_hull(points);
 
             result = offset(Polygons(result), scale_(hull_offset), 100000, ClipperLib::jtSquare).front();
@@ -205,11 +218,19 @@ Polygon AdditionalPart::getHullPolygon(const double z_lower, const double z_uppe
 
             // apply object translation
             result.translate(scale_(this->position.x), scale_(this->position.y));
-        }
-        else
+        } 
+    }
+    else
+    {
+        // part affected?
+        if ((z_upper - this->position.z > EPSILON) && z_lower < (this->position.z + this->size[2]))
         {
+            Points points;
+
             double x = this->origin[0];
             double y = this->origin[1];
+            double radius = this->size[0] / 2.0;
+
             for(size_t i = 60; i <= 360; i += 60)
             {
                 double rad = i / 180.0 * PI;
@@ -302,10 +323,7 @@ stl_file AdditionalPart::generateHexBody(double x, double y, double z, double di
     stl_initialize(&stl);
     stl_facet facet;
 
-
-    // x -= dx/2;
-    // y -= dy/2;
-    int radius = diameter / 2.0;
+    double radius = diameter / 2.0;
 
     for(size_t i = 60; i <= 360; i += 60)
     {
