@@ -160,6 +160,7 @@ class PrintObjectConfig : public virtual StaticPrintConfig
     ConfigOptionString              conductive_pnp_manual_gcode;
     ConfigOptionFloat               conductive_grid_resolution;
     ConfigOptionBool                conductive_wire_autorouting;
+    ConfigOptionFloat               conductive_wire_bed_width;
     ConfigOptionFloat               conductive_wire_channel_width;
     ConfigOptionFloat               conductive_wire_extrusion_overlap;
     ConfigOptionFloatOrPercent      conductive_wire_extrusion_width;
@@ -209,6 +210,7 @@ class PrintObjectConfig : public virtual StaticPrintConfig
         OPT_PTR(conductive_pnp_manual_gcode);
         OPT_PTR(conductive_grid_resolution);
         OPT_PTR(conductive_wire_autorouting);
+        OPT_PTR(conductive_wire_bed_width);
         OPT_PTR(conductive_wire_channel_width);
         OPT_PTR(conductive_wire_extrusion_overlap);
         OPT_PTR(conductive_wire_extrusion_width);

@@ -210,6 +210,14 @@ PrintConfigDef::PrintConfigDef()
     def->cli = "conductive-wire-autorouting!";
     def->default_value = new ConfigOptionBool(false);
 
+    def = this->add("conductive_wire_bed_width", coFloat);
+    def->label = "Trench width for beds";
+    def->tooltip = "Usualy should be a very small value > 0, can be increased to mitigate overextrusion during bed generation";
+    def->sidetext = "mm";
+    def->cli = "conductive-wire-bed-width=f";
+    def->min = 0.01;
+    def->default_value = new ConfigOptionFloat(0.01);
+
     def = this->add("conductive_wire_channel_width", coFloat);
     def->label = "Channel width";
     def->tooltip = "The absolute amount a channel for a conductive wire will be expanded additional to the extrusion width.";

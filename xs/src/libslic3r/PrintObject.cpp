@@ -416,6 +416,7 @@ void PrintObject::make_electronic_wires()
         // amount of overlap for inter-layer connections of sloped wires
         coord_t layer_overlap = scale_(this->print()->default_object_config.conductive_wire_slope_overlap);
         coord_t grid_step_size = std::min(layer_overlap, scale_(this->print()->default_object_config.conductive_grid_resolution));
+        const double conductive_wire_bed_width = this->print()->default_object_config.conductive_wire_bed_width;
         const double conductive_wire_channel_width = this->print()->default_object_config.conductive_wire_channel_width;
 
         const double conductive_wire_routing_astar_factor = this->print()->default_object_config.conductive_wire_routing_astar_factor;
@@ -474,6 +475,7 @@ void PrintObject::make_electronic_wires()
                     extrusion_overlap,
                     first_extrusion_overlap,
                     overlap_min_extrusion_length,
+                    conductive_wire_bed_width,
                     conductive_wire_channel_width,
                     grid_step_size);
             ewr.append_wire_generator(ewg);

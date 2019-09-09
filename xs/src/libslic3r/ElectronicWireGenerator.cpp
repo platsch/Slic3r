@@ -5,13 +5,14 @@
 namespace Slic3r {
 
 ElectronicWireGenerator::ElectronicWireGenerator(Layer* layer, ElectronicWireGenerator* previous_ewg, double extrusion_width,
-        double extrusion_overlap, double first_extrusion_overlap, double overlap_min_extrusion_length, double conductive_wire_channel_width, const double grid_step_size) :
+        double extrusion_overlap, double first_extrusion_overlap, double overlap_min_extrusion_length, double conductive_wire_bed_width, double conductive_wire_channel_width, const double grid_step_size) :
         layer(layer),
         previous_ewg(previous_ewg),
         extrusion_width(extrusion_width),
         extrusion_overlap(extrusion_overlap),
         first_extrusion_overlap(first_extrusion_overlap),
         overlap_min_extrusion_length(overlap_min_extrusion_length),
+        conductive_wire_bed_width(conductive_wire_bed_width),
         conductive_wire_channel_width(conductive_wire_channel_width),
         unrouted_wires(layer->unrouted_wires),
         grid_step_size(grid_step_size)
@@ -433,7 +434,7 @@ void ElectronicWireGenerator::channel_from_wire(Polyline &wire)
 
     // if lower_layer is defined, use channel to create a "bed" by offsetting only a small amount
     // generate a bed by offsetting a small amount to trigger perimeter generation
-    bed_polygons = offset(wire, scale_(0.01));
+    bed_polygons = offset(wire, scale_(this->conductive_wire_bed_width/2));
     if (this->layer->lower_layer != nullptr) {
         FOREACH_LAYERREGION(this->layer->lower_layer, layerm) {
             (*layerm)->modify_slices(bed_polygons, false);

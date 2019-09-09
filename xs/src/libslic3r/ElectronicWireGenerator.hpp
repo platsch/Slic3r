@@ -37,6 +37,7 @@ public:
         double                     extrusion_overlap,
         double                     first_extrusion_overlap,
         double                     overlap_min_extrusion_length,
+        double                     conductive_wire_bed_width,
         double                     conductive_wire_channel_width,
         const double               grid_step_size);
 
@@ -70,6 +71,7 @@ private:
     double extrusion_overlap;
     double first_extrusion_overlap;
     double overlap_min_extrusion_length;
+    double conductive_wire_bed_width;
     double conductive_wire_channel_width;
     const double grid_step_size;
     int max_perimeters;
