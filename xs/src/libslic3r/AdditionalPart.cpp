@@ -179,10 +179,12 @@ TriangleMesh AdditionalPart::getMesh()
 Polygon AdditionalPart::getHullPolygon(const double z_lower, const double z_upper, const double hull_offset) const
 {
     Polygon result;
+    // check if object is upright
     if (this->rotation.x == 90.0 or this->rotation.y == 90.0)
     {
         // part affected?
-        if (z_upper > this->position.z - this->size[1] / 3 && z_lower < this->position.z + this->size[1] / 2)
+        double TOP_GAP = 0.5;
+        if (z_lower > this->position.z - this->size[1] / 2 && z_lower < this->position.z + this->size[1] / 2 + TOP_GAP)
         {
             Points points;
 
