@@ -64,9 +64,11 @@ use Slic3r::AdditionalPart qw(:PlacingMethods);
 use Slic3r::GUI::Electronics3DScene;
 use Slic3r::Config;
 use File::Basename qw(basename);
-use Wx qw(:misc :sizer :slider :treectrl :button :filedialog :propgrid wxTAB_TRAVERSAL wxSUNKEN_BORDER wxBITMAP_TYPE_PNG wxFD_OPEN wxFD_FILE_MUST_EXIST wxID_OK
+use Wx qw(:misc :sizer :slider :treectrl :button :filedialog :propgrid :icon :combobox
+wxTAB_TRAVERSAL wxSUNKEN_BORDER wxBITMAP_TYPE_PNG wxFD_OPEN wxFD_FILE_MUST_EXIST wxID_OK
     wxTheApp wxTE_READONLY);
-use Wx::Event qw(EVT_BUTTON EVT_TREE_ITEM_COLLAPSING EVT_TREE_ITEM_ACTIVATED EVT_TREE_SEL_CHANGED EVT_PG_CHANGED EVT_SLIDER EVT_MOUSE_EVENTS);
+use Wx::Event qw(EVT_BUTTON EVT_TREE_ITEM_COLLAPSING EVT_TREE_ITEM_ACTIVATED 
+EVT_TREE_SEL_CHANGED EVT_PG_CHANGED EVT_SLIDER EVT_MOUSE_EVENTS EVT_COMBOBOX);
 use Wx::PropertyGrid;
 use base qw(Wx::Panel Class::Accessor);
 use Scalar::Util qw(blessed);
@@ -117,6 +119,7 @@ sub new {
 	$self->{rubberband_lookup} = ();
 	$self->{part_lookup} = ();
 	$self->{netPoint_lookup} = ();
+    $self->{nut_selector};
 	
     
     # upper buttons
@@ -127,9 +130,17 @@ sub new {
     my $buttons_sizer = Wx::FlexGridSizer->new( 1, 3, 5, 5);
     $buttons_sizer->Add($btn_load_netlist, 0);
     $buttons_sizer->Add($btn_save_netlist, 0);
-    $btn_load_netlist->SetFont($Slic3r::GUI::small_font);    
+    $btn_load_netlist->SetFont($Slic3r::GUI::small_font);
     $btn_save_netlist->SetFont($Slic3r::GUI::small_font);
-    
+
+    my $nut_selector = $self->{nut_selector} = Wx::BitmapComboBox->new($self, -1, "", wxDefaultPosition, wxDefaultSize, [], wxCB_READONLY);
+    # setup the listener
+    EVT_COMBOBOX($nut_selector, $nut_selector, sub {
+        my ($nut_selector) = @_;
+        wxTheApp->CallAfter(sub {
+            $self->_on_change_combobox($nut_selector);
+        });
+    });
 
     # create TreeCtrl
     my $tree = $self->{tree} = Wx::TreeCtrl->new($self, -1, wxDefaultPosition, [350,-1], 
@@ -223,6 +234,7 @@ sub new {
     # left pane with tree
     my $left_sizer = Wx::BoxSizer->new(wxVERTICAL);
     $left_sizer->Add($buttons_sizer, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 5);
+    $left_sizer->Add($nut_selector, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 5);
     $left_sizer->Add($tree, 1, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 5);
     $left_sizer->Add($propgrid, 1, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 5);
     $left_sizer->Add($settings_sizer_main, 0, wxEXPAND | wxALL| wxRIGHT | wxTOP, 5);
@@ -687,6 +699,9 @@ sub placePart {
     # trigger slicing steps to update modifications;
     $self->triggerSlicing;
     
+}
+
+sub _on_change_combobox {
 }
 
 #######################################################################
