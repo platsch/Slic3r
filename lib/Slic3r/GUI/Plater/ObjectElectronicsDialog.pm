@@ -141,6 +141,16 @@ sub new {
             $self->_on_change_combobox($nut_selector);
         });
     });
+    # populate nut selection combobox
+    my @thread_sizes = ("2", "2.5", "3", "4", "5", "6");
+	my $bitmap = Wx::Bitmap->new($Slic3r::var->("nut_hex_icon.png"), wxBITMAP_TYPE_PNG);
+    foreach my $thread_size (@thread_sizes) {
+        $nut_selector->AppendString($thread_size, $bitmap);
+    }
+	$bitmap = Wx::Bitmap->new($Slic3r::var->("nut_square_icon.png"), wxBITMAP_TYPE_PNG);
+	foreach my $thread_size (@thread_sizes) {
+		$nut_selector->AppendString($thread_size, $bitmap);
+	}
 
     # create TreeCtrl
     my $tree = $self->{tree} = Wx::TreeCtrl->new($self, -1, wxDefaultPosition, [350,-1], 
@@ -153,7 +163,8 @@ sub new {
         $self->{tree_icons}->Add(Wx::Bitmap->new($Slic3r::var->("package.png"), wxBITMAP_TYPE_PNG));   # ICON_SOLIDMESH
         $self->{tree_icons}->Add(Wx::Bitmap->new($Slic3r::var->("plugin.png"), wxBITMAP_TYPE_PNG));    # ICON_MODIFIERMESH
         $self->{tree_icons}->Add(Wx::Bitmap->new($Slic3r::var->("PCB-icon.png"), wxBITMAP_TYPE_PNG));  # ICON_PCB
-        $self->{tree_icons}->Add(Wx::Bitmap->new($Slic3r::var->("hex_nut_icon.png"), wxBITMAP_TYPE_PNG));   # ICON_HEX_NUT
+        $self->{tree_icons}->Add(Wx::Bitmap->new($Slic3r::var->("nut_hex_icon.png"), wxBITMAP_TYPE_PNG));   # ICON_HEX_NUT
+        $self->{tree_icons}->Add(Wx::Bitmap->new($Slic3r::var->("nut_square_icon.png"), wxBITMAP_TYPE_PNG));   # ICON_HEX_NUT
         
         my $rootId = $tree->AddRoot("Object", ICON_OBJECT);
         $tree->SetPlData($rootId, { type => 'object' });
@@ -702,6 +713,8 @@ sub placePart {
 }
 
 sub _on_change_combobox {
+    my ($self, $choice) = @_;
+    print Dumper($choice);
 }
 
 #######################################################################
