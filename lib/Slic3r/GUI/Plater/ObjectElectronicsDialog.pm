@@ -119,8 +119,7 @@ sub new {
 	$self->{rubberband_lookup} = ();
 	$self->{part_lookup} = ();
 	$self->{netPoint_lookup} = ();
-    $self->{nut_selector};
-	
+
     
     # upper buttons
     my $btn_load_netlist = $self->{btn_load_netlist} = Wx::Button->new($self, -1, "Load netlist", wxDefaultPosition, wxDefaultSize, wxBU_LEFT);
@@ -134,6 +133,21 @@ sub new {
     $btn_save_netlist->SetFont($Slic3r::GUI::small_font);
 
     my $nut_selector = $self->{nut_selector} = Wx::BitmapComboBox->new($self, -1, "", wxDefaultPosition, wxDefaultSize, [], wxCB_READONLY);
+
+    my @nut_selection_list = (
+        {"nut_type" => "hex", "thread_size" => 2},
+        {"nut_type" => "hex", "thread_size" => 2.5},
+        {"nut_type" => "hex", "thread_size" => 3},
+        {"nut_type" => "hex", "thread_size" => 4},
+        {"nut_type" => "hex", "thread_size" => 5},
+        {"nut_type" => "hex", "thread_size" => 6},
+        {"nut_type" => "square", "thread_size" => 3},
+        {"nut_type" => "square", "thread_size" => 4},
+        {"nut_type" => "square", "thread_size" => 5},
+        {"nut_type" => "square", "thread_size" => 6},
+        {"nut_type" => "square", "thread_size" => 7}
+    );
+
     # setup the listener
     EVT_COMBOBOX($nut_selector, $nut_selector, sub {
         my ($nut_selector) = @_;
@@ -142,18 +156,19 @@ sub new {
         });
     });
     # populate nut selection combobox
-    my @thread_sizes = ("2", "2.5", "3", "4", "5", "6");
-	my $bitmap = Wx::Bitmap->new($Slic3r::var->("nut_hex_icon.png"), wxBITMAP_TYPE_PNG);
-    foreach my $thread_size (@thread_sizes) {
-        $nut_selector->AppendString($thread_size, $bitmap);
+	my $hex_nut_icon = Wx::Bitmap->new($Slic3r::var->("nut_hex_icon.png"), wxBITMAP_TYPE_PNG);
+	my $square_nut_icon = Wx::Bitmap->new($Slic3r::var->("nut_square_icon.png"), wxBITMAP_TYPE_PNG);
+    foreach my $nut (@nut_selection_list) {
+        if($nut->{nut_type} eq "hex") {
+            $nut_selector->AppendString($nut->{thread_size}."mm", $hex_nut_icon);
+        }
+        elsif($nut->{nut_type} eq "square") {
+            $nut_selector->AppendString($nut->{thread_size}."mm", $square_nut_icon);
+        }
     }
-	$bitmap = Wx::Bitmap->new($Slic3r::var->("nut_square_icon.png"), wxBITMAP_TYPE_PNG);
-	foreach my $thread_size (@thread_sizes) {
-		$nut_selector->AppendString($thread_size, $bitmap);
-	}
 
     # create TreeCtrl
-    my $tree = $self->{tree} = Wx::TreeCtrl->new($self, -1, wxDefaultPosition, [350,-1], 
+    my $tree = $self->{tree} = Wx::TreeCtrl->new($self, -1, wxDefaultPosition, [350,-1],
         wxTR_NO_BUTTONS | wxSUNKEN_BORDER | wxTR_HAS_VARIABLE_ROW_HEIGHT
         | wxTR_SINGLE | wxTR_NO_BUTTONS | wxEXPAND);
     {
@@ -164,7 +179,7 @@ sub new {
         $self->{tree_icons}->Add(Wx::Bitmap->new($Slic3r::var->("plugin.png"), wxBITMAP_TYPE_PNG));    # ICON_MODIFIERMESH
         $self->{tree_icons}->Add(Wx::Bitmap->new($Slic3r::var->("PCB-icon.png"), wxBITMAP_TYPE_PNG));  # ICON_PCB
         $self->{tree_icons}->Add(Wx::Bitmap->new($Slic3r::var->("nut_hex_icon.png"), wxBITMAP_TYPE_PNG));   # ICON_HEX_NUT
-        $self->{tree_icons}->Add(Wx::Bitmap->new($Slic3r::var->("nut_square_icon.png"), wxBITMAP_TYPE_PNG));   # ICON_HEX_NUT
+        $self->{tree_icons}->Add(Wx::Bitmap->new($Slic3r::var->("nut_square_icon.png"), wxBITMAP_TYPE_PNG));   # ICON_SQUARE_NUT
         
         my $rootId = $tree->AddRoot("Object", ICON_OBJECT);
         $tree->SetPlData($rootId, { type => 'object' });
@@ -714,7 +729,7 @@ sub placePart {
 
 sub _on_change_combobox {
     my ($self, $choice) = @_;
-    print Dumper($choice);
+    print Dumper($choice->GetCurrentSelection());
 }
 
 #######################################################################
