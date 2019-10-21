@@ -134,7 +134,7 @@ sub new {
 
     my $nut_selector = $self->{nut_selector} = Wx::BitmapComboBox->new($self, -1, "", wxDefaultPosition, wxDefaultSize, [], wxCB_READONLY);
 
-    my @nut_selection_list = (
+    $self->{nuts} = [
         {"nut_type" => "hex", "thread_size" => 2},
         {"nut_type" => "hex", "thread_size" => 2.5},
         {"nut_type" => "hex", "thread_size" => 3},
@@ -146,7 +146,7 @@ sub new {
         {"nut_type" => "square", "thread_size" => 5},
         {"nut_type" => "square", "thread_size" => 6},
         {"nut_type" => "square", "thread_size" => 7}
-    );
+    ];
 
     # setup the listener
     EVT_COMBOBOX($nut_selector, $nut_selector, sub {
@@ -155,10 +155,12 @@ sub new {
             $self->_on_change_combobox($nut_selector);
         });
     });
+
     # populate nut selection combobox
 	my $hex_nut_icon = Wx::Bitmap->new($Slic3r::var->("nut_hex_icon.png"), wxBITMAP_TYPE_PNG);
 	my $square_nut_icon = Wx::Bitmap->new($Slic3r::var->("nut_square_icon.png"), wxBITMAP_TYPE_PNG);
-    foreach my $nut (@nut_selection_list) {
+
+    foreach my $nut (@{$self->{nuts}}) {
         if($nut->{nut_type} eq "hex") {
             $nut_selector->AppendString($nut->{thread_size}."mm", $hex_nut_icon);
         }
@@ -729,7 +731,8 @@ sub placePart {
 
 sub _on_change_combobox {
     my ($self, $choice) = @_;
-    print Dumper($choice->GetCurrentSelection());
+    my $selected_nut = @{$self->{nuts}}[$choice->GetCurrentSelection()];
+    print Dumper($selected_nut->{thread_size});
 }
 
 #######################################################################
