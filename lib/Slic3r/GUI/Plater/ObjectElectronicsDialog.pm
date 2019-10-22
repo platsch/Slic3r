@@ -505,8 +505,8 @@ sub new {
 
     EVT_BUTTON($self, $self->{btn_add_nut}, sub { 
         my $selected_nut = @{$self->{nuts}}[$self->{nut_selector}->GetCurrentSelection()];
-        print Dumper($selected_nut);
         $self->{schematic}->addAdditionalPart($selected_nut->{thread_size}, $selected_nut->{type});
+        $self->reload_tree;
     });
     
     EVT_BUTTON($self, $self->{btn_xp}, sub { 
@@ -785,12 +785,17 @@ sub reload_tree {
     }
 
     # populate tree with hex nuts
-    # TODO only on create
 
     my $hexIcon = ICON_HEX_NUT;
     my $hexItemId = $tree->AppendItem($rootId, "Hex nuts", $hexIcon);
     $tree->SetPlData($hexItemId, {
         type        => 'hex-nuts',
+        volume_id   => 0,
+    });
+
+    my $nutUnplacedItemId = $tree->AppendItem($hexItemId, "unplaced");
+    $tree->SetPlData($nutUnplacedItemId, {
+        type        => 'unplaced-hex-nuts',
         volume_id   => 0,
     });
 
@@ -804,12 +809,6 @@ sub reload_tree {
     	my $additionPartList = $self->{schematic}->getAdditionalPartlist();
         if ($#{$additionPartList} >= 0) {
             foreach my $part (@{$additionPartList}) {
-                $itemId = $tree->AppendItem($hexItemId, $part->getName(), $hexIcon);
-                $tree->SetPlData($itemId, {
-                    type        => 'nut',
-                    partID		=> '42',
-                    part        => $part,
-                });
                 if($part->isPlaced()) {
                     my $itemId = $tree->AppendItem($nutPlacedItemId, $part->getName(), $hexIcon);
                     $tree->SetPlData($itemId, {
@@ -820,6 +819,14 @@ sub reload_tree {
                     if($part->getPartID() == $selected_volume_idx) {
 			            $selectedId = $itemId;
 			        }
+                }
+                else {
+                    my $itemId = $tree->AppendItem($nutUnplacedItemId, $part->getName(), $hexIcon);
+                    $tree->SetPlData($itemId, {
+                        type        => 'nut',
+                        partID		=> '42',
+                        part        => $part,
+                    });
                 }
             }
         }
