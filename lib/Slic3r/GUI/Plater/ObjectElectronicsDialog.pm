@@ -83,7 +83,7 @@ use constant {
 	ICON_MODIFIERMESH  => 2,
 	ICON_PCB           => 3,
 	ICON_HEX_NUT       => 4,
-	ICON_SQUARE_NUT       => 4,
+	ICON_SQUARE_NUT    => 5,
 };
 
 use constant {
@@ -505,7 +505,7 @@ sub new {
 
     EVT_BUTTON($self, $self->{btn_add_nut}, sub { 
         my $selected_nut = @{$self->{nuts}}[$self->{nut_selector}->GetCurrentSelection()];
-        $self->{schematic}->addAdditionalPart($selected_nut->{thread_size}, $selected_nut->{type});
+        $self->{schematic}->addAdditionalPart($selected_nut->{thread_size}, $selected_nut->{nut_type});
         $self->reload_tree;
     });
     
@@ -787,21 +787,22 @@ sub reload_tree {
     # populate tree with hex nuts
 
     my $hexIcon = ICON_HEX_NUT;
-    my $hexItemId = $tree->AppendItem($rootId, "Hex nuts", $hexIcon);
+    my $squareIcon = ICON_SQUARE_NUT;
+    my $hexItemId = $tree->AppendItem($rootId, "Nuts", $hexIcon);
     $tree->SetPlData($hexItemId, {
-        type        => 'hex-nuts',
+        type        => 'nuts',
         volume_id   => 0,
     });
 
     my $nutUnplacedItemId = $tree->AppendItem($hexItemId, "unplaced");
     $tree->SetPlData($nutUnplacedItemId, {
-        type        => 'unplaced-hex-nuts',
+        type        => 'unplaced-nuts',
         volume_id   => 0,
     });
 
     my $nutPlacedItemId = $tree->AppendItem($hexItemId, "placed");
     $tree->SetPlData($nutPlacedItemId, {
-        type        => 'placed-hex-nuts',
+        type        => 'placed-nuts',
         volume_id   => 0,
     });
 
@@ -809,11 +810,15 @@ sub reload_tree {
     	my $additionPartList = $self->{schematic}->getAdditionalPartlist();
         if ($#{$additionPartList} >= 0) {
             foreach my $part (@{$additionPartList}) {
+                my $icon = $squareIcon;
+                if($part->getType() eq "hex") {
+                    $icon = $hexIcon;
+                }
                 if($part->isPlaced()) {
-                    my $itemId = $tree->AppendItem($nutPlacedItemId, $part->getName(), $hexIcon);
+                    my $itemId = $tree->AppendItem($nutPlacedItemId, $part->getName(), $icon);
                     $tree->SetPlData($itemId, {
                         type        => 'nut',
-                        partID		=> '42',
+                        partID		=> $part->getPartID(),
                         part        => $part,
                     });
                     if($part->getPartID() == $selected_volume_idx) {
@@ -821,10 +826,10 @@ sub reload_tree {
 			        }
                 }
                 else {
-                    my $itemId = $tree->AppendItem($nutUnplacedItemId, $part->getName(), $hexIcon);
+                    my $itemId = $tree->AppendItem($nutUnplacedItemId, $part->getName(), $icon);
                     $tree->SetPlData($itemId, {
                         type        => 'nut',
-                        partID		=> '42',
+                        partID		=> $part->getPartID(),
                         part        => $part,
                     });
                 }

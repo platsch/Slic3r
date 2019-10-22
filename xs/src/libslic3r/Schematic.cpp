@@ -100,7 +100,7 @@ AdditionalParts* Schematic::getAdditionalPartlist()
 
 void Schematic::addAdditionalPart(std::string thread_size, std::string type)
 {
-    this->additionalPartlist.push_back(new AdditionalPart(thread_size));
+    this->additionalPartlist.push_back(new AdditionalPart(thread_size, type));
 }
 
 

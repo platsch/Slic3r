@@ -25,10 +25,11 @@ typedef std::vector<AdditionalPart*> AdditionalParts;
 class AdditionalPart
 {
     public:
-    AdditionalPart(std::string name);
+    AdditionalPart(std::string name, std::string type);
     ~AdditionalPart();
     unsigned int getPartID() {return this->partID;};
     std::string getName(){return this->name;};
+    std::string getType(){return this->type;};
     void printPartInfo();
     double getFootprintHeight(){return this->footprintHeight;};
     void setFootprintHeight(double height){this->footprintHeight = height;};
@@ -63,7 +64,8 @@ class AdditionalPart
     static unsigned int s_idGenerator;
     unsigned int partID;
     std::string name;
-    std::string thread;
+    std::string threadSize;
+    std::string type;
     bool visible;
     bool placed;
     PlacingMethod placingMethod;

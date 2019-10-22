@@ -2,11 +2,12 @@
 
 namespace Slic3r {
 
-AdditionalPart::AdditionalPart(std::string thread)
+AdditionalPart::AdditionalPart(std::string threadSize, std::string type)
 {
     this->partID = this->s_idGenerator++;
-    this->name = "M" + thread;
-    this->thread = thread;
+    this->name = "M" + threadSize;
+    this->threadSize = threadSize;
+    this->type = type;
 
     this->position.x = 0.0;
     this->position.y = 0.0;
@@ -15,37 +16,37 @@ AdditionalPart::AdditionalPart(std::string thread)
     this->rotation.y = 0.0;
     this->rotation.z = 0.0;
 
-    if(thread == "2")
+    if(threadSize == "2")
     {
         this->size[0] = 4.32;
         this->size[1] = 4.0;
         this->size[2] = 1.6;
     }
-    else if (thread == "2.5")
+    else if (threadSize == "2.5")
     {
         this->size[0] = 5.45;
         this->size[1] = 5.0;
         this->size[2] = 2.0;
     }
-    else if(thread == "3")
+    else if(threadSize == "3")
     {
         this->size[0] = 6.01;
         this->size[1] = 5.5;
         this->size[2] = 2.4;
     }
-    else if(thread == "4")
+    else if(threadSize == "4")
     {
         this->size[0] = 7.66;
         this->size[1] = 7;
         this->size[2] = 3.2;
     }
-    else if(thread == "5")
+    else if(threadSize == "5")
     {
         this->size[0] = 8.79;
         this->size[1] = 8;
         this->size[2] = 4.7;
     }
-    else if(thread == "6")
+    else if(threadSize == "6")
     {
         this->size[0] = 11.05;
         this->size[1] = 10;
@@ -298,7 +299,7 @@ const std::string AdditionalPart::getPlaceDescription(Pointf offset)
     std::ostringstream gcode;
     if (this->printed) {
         gcode << ";<part id=\"" << this->partID << "\" name=\"" << this->name << "\">\n";
-        gcode << ";  <type identifier=\"hexnut\" thread=\"" << this->thread << "\"/>\n";
+        gcode << ";  <type identifier=\"hexnut\" thread_size=\"" << this->threadSize << "\"/>\n";
         gcode << ";  <position box=\"" << this->partID << "\"/>\n";
         gcode << ";  <size height=\"" << this->size[2] << "\"/>\n";
         gcode << ";  <shape>\n";

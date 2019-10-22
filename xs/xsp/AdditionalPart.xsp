@@ -6,12 +6,13 @@
 %}
 
 %name{Slic3r::Electronics::AdditionalPart} class AdditionalPart {
-    AdditionalPart(std::string name);
+    AdditionalPart(std::string name, std::string type);
     //~AdditionalPart(); -- No destructor, perl garbage collector would destroy the object under certain circumstances
     Clone<AdditionalPart> clone()
         %code{% RETVAL = THIS; %};
     int getPartID();
     std::string getName();
+    std::string getType();
     double getFootprintHeight();
     void setFootprintHeight(double height);
     void setSize(double x, double y, double z);
