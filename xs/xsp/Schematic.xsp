@@ -16,6 +16,7 @@
         %code{% RETVAL = THIS->getPartlist(); %};
     AdditionalParts* getAdditionalPartlist()
         %code{% RETVAL = THIS->getAdditionalPartlist(); %};
+    void addAdditionalPart(std::string thread_size, std::string type);
     RubberBandPtrs* getRubberBands();
     void updateRubberBands();
     NetPointPtrs* getNetPoints();

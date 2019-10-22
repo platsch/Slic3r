@@ -95,15 +95,22 @@ ElectronicParts* Schematic::getPartlist()
 
 AdditionalParts* Schematic::getAdditionalPartlist()
 {
-    this->additionalPartlist.push_back(new AdditionalPart("2.5"));
-    this->additionalPartlist.push_back(new AdditionalPart("3"));
-    this->additionalPartlist.push_back(new AdditionalPart("4"));
-    this->additionalPartlist.push_back(new AdditionalPart("5"));
+    // this->additionalPartlist.push_back(new AdditionalPart("2.5"));
+    // this->additionalPartlist.push_back(new AdditionalPart("3"));
+    // this->additionalPartlist.push_back(new AdditionalPart("4"));
+    // this->additionalPartlist.push_back(new AdditionalPart("5"));
     this->additionalPartlist.push_back(new AdditionalPart("6"));
     return &this->additionalPartlist;
 }
 
-void Schematic::setFilename(std::string filename)
+void Schematic::addAdditionalPart(std::string thread_size, std::string type)
+{
+    this->additionalPartlist.push_back(new AdditionalPart(thread_size));
+}
+
+
+    void
+    Schematic::setFilename(std::string filename)
 {
     this->filename = filename;
 }

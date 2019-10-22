@@ -83,6 +83,7 @@ use constant {
 	ICON_MODIFIERMESH  => 2,
 	ICON_PCB           => 3,
 	ICON_HEX_NUT       => 4,
+	ICON_SQUARE_NUT       => 4,
 };
 
 use constant {
@@ -133,6 +134,9 @@ sub new {
     $btn_save_netlist->SetFont($Slic3r::GUI::small_font);
 
     my $nut_selector = $self->{nut_selector} = Wx::BitmapComboBox->new($self, -1, "", wxDefaultPosition, wxDefaultSize, [], wxCB_READONLY);
+    my $btn_add_nut = $self->{btn_add_nut} = Wx::Button->new($self, -1, "Add selected nut size", wxDefaultPosition, wxDefaultSize, wxBU_LEFT);
+    my $btn_nut_add_sizer = Wx::FlexGridSizer->new( 1, 1, 5, 5);
+    $btn_nut_add_sizer->Add($btn_add_nut, 0);
 
     $self->{nuts} = [
         {"nut_type" => "hex", "thread_size" => 2},
@@ -263,6 +267,7 @@ sub new {
     my $left_sizer = Wx::BoxSizer->new(wxVERTICAL);
     $left_sizer->Add($buttons_sizer, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 5);
     $left_sizer->Add($nut_selector, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 5);
+    $left_sizer->Add($btn_nut_add_sizer, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 5);
     $left_sizer->Add($tree, 1, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 5);
     $left_sizer->Add($propgrid, 1, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 5);
     $left_sizer->Add($settings_sizer_main, 0, wxEXPAND | wxALL| wxRIGHT | wxTOP, 5);
@@ -496,6 +501,12 @@ sub new {
     
     EVT_BUTTON($self, $self->{btn_save_netlist}, sub { 
         $self->saveButtonPressed;
+    });
+
+    EVT_BUTTON($self, $self->{btn_add_nut}, sub { 
+        my $selected_nut = @{$self->{nuts}}[$self->{nut_selector}->GetCurrentSelection()];
+        print Dumper($selected_nut);
+        $self->{schematic}->addAdditionalPart($selected_nut->{thread_size}, $selected_nut->{type});
     });
     
     EVT_BUTTON($self, $self->{btn_xp}, sub { 
@@ -732,7 +743,6 @@ sub placePart {
 sub _on_change_combobox {
     my ($self, $choice) = @_;
     my $selected_nut = @{$self->{nuts}}[$choice->GetCurrentSelection()];
-    print Dumper($selected_nut->{thread_size});
 }
 
 #######################################################################

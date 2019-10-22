@@ -32,6 +32,7 @@ class Schematic
     void addElectronicNet(ElectronicNet* net);
     ElectronicParts* getPartlist();
     AdditionalParts* getAdditionalPartlist();
+    void addAdditionalPart(std::string thread_size, std::string type);
     RubberBandPtrs* getRubberBands() {return &this->rubberBands;};
     void updateRubberBands();
     NetPointPtrs* getNetPoints();
