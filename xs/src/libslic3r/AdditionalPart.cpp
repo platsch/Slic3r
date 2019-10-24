@@ -7,6 +7,7 @@ AdditionalPart::AdditionalPart(std::string threadSize, std::string type)
     this->partID = this->s_idGenerator++;
     this->name = "M" + threadSize;
     this->threadSize = threadSize;
+    // hex, square
     this->type = type;
 
     this->position.x = 0.0;
@@ -157,7 +158,14 @@ TriangleMesh AdditionalPart::getFootprintMesh()
 TriangleMesh AdditionalPart::getPartMesh()
 {
     TriangleMesh mesh;
-    mesh.stl = this->generateHexBody(this->origin[0], this->origin[1], this->origin[2], this->size[0], this->size[2] - this->getFootprintHeight());
+    if (this->type.compare("hex") == 0)
+    {
+        mesh.stl = this->generateHexNutBody(this->origin[0], this->origin[1], this->origin[2], this->size[0], this->size[2] - this->getFootprintHeight());
+    }
+    else
+    {
+        mesh.stl = this->generateSquareNutBody(this->origin[0], this->origin[1], this->origin[2], this->size[0], this->size[2] - this->getFootprintHeight());
+    }
     mesh.repair();
 
     mesh.rotate_x(Geometry::deg2rad(this->rotation.x));
@@ -185,7 +193,7 @@ Polygon AdditionalPart::getHullPolygon(const double z_lower, const double z_uppe
     {
         // part affected?
         double TOP_GAP = 0.5;
-        if (z_lower > this->position.z - this->size[1] / 2 && z_lower < this->position.z + this->size[1] / 2 + TOP_GAP)
+        if (z_lower > this->position.z - this->size[1] / 2 && z_upper < this->position.z + this->size[1] / 2 + TOP_GAP)
         {
             Points points;
 
@@ -195,23 +203,36 @@ Polygon AdditionalPart::getHullPolygon(const double z_lower, const double z_uppe
             double z = this->origin[1];
             double width = this->size[2];
 
-            if (z_lower < this->position.z)
-           {
-                double height = this->position.z - this->size[1] / 2 - z_lower;
-                double crossSectionLength = radius / 2 + height / tan(Geometry::deg2rad(120));
+            // lower half affected?
+            if (this->type.compare("hex") == 0)
+            {
+                if (z_lower < this->position.z)
+                {
+                    double height = this->position.z - this->size[1] / 2 - z_lower;
+                    double crossSectionLength = radius / 2 + height / tan(Geometry::deg2rad(120));
 
-                points.push_back(Point(scale_(x + crossSectionLength), scale_(z - width)));
-                points.push_back(Point(scale_(x + crossSectionLength), scale_(z)));
-                points.push_back(Point(scale_(x - crossSectionLength), scale_(z - width)));
-                points.push_back(Point(scale_(x - crossSectionLength), scale_(z)));
-           }
-           else
-           {
+                    points.push_back(Point(scale_(x + crossSectionLength), scale_(z - width)));
+                    points.push_back(Point(scale_(x + crossSectionLength), scale_(z)));
+                    points.push_back(Point(scale_(x - crossSectionLength), scale_(z - width)));
+                    points.push_back(Point(scale_(x - crossSectionLength), scale_(z)));
+                }
+                // upper half building straight up
+                else
+                {
+                    points.push_back(Point(scale_(x + radius), scale_(z - width)));
+                    points.push_back(Point(scale_(x - radius), scale_(z - width)));
+                    points.push_back(Point(scale_(x + radius), scale_(z)));
+                    points.push_back(Point(scale_(x - radius), scale_(z)));
+                }
+            }
+            else
+            {
                 points.push_back(Point(scale_(x + radius), scale_(z - width)));
                 points.push_back(Point(scale_(x - radius), scale_(z - width)));
                 points.push_back(Point(scale_(x + radius), scale_(z)));
                 points.push_back(Point(scale_(x - radius), scale_(z)));
             }
+            
             result = Slic3r::Geometry::convex_hull(points);
 
             result = offset(Polygons(result), scale_(hull_offset), 100000, ClipperLib::jtSquare).front();
@@ -320,7 +341,7 @@ void AdditionalPart::resetPrintedStatus()
     this->printed = false;
 }
 
-stl_file AdditionalPart::generateHexBody(double x, double y, double z, double diameter, double height)
+stl_file AdditionalPart::generateHexNutBody(double x, double y, double z, double diameter, double height)
 {
     stl_file stl;
     stl_initialize(&stl);
@@ -342,6 +363,39 @@ stl_file AdditionalPart::generateHexBody(double x, double y, double z, double di
         stl_add_facet(&stl, &facet);
         facet = generateFacet(
             x + sin(rad) * radius,      y + cos(rad) * radius,      z + height,
+            x + sin(next_rad) * radius, y + cos(next_rad) * radius, z + height,
+            x + sin(next_rad) * radius, y + cos(next_rad) * radius, z); //bottom
+        stl_add_facet(&stl, &facet);
+
+        facet = generateFacet(x, y, z + height, x + sin(rad) * radius, y + cos(rad) * radius, z + height, x + sin(next_rad) * radius, y + cos(next_rad) * radius, z + height); //bottom
+        stl_add_facet(&stl, &facet);
+    }
+
+    return stl;
+}
+
+stl_file AdditionalPart::generateSquareNutBody(double x, double y, double z, double diameter, double height)
+{
+    stl_file stl;
+    stl_initialize(&stl);
+    stl_facet facet;
+
+    double radius = diameter / 2.0;
+
+    for (size_t i = 60; i <= 360; i += 90)
+    {
+        double rad = i / 180.0 * PI;
+        double next_rad = (i - 90) / 180.0 * PI;
+        facet = generateFacet(x, y, z, x + sin(rad) * radius, y + cos(rad) * radius, z, x + sin(next_rad) * radius, y + cos(next_rad) * radius, z); //bottom
+        stl_add_facet(&stl, &facet);
+
+        facet = generateFacet(
+            x + sin(rad) * radius, y + cos(rad) * radius, z,
+            x + sin(rad) * radius, y + cos(rad) * radius, z + height,
+            x + sin(next_rad) * radius, y + cos(next_rad) * radius, z); //bottom
+        stl_add_facet(&stl, &facet);
+        facet = generateFacet(
+            x + sin(rad) * radius, y + cos(rad) * radius, z + height,
             x + sin(next_rad) * radius, y + cos(next_rad) * radius, z + height,
             x + sin(next_rad) * radius, y + cos(next_rad) * radius, z); //bottom
         stl_add_facet(&stl, &facet);

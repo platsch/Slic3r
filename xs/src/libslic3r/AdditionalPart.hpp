@@ -79,7 +79,8 @@ class AdditionalPart
 
 
     // Internal methods to generate a mesh of the object and footprint
-    stl_file generateHexBody(double x, double y, double z, double diameter, double height);
+    stl_file generateHexNutBody(double x, double y, double z, double diameter, double height);
+    stl_file generateSquareNutBody(double x, double y, double z, double diameter, double height);
     stl_file generateCylinder(double x, double y, double z, double r, double h);
     stl_facet generateFacet(double v1x, double v1y, double v1z, double v2x, double v2y, double v2z, double v3x, double v3y, double v3z);
     void merge_stl(stl_file* stl1, stl_file* stl2);
