@@ -255,12 +255,22 @@ Polygon AdditionalPart::getHullPolygon(const double z_lower, const double z_uppe
             double y = this->origin[1];
             double radius = this->size[0] / 2.0;
 
-            for(size_t i = 60; i <= 360; i += 60)
+            if (this->type.compare("hex") == 0)
             {
-                double rad = i / 180.0 * PI;
-                double next_rad = (i - 60) / 180.0 * PI;
+                for (size_t i = 60; i <= 360; i += 60)
+                {
+                    double rad = i / 180.0 * PI;
+                    double next_rad = (i - 60) / 180.0 * PI;
 
-                points.push_back(Point(scale_(x + sin(rad) * radius), scale_(y + cos(rad) * radius)));
+                    points.push_back(Point(scale_(x + sin(rad) * radius), scale_(y + cos(rad) * radius)));
+                }
+            }
+            else
+            {
+                points.push_back(Point(scale_(x + radius), scale_(y + radius)));
+                points.push_back(Point(scale_(x + radius), scale_(y - radius)));
+                points.push_back(Point(scale_(x - radius), scale_(y + radius)));
+                points.push_back(Point(scale_(x - radius), scale_(y - radius)));
             }
 
             // generate polygon
