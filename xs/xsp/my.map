@@ -277,6 +277,7 @@ PrintObjectStep     T_UV
 SurfaceType     T_UV
 PlacingMethod     T_UV
 ConnectionMethod  T_UV
+PartOrientation  T_UV
 ClipperLib::JoinType		T_UV
 ClipperLib::PolyFillType		T_UV
 

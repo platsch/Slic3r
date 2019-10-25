@@ -58,6 +58,7 @@ AdditionalPart::AdditionalPart(std::string threadSize, std::string type)
     this->visible = false;
     this->placed = false;
     this->placingMethod = PM_AUTOMATIC;
+    this->partOrientation = PO_FLAT;
     this->printed = false;
 }
 
@@ -134,7 +135,25 @@ void AdditionalPart::setPlacingMethod(const std::string method)
     }
 }
 
-const std::string AdditionalPart::getPlacingMethodString()
+const PartOrientation AdditionalPart::getPartOrientation()
+{
+    return this->partOrientation;
+}
+
+void AdditionalPart::setPartOrientation(const std::string orientation)
+{
+    this->partOrientation = PO_FLAT;
+    for (int i = 0; i < PartOrientationStrings.size(); i++)
+    {
+        if (orientation == PartOrientationStrings[i])
+        {
+            this->partOrientation = (PartOrientation)i;
+        }
+    }
+}
+
+
+    const std::string AdditionalPart::getPlacingMethodString()
 {
     return PlacingMethodStrings[this->placingMethod];
 }

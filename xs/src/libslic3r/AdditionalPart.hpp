@@ -17,7 +17,9 @@ namespace Slic3r {
 
 // Be sure to add new values in AdditionalPart.xsp if changing this enum!
 enum PlacingMethod {PM_AUTOMATIC, PM_MANUAL, PM_NONE};
+enum PartOrientation {PO_FLAT, PO_UPRIGHT};
 static const std::vector<std::string> PlacingMethodStrings = { "Automatic", "Manual", "None" }; // used for serialization to 3ds file
+static const std::vector<std::string> PartOrientationStrings = { "Flat", "Upright" }; // used for serialization to 3ds file
 
 class AdditionalPart;
 typedef std::vector<AdditionalPart*> AdditionalParts;
@@ -47,9 +49,12 @@ class AdditionalPart
     bool isVisible() {return this->visible;};
     void setPlaced(bool placed) {this->placed = placed;};
     bool isPlaced() {return this->placed;};
-    void setPlacingMethod(PlacingMethod method) {this->placingMethod = method;};;
+    void setPlacingMethod(PlacingMethod method) {this->placingMethod = method;};
     void setPlacingMethod(const std::string method);
+    void setPartOrientation(PartOrientation orientation) { this->partOrientation = orientation; };
+    void setPartOrientation(const std::string orientation);
     const PlacingMethod getPlacingMethod() {return this->placingMethod;};
+    const PartOrientation getPartOrientation();
     const std::string getPlacingMethodString();
     TriangleMesh getFootprintMesh();
     TriangleMesh getPartMesh();
@@ -69,6 +74,7 @@ class AdditionalPart
     bool visible;
     bool placed;
     PlacingMethod placingMethod;
+    PartOrientation partOrientation;
     bool printed; // indicates that this part is already included in the GCode
 
     double size[3];

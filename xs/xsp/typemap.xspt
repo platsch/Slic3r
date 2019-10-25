@@ -305,3 +305,9 @@
     $CVar = (ConnectionMethod)SvUV($PerlVar);
   %};
 };
+%typemap{PartOrientation}{parsed}{
+  %cpp_type{PartOrientation};
+  %precall_code{%
+    $CVar = (PartOrientation)SvUV($PerlVar);
+  %};
+};

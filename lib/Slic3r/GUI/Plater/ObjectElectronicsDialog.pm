@@ -60,7 +60,7 @@ use utf8;
 
 use Slic3r::Print::State ':steps';
 use Slic3r::ElectronicPart qw(:PlacingMethods :ConnectionMethods);
-use Slic3r::AdditionalPart qw(:PlacingMethods);
+use Slic3r::AdditionalPart qw(:PlacingMethods :PartOrientations);
 use Slic3r::GUI::Electronics3DScene;
 use Slic3r::Config;
 use File::Basename qw(basename);
@@ -1002,15 +1002,7 @@ sub loadAdditionalPartProperties {
     # read only info values
     $prop = $self->{propgrid}->Append(new Wx::StringProperty("Part name", "Part name", $part->getName()));
     $prop->Enable(0);
-    # $prop = $self->{propgrid}->Append(new Wx::StringProperty("Library", "Library", $part->getLibrary()));
-    # $prop->Enable(0);
-    # $prop = $self->{propgrid}->Append(new Wx::StringProperty("Deviceset", "Deviceset", $part->getDeviceset()));
-    # $prop->Enable(0);
-    # $prop = $self->{propgrid}->Append(new Wx::StringProperty("Device", "Device", $part->getDevice()));
-    # $prop->Enable(0);
-    # $prop = $self->{propgrid}->Append(new Wx::StringProperty("Package", "Package", $part->getPackage()));
-    # $prop->Enable(0);
-    
+
     # editable values
     $prop = $self->{propgrid}->Append(new Wx::FloatProperty("Part height", "Part height", $part->getPartHeight()));
     $prop->Enable(0) if(!$part->isPlaced);
@@ -1026,15 +1018,6 @@ sub loadAdditionalPartProperties {
     $prop = $self->{propgrid}->Append(new Wx::EnumProperty("Placing method", "Placing method", $placingMethod, $part->getPlacingMethod));
     $prop->Enable(0) if(!$part->isPlaced);
 
-    # how to connect this part?
-    # my $connectionMethod = new Wx::PGChoices();
-    # $connectionMethod->Add("None", CM_NONE);
-    # $connectionMethod->Add("Layer", CM_LAYER);
-    # $connectionMethod->Add("Part", CM_PART);
-
-    # $prop = $self->{propgrid}->Append(new Wx::EnumProperty("Connection method", "Connection method", $connectionMethod, $part->getConnectionMethod));
-    # $prop->Enable(0) if(!$part->isPlaced);
-
 	# position    
     my $position = $part->getPosition();
     $self->{propgrid}->Append(new Wx::PropertyCategory("Position"));
@@ -1044,15 +1027,22 @@ sub loadAdditionalPartProperties {
     $prop->Enable(0) if(!$part->isPlaced);
     $prop = $self->{propgrid}->Append(new Wx::FloatProperty("Z", "Z", $position->z));
     $prop->Enable(0) if(!$part->isPlaced);
-    
+
     #rotation
     my $rotation = $part->getRotation();
-    $prop = $self->{propgrid}->Append(new Wx::PropertyCategory("Rotation"));
-    $self->{propgrid}->Append(new Wx::FloatProperty("X", "X", $rotation->x));
-    $prop->Enable(0) if(!$part->isPlaced);
-    $prop = $self->{propgrid}->Append(new Wx::FloatProperty("Y", "Y", $rotation->y));
-    $prop->Enable(0) if(!$part->isPlaced);
+    # $prop = $self->{propgrid}->Append(new Wx::PropertyCategory("Rotation"));
+    # $self->{propgrid}->Append(new Wx::FloatProperty("X", "X", $rotation->x));
+    # $prop->Enable(0) if(!$part->isPlaced);
+    # $prop = $self->{propgrid}->Append(new Wx::FloatProperty("Y", "Y", $rotation->y));
+    # $prop->Enable(0) if(!$part->isPlaced);
     $prop = $self->{propgrid}->Append(new Wx::FloatProperty("Z", "Z", $rotation->z));
+    $prop->Enable(0) if(!$part->isPlaced);
+
+    my $partOrientation = new Wx::PGChoices();
+	$partOrientation->Add("Flat", PO_FLAT);
+	$partOrientation->Add("Upright", PO_UPRIGHT);
+    
+    $prop = $self->{propgrid}->Append(new Wx::EnumProperty("Part orientation", "Part orientation", $partOrientation, $part->getPartOrientation));
     $prop->Enable(0) if(!$part->isPlaced);
 }
 
@@ -1140,7 +1130,11 @@ sub savePartProperties {
     {
 	    $part->setConnectionMethod($self->{propgrid}->GetPropertyValue("Connection method")->GetLong);
     }
-    
+    elsif($selectedPart->{type} eq 'nut')
+    {
+	    $part->setPartOrientation($self->{propgrid}->GetPropertyValue("Part orientation")->GetLong);
+    }
+
 	$part->setPartHeight($self->{propgrid}->GetPropertyValue("Part height")->GetDouble);
 	$part->setPlacingMethod($self->{propgrid}->GetPropertyValue("Placing method")->GetLong);
 

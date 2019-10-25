@@ -29,7 +29,9 @@
     bool isPlaced();
     void setPlaced(bool placed);
     void setPlacingMethod(PlacingMethod method);
+    void setPartOrientation(PartOrientation orientation);
     PlacingMethod getPlacingMethod();
+    PartOrientation getPartOrientation();
     Clone<TriangleMesh> getFootprintMesh();
     Clone<TriangleMesh> getPartMesh();
     Clone<TriangleMesh> getMesh();
@@ -52,6 +54,8 @@ _constant()
     CM_NONE                 = CM_NONE
     CM_LAYER                = CM_LAYER
     CM_PART                 = CM_PART
+    PO_FLAT                 = PO_FLAT
+    PO_UPRIGHT              = PO_UPRIGHT
   PROTOTYPE:
   CODE:
     RETVAL = ix;
