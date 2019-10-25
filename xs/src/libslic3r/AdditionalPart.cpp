@@ -382,27 +382,60 @@ stl_file AdditionalPart::generateSquareNutBody(double x, double y, double z, dou
 
     double radius = diameter / 2.0;
 
-    for (size_t i = 60; i <= 360; i += 90)
-    {
-        double rad = i / 180.0 * PI;
-        double next_rad = (i - 90) / 180.0 * PI;
-        facet = generateFacet(x, y, z, x + sin(rad) * radius, y + cos(rad) * radius, z, x + sin(next_rad) * radius, y + cos(next_rad) * radius, z); //bottom
-        stl_add_facet(&stl, &facet);
-
-        facet = generateFacet(
-            x + sin(rad) * radius, y + cos(rad) * radius, z,
-            x + sin(rad) * radius, y + cos(rad) * radius, z + height,
-            x + sin(next_rad) * radius, y + cos(next_rad) * radius, z); //bottom
-        stl_add_facet(&stl, &facet);
-        facet = generateFacet(
-            x + sin(rad) * radius, y + cos(rad) * radius, z + height,
-            x + sin(next_rad) * radius, y + cos(next_rad) * radius, z + height,
-            x + sin(next_rad) * radius, y + cos(next_rad) * radius, z); //bottom
-        stl_add_facet(&stl, &facet);
-
-        facet = generateFacet(x, y, z + height, x + sin(rad) * radius, y + cos(rad) * radius, z + height, x + sin(next_rad) * radius, y + cos(next_rad) * radius, z + height); //bottom
-        stl_add_facet(&stl, &facet);
-    }
+    // ground plane
+    facet = generateFacet(x - radius, y - radius, z,
+                          x - radius, y +  radius, z,
+                          x + radius, y + radius, z);
+    stl_add_facet(&stl, &facet);
+    facet = generateFacet(x - radius, y - radius, z,
+                          x + radius, y +  radius, z,
+                          x + radius, y - radius, z);
+    stl_add_facet(&stl, &facet);
+    // cover plane
+    facet = generateFacet(x - radius, y - radius, z + height,
+                          x - radius, y + radius, z + height,
+                          x + radius, y + radius, z + height);
+    stl_add_facet(&stl, &facet);
+    facet = generateFacet(x - radius, y - radius, z + height,
+                          x + radius, y + radius, z + height,
+                          x + radius, y - radius, z + height);
+    // stl_add_facet(&stl, &facet);
+    // side plane left
+    facet = generateFacet(x - radius, y - radius, z,
+                          x - radius, y + radius, z,
+                          x - radius, y + radius, z + height);
+    stl_add_facet(&stl, &facet);
+    facet = generateFacet(x - radius, y - radius, z + height,
+                          x - radius, y + radius, z + height,
+                          x - radius, y - radius, z);
+    stl_add_facet(&stl, &facet);
+    // side plane bottom
+    facet = generateFacet(x - radius, y - radius, z,
+                          x + radius, y - radius, z,
+                          x + radius, y - radius, z + height);
+    stl_add_facet(&stl, &facet);
+    facet = generateFacet(x - radius, y - radius, z + height,
+                          x + radius, y - radius, z + height,
+                          x - radius, y - radius, z);
+    stl_add_facet(&stl, &facet);
+    // side plane right
+    facet = generateFacet(x + radius, y - radius, z,
+                          x + radius, y + radius, z,
+                          x + radius, y + radius, z + height);
+    stl_add_facet(&stl, &facet);
+    facet = generateFacet(x + radius, y - radius, z + height,
+                          x + radius, y + radius, z + height,
+                          x + radius, y - radius, z);
+    stl_add_facet(&stl, &facet);
+    // side plane top
+    facet = generateFacet(x - radius, y + radius, z,
+                          x + radius, y + radius, z,
+                          x + radius, y + radius, z + height);
+    stl_add_facet(&stl, &facet);
+    facet = generateFacet(x - radius, y + radius, z + height,
+                          x + radius, y + radius, z + height,
+                          x - radius, y + radius, z);
+    stl_add_facet(&stl, &facet);
 
     return stl;
 }
