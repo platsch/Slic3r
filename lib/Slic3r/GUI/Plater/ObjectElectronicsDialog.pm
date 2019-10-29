@@ -17,7 +17,7 @@ use base 'Wx::Dialog';
 sub new {
     my $class = shift;
     my ($parent, $print, %params) = @_;
-    my $self = $class->SUPER::new($parent, -1, "3D Electronics for " . $params{object}->name, wxDefaultPosition, [800,600], &Wx::wxMAXIMIZE | &Wx::wxDEFAULT_FRAME_STYLE);
+    my $self = $class->SUPER::new($parent, -1, "Nuts and 3D Electronics for " . $params{object}->name, wxDefaultPosition, [800,600], &Wx::wxMAXIMIZE | &Wx::wxDEFAULT_FRAME_STYLE);
     $self->{$_} = $params{$_} for keys %params;
         
     $self->{tabpanel} = Wx::Notebook->new($self, -1, wxDefaultPosition, wxDefaultSize, wxNB_TOP | wxTAB_TRAVERSAL);
