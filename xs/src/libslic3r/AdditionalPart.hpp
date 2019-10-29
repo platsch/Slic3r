@@ -52,7 +52,7 @@ class AdditionalPart
     bool isPlaced() {return this->placed;};
     void setPlacingMethod(PlacingMethod method) {this->placingMethod = method;};
     void setPlacingMethod(const std::string method);
-    void setPartOrientation(PartOrientation orientation) { this->partOrientation = orientation; };
+    void setPartOrientation(PartOrientation orientation);
     void setPartOrientation(const std::string orientation);
     const PlacingMethod getPlacingMethod() {return this->placingMethod;};
     const PartOrientation getPartOrientation();

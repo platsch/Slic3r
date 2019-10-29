@@ -146,6 +146,26 @@ const PartOrientation AdditionalPart::getPartOrientation()
     return this->partOrientation;
 }
 
+void AdditionalPart::setPartOrientation(PartOrientation orientation)
+{
+    this->partOrientation = orientation;
+    if (this->partOrientation == PO_UPRIGHT)
+    {
+        if(this->getType().compare("hex") == 0)
+        {
+            this->setRotation(90.0, 30.0, this->rotation.z);
+        }
+        else
+        {
+            this->setRotation(90.0, 0.0, this->rotation.z);
+        }
+    }
+    else // flat
+    {
+        this->setRotation(0, 0, this->rotation.z);
+    }
+}
+
 void AdditionalPart::setPartOrientation(const std::string orientation)
 {
     this->partOrientation = PO_FLAT;
@@ -153,7 +173,7 @@ void AdditionalPart::setPartOrientation(const std::string orientation)
     {
         if (orientation == PartOrientationStrings[i])
         {
-            this->partOrientation = (PartOrientation)i;
+            this->setPartOrientation((PartOrientation)i);
         }
     }
 }
