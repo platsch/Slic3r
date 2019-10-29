@@ -1030,11 +1030,7 @@ sub loadAdditionalPartProperties {
 
     #rotation
     my $rotation = $part->getRotation();
-    # $prop = $self->{propgrid}->Append(new Wx::PropertyCategory("Rotation"));
-    # $self->{propgrid}->Append(new Wx::FloatProperty("X", "X", $rotation->x));
-    # $prop->Enable(0) if(!$part->isPlaced);
-    # $prop = $self->{propgrid}->Append(new Wx::FloatProperty("Y", "Y", $rotation->y));
-    # $prop->Enable(0) if(!$part->isPlaced);
+    $prop = $self->{propgrid}->Append(new Wx::PropertyCategory("Rotation"));
     $prop = $self->{propgrid}->Append(new Wx::FloatProperty("Z", "Z", $rotation->z));
     $prop->Enable(0) if(!$part->isPlaced);
 
@@ -1142,11 +1138,17 @@ sub savePartProperties {
 		$self->{propgrid}->GetPropertyValue("Position.Y")->GetDouble,
 		$self->{propgrid}->GetPropertyValue("Position.Z")->GetDouble
 	);
-	
-	$part->setRotation($self->{propgrid}->GetPropertyValue("Rotation.X")->GetDouble,
-		$self->{propgrid}->GetPropertyValue("Rotation.Y")->GetDouble,
-		$self->{propgrid}->GetPropertyValue("Rotation.Z")->GetDouble
-	);
+
+    if($selectedPart->{type} eq 'part')
+    {
+        $part->setRotation($self->{propgrid}->GetPropertyValue("Rotation.X")->GetDouble,
+        $self->{propgrid}->GetPropertyValue("Rotation.Y")->GetDouble,
+        $self->{propgrid}->GetPropertyValue("Rotation.Z")->GetDouble);
+    }
+    elsif($selectedPart->{type} eq 'nut')
+    {
+        $part->setZRotation($self->{propgrid}->GetPropertyValue("Rotation.Z")->GetDouble);
+    }
 }
 
 #######################################################################

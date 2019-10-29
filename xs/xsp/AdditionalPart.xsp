@@ -22,6 +22,7 @@
     Clone<Pointf3> getPosition();
     void resetPosition();
     void setRotation(double x, double y, double z);
+    void setZRotation(double z);
     Clone<Pointf3> getRotation();
     void setPartOrigin(double x, double y, double z);
     void setVisibility(bool visible);

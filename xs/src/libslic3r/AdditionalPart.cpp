@@ -117,6 +117,12 @@ void AdditionalPart::setRotation(double x, double y, double z)
     this->rotation.z = z;
 }
 
+// Rotation angles in deg.
+void AdditionalPart::setZRotation(double z)
+{
+    this->rotation.z = z;
+}
+
 // defines the origin of the part relative to it's body.
 void AdditionalPart::setPartOrigin(double x, double y, double z)
 {
@@ -152,8 +158,7 @@ void AdditionalPart::setPartOrientation(const std::string orientation)
     }
 }
 
-
-    const std::string AdditionalPart::getPlacingMethodString()
+const std::string AdditionalPart::getPlacingMethodString()
 {
     return PlacingMethodStrings[this->placingMethod];
 }

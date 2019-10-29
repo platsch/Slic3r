@@ -43,6 +43,7 @@ class AdditionalPart
     Pointf3 getPosition() {return this->position;};
     void resetPosition();
     void setRotation(double x, double y, double z);
+    void setZRotation(double z);
     Pointf3 getRotation() {return this->rotation;};
     void setPartOrigin(double x, double y, double z);  //internal position of the part, defines origin
     void setVisibility(bool visible) {this->visible = visible;};
