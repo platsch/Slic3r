@@ -215,7 +215,16 @@ TriangleMesh AdditionalPart::getPartMesh()
     mesh.rotate_x(Geometry::deg2rad(this->rotation.x));
     mesh.rotate_y(Geometry::deg2rad(this->rotation.y));
     mesh.rotate_z(Geometry::deg2rad(this->rotation.z));
-    mesh.translate(this->position.x, this->position.y, this->position.z + this->getFootprintHeight());
+    if(this->partOrientation == PO_FLAT)
+    {
+        mesh.translate(this->position.x, this->position.y, this->position.z + this->getFootprintHeight());
+    }
+    else
+    {
+        double thickness = this->size[2];
+        mesh.translate(this->position.x + thickness / 2.0 * -sin(Geometry::deg2rad(this->rotation.z)), this->position.y + thickness / 2.0 * cos(Geometry::deg2rad(this->rotation.z)), this->position.z + this->size[1] / 2);
+    }
+    
     return mesh;
 }
 
@@ -233,11 +242,10 @@ Polygon AdditionalPart::getHullPolygon(const double z_lower, const double z_uppe
 {
     Polygon result;
     // check if object is upright
-    if (this->rotation.x == 90.0 or this->rotation.y == 90.0)
+    if (this->partOrientation == PO_UPRIGHT)
     {
         // part affected?
-        double TOP_GAP = 0.5;
-        if (z_lower > this->position.z - this->size[1] / 2 && z_upper < this->position.z + this->size[1] / 2 + TOP_GAP)
+        if (z_lower >= this->position.z && z_upper < this->position.z + this->size[1] + EPSILON)
         {
             Points points;
 
@@ -250,9 +258,9 @@ Polygon AdditionalPart::getHullPolygon(const double z_lower, const double z_uppe
             // lower half affected?
             if (this->type.compare("hexnut") == 0)
             {
-                if (z_lower < this->position.z)
+                if (z_lower < this->position.z + this->size[1] / 2.0)
                 {
-                    double height = this->position.z - this->size[1] / 2 - z_lower;
+                    double height = this->position.z - z_lower;
                     double crossSectionLength = radius / 2 + height / tan(Geometry::deg2rad(120));
 
                     points.push_back(Point(scale_(x + crossSectionLength), scale_(z - width)));
@@ -269,14 +277,14 @@ Polygon AdditionalPart::getHullPolygon(const double z_lower, const double z_uppe
                     points.push_back(Point(scale_(x - radius), scale_(z)));
                 }
             }
-            else
+            else // squarenut
             {
                 points.push_back(Point(scale_(x + radius), scale_(z - width)));
                 points.push_back(Point(scale_(x - radius), scale_(z - width)));
                 points.push_back(Point(scale_(x + radius), scale_(z)));
                 points.push_back(Point(scale_(x - radius), scale_(z)));
             }
-            
+
             result = Slic3r::Geometry::convex_hull(points);
 
             result = offset(Polygons(result), scale_(hull_offset), 100000, ClipperLib::jtSquare).front();
@@ -285,8 +293,17 @@ Polygon AdditionalPart::getHullPolygon(const double z_lower, const double z_uppe
             result.rotate(Geometry::deg2rad(this->rotation.z), Point(0, 0));
 
             // apply object translation
-            result.translate(scale_(this->position.x), scale_(this->position.y));
-        } 
+            if (this->partOrientation == PO_UPRIGHT)
+            {
+                double thickness = this->size[2];
+                result.translate(scale_(this->position.x + thickness / 2.0 * -sin(Geometry::deg2rad(this->rotation.z))), scale_(this->position.y + thickness / 2.0 * cos(Geometry::deg2rad(this->rotation.z))));
+            }
+            else
+            {
+                result.translate(scale_(this->position.x), scale_(this->position.y));
+
+            }
+        }
     }
     else
     {
@@ -372,10 +389,10 @@ const std::string AdditionalPart::getPlaceDescription(Pointf offset)
 {
     std::ostringstream gcode;
     if (this->printed) {
-        // TODO height based on part orientation!!
         gcode << ";<part id=\"" << this->partID << "\" name=\"" << this->name << "\">\n";
         gcode << ";  <type identifier=\"" << this->type << "\" thread_size=\"" << this->threadSize << "\"/>\n";
         gcode << ";  <position box=\"" << this->partID << "\"/>\n";
+        // TODO height based on part orientation!!
         gcode << ";  <size height=\"" << this->size[2] << "\"/>\n";
         gcode << ";  <shape>\n";
         gcode << ";    <point x=\"" <<  (this->origin[0]-this->size[0]/2) << "\" y=\"" << (this->origin[1]-this->size[1]/2) << "\"/>\n";
