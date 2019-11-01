@@ -5,9 +5,9 @@ namespace Slic3r {
 AdditionalPart::AdditionalPart(std::string threadSize, std::string type)
 {
     this->partID = this->s_idGenerator++;
-    this->name = "M" + threadSize;
+    this->name = "M" + threadSize + " " + type;
     this->threadSize = threadSize;
-    // hex, square
+    // hexnut, squarenut
     this->type = type;
 
     this->position.x = 0.0;
@@ -151,7 +151,7 @@ void AdditionalPart::setPartOrientation(PartOrientation orientation)
     this->partOrientation = orientation;
     if (this->partOrientation == PO_UPRIGHT)
     {
-        if(this->getType().compare("hex") == 0)
+        if(this->getType().compare("hexnut") == 0)
         {
             this->setRotation(90.0, 30.0, this->rotation.z);
         }
@@ -202,7 +202,7 @@ TriangleMesh AdditionalPart::getFootprintMesh()
 TriangleMesh AdditionalPart::getPartMesh()
 {
     TriangleMesh mesh;
-    if (this->type.compare("hex") == 0)
+    if (this->type.compare("hexnut") == 0)
     {
         mesh.stl = this->generateHexNutBody(this->origin[0], this->origin[1], this->origin[2], this->size[0], this->size[2] - this->getFootprintHeight());
     }
@@ -248,7 +248,7 @@ Polygon AdditionalPart::getHullPolygon(const double z_lower, const double z_uppe
             double width = this->size[2];
 
             // lower half affected?
-            if (this->type.compare("hex") == 0)
+            if (this->type.compare("hexnut") == 0)
             {
                 if (z_lower < this->position.z)
                 {
@@ -299,7 +299,7 @@ Polygon AdditionalPart::getHullPolygon(const double z_lower, const double z_uppe
             double y = this->origin[1];
             double radius = this->size[0] / 2.0;
 
-            if (this->type.compare("hex") == 0)
+            if (this->type.compare("hexnut") == 0)
             {
                 for (size_t i = 60; i <= 360; i += 60)
                 {
@@ -368,13 +368,13 @@ const std::string AdditionalPart::getPlaceGcode(double print_z, std::string auto
  * print_z parameter as in getPlaceGcode.
  */
 
-// TODO shape
 const std::string AdditionalPart::getPlaceDescription(Pointf offset)
 {
     std::ostringstream gcode;
     if (this->printed) {
+        // TODO height based on part orientation!!
         gcode << ";<part id=\"" << this->partID << "\" name=\"" << this->name << "\">\n";
-        gcode << ";  <type identifier=\"hexnut\" thread_size=\"" << this->threadSize << "\"/>\n";
+        gcode << ";  <type identifier=\"" << this->type << "\" thread_size=\"" << this->threadSize << "\"/>\n";
         gcode << ";  <position box=\"" << this->partID << "\"/>\n";
         gcode << ";  <size height=\"" << this->size[2] << "\"/>\n";
         gcode << ";  <shape>\n";
@@ -384,7 +384,9 @@ const std::string AdditionalPart::getPlaceDescription(Pointf offset)
         gcode << ";    <point x=\"" <<  (this->origin[0]+this->size[0]/2) << "\" y=\"" << (this->origin[1]-this->size[1]/2) << "\"/>\n";
         gcode << ";  </shape>\n";
         gcode << ";  <destination x=\"" << this->position.x + offset.x << "\" y=\"" << this->position.y + offset.y << "\" z=\"" << this->position.z << "\"/>\n";
-        gcode << ";  <rotation x=\"" << this->rotation.x << "\" y=\"" << this->rotation.y << "\" z=\"" << this->rotation.z << "\"/>\n";
+        gcode << ";  <orientation orientation=\"" << PartOrientationStrings[this->partOrientation] << "\"/>\n";
+        // ignoring anything else than flat and upright rotation right now
+        gcode << ";  <rotation z=\"" << this->rotation.z << "\"/>\n";
         gcode << ";</part>\n\n";
     }
     return gcode.str();

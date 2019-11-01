@@ -139,17 +139,17 @@ sub new {
     $btn_nut_add_sizer->Add($btn_add_nut, 0);
 
     $self->{nuts} = [
-        {"nut_type" => "hex", "thread_size" => 2},
-        {"nut_type" => "hex", "thread_size" => 2.5},
-        {"nut_type" => "hex", "thread_size" => 3},
-        {"nut_type" => "hex", "thread_size" => 4},
-        {"nut_type" => "hex", "thread_size" => 5},
-        {"nut_type" => "hex", "thread_size" => 6},
-        {"nut_type" => "square", "thread_size" => 3},
-        {"nut_type" => "square", "thread_size" => 4},
-        {"nut_type" => "square", "thread_size" => 5},
-        {"nut_type" => "square", "thread_size" => 6},
-        {"nut_type" => "square", "thread_size" => 7}
+        {"nut_type" => "hexnut", "thread_size" => 2},
+        {"nut_type" => "hexnut", "thread_size" => 2.5},
+        {"nut_type" => "hexnut", "thread_size" => 3},
+        {"nut_type" => "hexnut", "thread_size" => 4},
+        {"nut_type" => "hexnut", "thread_size" => 5},
+        {"nut_type" => "hexnut", "thread_size" => 6},
+        {"nut_type" => "squarenut", "thread_size" => 3},
+        {"nut_type" => "squarenut", "thread_size" => 4},
+        {"nut_type" => "squarenut", "thread_size" => 5},
+        {"nut_type" => "squarenut", "thread_size" => 6},
+        {"nut_type" => "squarenut", "thread_size" => 7}
     ];
 
     # setup the listener
@@ -165,10 +165,10 @@ sub new {
 	my $square_nut_icon = Wx::Bitmap->new($Slic3r::var->("nut_square_icon.png"), wxBITMAP_TYPE_PNG);
 
     foreach my $nut (@{$self->{nuts}}) {
-        if($nut->{nut_type} eq "hex") {
+        if($nut->{nut_type} eq "hexnut") {
             $nut_selector->AppendString($nut->{thread_size}."mm", $hex_nut_icon);
         }
-        elsif($nut->{nut_type} eq "square") {
+        elsif($nut->{nut_type} eq "squarenut") {
             $nut_selector->AppendString($nut->{thread_size}."mm", $square_nut_icon);
         }
     }
@@ -811,7 +811,7 @@ sub reload_tree {
         if ($#{$additionPartList} >= 0) {
             foreach my $part (@{$additionPartList}) {
                 my $icon = $squareIcon;
-                if($part->getType() eq "hex") {
+                if($part->getType() eq "hexnut") {
                     $icon = $hexIcon;
                 }
                 if($part->isPlaced()) {
