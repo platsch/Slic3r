@@ -7,7 +7,7 @@ AdditionalPart::AdditionalPart(std::string threadSize, std::string type)
     this->partID = this->s_idGenerator++;
     this->name = "M" + threadSize + " " + type;
     this->threadSize = threadSize;
-    // hexnut, squarenut
+    // used types are hexnut, squarenut
     this->type = type;
 
     this->position.x = 0.0;
@@ -17,43 +17,78 @@ AdditionalPart::AdditionalPart(std::string threadSize, std::string type)
     this->rotation.y = 0.0;
     this->rotation.z = 0.0;
 
-    if(threadSize == "2")
+    if (this->type.compare("hexnut") == 0)
     {
-        this->size[0] = 4.32;
-        this->size[1] = 4.0;
-        this->size[2] = 1.6;
+        if(threadSize == "2")
+        {
+            this->size[0] = 4.32;
+            this->size[1] = 4.0;
+            this->size[2] = 1.6;
+        }
+        else if (threadSize == "2.5")
+        {
+            this->size[0] = 5.45;
+            this->size[1] = 5.0;
+            this->size[2] = 2.0;
+        }
+        else if(threadSize == "3")
+        {
+            this->size[0] = 6.01;
+            this->size[1] = 5.5;
+            this->size[2] = 2.4;
+        }
+        else if(threadSize == "4")
+        {
+            this->size[0] = 7.66;
+            this->size[1] = 7;
+            this->size[2] = 3.2;
+        }
+        else if(threadSize == "5")
+        {
+            this->size[0] = 8.79;
+            this->size[1] = 8;
+            this->size[2] = 4.7;
+        }
+        else if(threadSize == "6")
+        {
+            this->size[0] = 11.05;
+            this->size[1] = 10;
+            this->size[2] = 5.2;
+        }
     }
-    else if (threadSize == "2.5")
+    else
     {
-        this->size[0] = 5.45;
-        this->size[1] = 5.0;
-        this->size[2] = 2.0;
+        if (threadSize == "3")
+        {
+            this->size[0] = 5.5;
+            this->size[1] = 5.5;
+            this->size[2] = 1.8;
+        }
+        else if (threadSize == "4")
+        {
+            this->size[0] = 7.0;
+            this->size[1] = 7.0;
+            this->size[2] = 2.2;
+        }
+        else if (threadSize == "5")
+        {
+            this->size[0] = 8;
+            this->size[1] = 8;
+            this->size[2] = 2.7;
+        }
+        else if (threadSize == "6")
+        {
+            this->size[0] = 10.0;
+            this->size[1] = 10.0;
+            this->size[2] = 3.2;
+        }
+        else if (threadSize == "8")
+        {
+            this->size[0] = 13.0;
+            this->size[1] = 13.0;
+            this->size[2] = 4.0;
+        }
     }
-    else if(threadSize == "3")
-    {
-        this->size[0] = 6.01;
-        this->size[1] = 5.5;
-        this->size[2] = 2.4;
-    }
-    else if(threadSize == "4")
-    {
-        this->size[0] = 7.66;
-        this->size[1] = 7;
-        this->size[2] = 3.2;
-    }
-    else if(threadSize == "5")
-    {
-        this->size[0] = 8.79;
-        this->size[1] = 8;
-        this->size[2] = 4.7;
-    }
-    else if(threadSize == "6")
-    {
-        this->size[0] = 11.05;
-        this->size[1] = 10;
-        this->size[2] = 5.2;
-    }
-    
 
     this->visible = false;
     this->placed = false;
@@ -393,12 +428,19 @@ const std::string AdditionalPart::getPlaceDescription(Pointf offset)
         gcode << ";  <type identifier=\"" << this->type << "\" thread_size=\"" << this->threadSize << "\"/>\n";
         gcode << ";  <position box=\"" << this->partID << "\"/>\n";
         // TODO height based on part orientation!!
-        gcode << ";  <size height=\"" << this->size[2] << "\"/>\n";
+        if (this->partOrientation == PO_UPRIGHT)
+        {
+            gcode << ";  <size height=\"" << this->size[1] << "\"/>\n";
+        }
+        else
+        {
+            gcode << ";  <size height=\"" << this->size[2] << "\"/>\n";
+        }
         gcode << ";  <shape>\n";
-        gcode << ";    <point x=\"" <<  (this->origin[0]-this->size[0]/2) << "\" y=\"" << (this->origin[1]-this->size[1]/2) << "\"/>\n";
-        gcode << ";    <point x=\"" <<  (this->origin[0]-this->size[0]/2) << "\" y=\"" << (this->origin[1]+this->size[1]/2) << "\"/>\n";
-        gcode << ";    <point x=\"" <<  (this->origin[0]+this->size[0]/2) << "\" y=\"" << (this->origin[1]+this->size[1]/2) << "\"/>\n";
-        gcode << ";    <point x=\"" <<  (this->origin[0]+this->size[0]/2) << "\" y=\"" << (this->origin[1]-this->size[1]/2) << "\"/>\n";
+        gcode << ";    <point x=\"" << (this->origin[0] - this->size[0] / 2) << "\" y=\"" << (this->origin[1] - this->size[1] / 2) << "\"/>\n";
+        gcode << ";    <point x=\"" << (this->origin[0] - this->size[0] / 2) << "\" y=\"" << (this->origin[1] + this->size[1] / 2) << "\"/>\n";
+        gcode << ";    <point x=\"" << (this->origin[0] + this->size[0] / 2) << "\" y=\"" << (this->origin[1] + this->size[1] / 2) << "\"/>\n";
+        gcode << ";    <point x=\"" << (this->origin[0] + this->size[0] / 2) << "\" y=\"" << (this->origin[1] - this->size[1] / 2) << "\"/>\n";
         gcode << ";  </shape>\n";
         gcode << ";  <destination x=\"" << this->position.x + offset.x << "\" y=\"" << this->position.y + offset.y << "\" z=\"" << this->position.z << "\"/>\n";
         gcode << ";  <orientation orientation=\"" << PartOrientationStrings[this->partOrientation] << "\"/>\n";

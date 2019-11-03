@@ -149,7 +149,7 @@ sub new {
         {"nut_type" => "squarenut", "thread_size" => 4},
         {"nut_type" => "squarenut", "thread_size" => 5},
         {"nut_type" => "squarenut", "thread_size" => 6},
-        {"nut_type" => "squarenut", "thread_size" => 7}
+        {"nut_type" => "squarenut", "thread_size" => 8}
     ];
 
     # setup the listener
