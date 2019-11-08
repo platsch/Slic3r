@@ -257,7 +257,7 @@ TriangleMesh AdditionalPart::getPartMesh()
     else
     {
         double thickness = this->size[2];
-        mesh.translate(this->position.x + thickness / 2.0 * -sin(Geometry::deg2rad(this->rotation.z)), this->position.y + thickness / 2.0 * cos(Geometry::deg2rad(this->rotation.z)), this->position.z + this->size[1] / 2);
+        mesh.translate(this->position.x + thickness / 2.0 * -sin(Geometry::deg2rad(this->rotation.z)), this->position.y + thickness / 2.0 * cos(Geometry::deg2rad(this->rotation.z)), this->position.z + this->size[1] / 2.0);
     }
     
     return mesh;
@@ -284,7 +284,7 @@ Polygon AdditionalPart::getHullPolygon(const double z_lower, const double z_uppe
         {
             Points points;
 
-            double radius = this->size[0] / 2;
+            double radius = this->size[0] / 2.0;
 
             double x = this->origin[0];
             double z = this->origin[1];
@@ -296,7 +296,7 @@ Polygon AdditionalPart::getHullPolygon(const double z_lower, const double z_uppe
                 if (z_lower < this->position.z + this->size[1] / 2.0)
                 {
                     double height = this->position.z - z_lower;
-                    double crossSectionLength = radius / 2 + height / tan(Geometry::deg2rad(120));
+                    double crossSectionLength = radius / 2.0 + height / tan(Geometry::deg2rad(120));
 
                     points.push_back(Point(scale_(x + crossSectionLength), scale_(z - width)));
                     points.push_back(Point(scale_(x + crossSectionLength), scale_(z)));
@@ -437,10 +437,10 @@ const std::string AdditionalPart::getPlaceDescription(Pointf offset)
             gcode << ";  <size height=\"" << this->size[2] << "\"/>\n";
         }
         gcode << ";  <shape>\n";
-        gcode << ";    <point x=\"" << (this->origin[0] - this->size[0] / 2) << "\" y=\"" << (this->origin[1] - this->size[1] / 2) << "\"/>\n";
-        gcode << ";    <point x=\"" << (this->origin[0] - this->size[0] / 2) << "\" y=\"" << (this->origin[1] + this->size[1] / 2) << "\"/>\n";
-        gcode << ";    <point x=\"" << (this->origin[0] + this->size[0] / 2) << "\" y=\"" << (this->origin[1] + this->size[1] / 2) << "\"/>\n";
-        gcode << ";    <point x=\"" << (this->origin[0] + this->size[0] / 2) << "\" y=\"" << (this->origin[1] - this->size[1] / 2) << "\"/>\n";
+        gcode << ";    <point x=\"" << (this->origin[0] - this->size[0] / 2.0) << "\" y=\"" << (this->origin[1] - this->size[1] / 2.0) << "\"/>\n";
+        gcode << ";    <point x=\"" << (this->origin[0] - this->size[0] / 2.0) << "\" y=\"" << (this->origin[1] + this->size[1] / 2.0) << "\"/>\n";
+        gcode << ";    <point x=\"" << (this->origin[0] + this->size[0] / 2.0) << "\" y=\"" << (this->origin[1] + this->size[1] / 2.0) << "\"/>\n";
+        gcode << ";    <point x=\"" << (this->origin[0] + this->size[0] / 2.0) << "\" y=\"" << (this->origin[1] - this->size[1] / 2.0) << "\"/>\n";
         gcode << ";  </shape>\n";
         gcode << ";  <destination x=\"" << this->position.x + offset.x << "\" y=\"" << this->position.y + offset.y << "\" z=\"" << this->position.z << "\"/>\n";
         gcode << ";  <orientation orientation=\"" << PartOrientationStrings[this->partOrientation] << "\"/>\n";
