@@ -419,7 +419,7 @@ PrintObject::embed_electronic_parts()
                 for(const auto part : *additionalPartList) {
                     // only if this part is affected
                     if(part->isPlaced()) {
-                        Polygon hull = part->getHullPolygon(layer->print_z - layer->height, layer->print_z, 0.3);
+                        Polygon hull = part->getHullPolygon(layer->print_z - layer->height, layer->print_z, 0.4);
 
                         if(hull.is_valid()) {
                             hull.translate(bb_offset);
