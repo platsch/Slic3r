@@ -11,7 +11,8 @@
 #include <sstream>
 #include <algorithm>
 #include <admesh/stl.h>
-
+#include "HexNutSizes.hpp"
+#include "SquareNutSizes.hpp"
 
 namespace Slic3r {
 

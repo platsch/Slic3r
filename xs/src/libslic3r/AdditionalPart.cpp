@@ -19,75 +19,11 @@ AdditionalPart::AdditionalPart(std::string threadSize, std::string type)
 
     if (this->type.compare("hexnut") == 0)
     {
-        if(threadSize == "2")
-        {
-            this->size[0] = 4.32;
-            this->size[1] = 4.0;
-            this->size[2] = 1.6;
-        }
-        else if (threadSize == "2.5")
-        {
-            this->size[0] = 5.45;
-            this->size[1] = 5.0;
-            this->size[2] = 2.0;
-        }
-        else if(threadSize == "3")
-        {
-            this->size[0] = 6.01;
-            this->size[1] = 5.5;
-            this->size[2] = 2.4;
-        }
-        else if(threadSize == "4")
-        {
-            this->size[0] = 7.66;
-            this->size[1] = 7;
-            this->size[2] = 3.2;
-        }
-        else if(threadSize == "5")
-        {
-            this->size[0] = 8.79;
-            this->size[1] = 8;
-            this->size[2] = 4.7;
-        }
-        else if(threadSize == "6")
-        {
-            this->size[0] = 11.05;
-            this->size[1] = 10;
-            this->size[2] = 5.2;
-        }
+        HexNutSizes::getSize(threadSize, this->size);
     }
     else
     {
-        if (threadSize == "3")
-        {
-            this->size[0] = 5.5;
-            this->size[1] = 5.5;
-            this->size[2] = 1.8;
-        }
-        else if (threadSize == "4")
-        {
-            this->size[0] = 7.0;
-            this->size[1] = 7.0;
-            this->size[2] = 2.2;
-        }
-        else if (threadSize == "5")
-        {
-            this->size[0] = 8;
-            this->size[1] = 8;
-            this->size[2] = 2.7;
-        }
-        else if (threadSize == "6")
-        {
-            this->size[0] = 10.0;
-            this->size[1] = 10.0;
-            this->size[2] = 3.2;
-        }
-        else if (threadSize == "8")
-        {
-            this->size[0] = 13.0;
-            this->size[1] = 13.0;
-            this->size[2] = 4.0;
-        }
+        SquareNutSizes::getSize(threadSize, this->size);
     }
 
     this->visible = false;
