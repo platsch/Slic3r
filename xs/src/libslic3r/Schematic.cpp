@@ -93,19 +93,19 @@ ElectronicParts* Schematic::getPartlist()
     return &this->partlist;
 }
 
-AdditionalParts* Schematic::getAdditionalPartlist()
+FastenerNuts* Schematic::getFastenerNutlist()
 {
-    return &this->additionalPartlist;
+    return &this->fastenerNutlist;
 }
 
-void Schematic::addAdditionalPart(std::string thread_size, std::string type)
+void Schematic::addFastenerNut(std::string thread_size, std::string type)
 {
-    this->additionalPartlist.push_back(new AdditionalPart(thread_size, type));
+    this->fastenerNutlist.push_back(new FastenerNut(thread_size, type));
 }
 
 
-    void
-    Schematic::setFilename(std::string filename)
+void
+Schematic::setFilename(std::string filename)
 {
     this->filename = filename;
 }

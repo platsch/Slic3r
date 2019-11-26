@@ -368,7 +368,7 @@ sub export {
 	        }
 	        print $fh ";</object>\n\n";
 	    }
-        my $nutPartlist = $object->schematic->getAdditionalPartlist;
+        my $nutPartlist = $object->schematic->getFastenerNutlist;
 		my $nutlistLength = @{$nutPartlist};
 		if ($nutlistLength > 0){
 	    	my $bb = $self->objects->[0]->bounding_box;
@@ -712,7 +712,7 @@ sub process_layer {
         foreach my $part (@{$layer->object->schematic->getPartlist}) {
             $placing_gcode .= $part->getPlaceGcode($layer->print_z, "", $layer->object->config->conductive_pnp_manual_gcode);
         }
-        foreach my $part (@{$layer->object->schematic->getAdditionalPartlist}) {
+        foreach my $part (@{$layer->object->schematic->getFastenerNutlist}) {
             $placing_gcode .= $part->getPlaceGcode($layer->print_z, "", $layer->object->config->conductive_pnp_manual_gcode);
         }
         if(length($placing_gcode) > 0) {

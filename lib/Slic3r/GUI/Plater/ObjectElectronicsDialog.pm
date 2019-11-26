@@ -60,7 +60,7 @@ use utf8;
 
 use Slic3r::Print::State ':steps';
 use Slic3r::ElectronicPart qw(:PlacingMethods :ConnectionMethods);
-use Slic3r::AdditionalPart qw(:PlacingMethods :PartOrientations);
+use Slic3r::FastenerNut qw(:PlacingMethods :PartOrientations);
 use Slic3r::GUI::Electronics3DScene;
 use Slic3r::Config;
 use File::Basename qw(basename);
@@ -505,7 +505,7 @@ sub new {
 
     EVT_BUTTON($self, $self->{btn_add_nut}, sub { 
         my $selected_nut = @{$self->{nuts}}[$self->{nut_selector}->GetCurrentSelection()];
-        $self->{schematic}->addAdditionalPart($selected_nut->{thread_size}, $selected_nut->{nut_type});
+        $self->{schematic}->addFastenerNut($selected_nut->{thread_size}, $selected_nut->{nut_type});
         $self->reload_tree;
     });
     
@@ -653,7 +653,7 @@ sub render_print {
         my $height =  $self->{layers_z}[$self->{slider}->GetValue];
         
         # Display nuts
-        foreach my $part (@{$self->{schematic}->getAdditionalPartlist()}) {
+        foreach my $part (@{$self->{schematic}->getFastenerNutlist()}) {
         	if($part->isPlaced()) {
                 my $mesh = $part->getMesh();
                 my $offset = $self->{model_object}->_bounding_box->center;
@@ -807,7 +807,7 @@ sub reload_tree {
     });
 
     if (defined $self->{schematic}) {
-    	my $additionPartList = $self->{schematic}->getAdditionalPartlist();
+    	my $additionPartList = $self->{schematic}->getFastenerNutlist();
         if ($#{$additionPartList} >= 0) {
             foreach my $part (@{$additionPartList}) {
                 my $icon = $squareIcon;
@@ -945,7 +945,7 @@ sub tree_selection_changed {
     			}
     		}
         }
-        $self->loadAdditionalPartProperties($part);
+        $self->loadFastenerNutProperties($part);
     	$self->{property_selected_type} = PROPERTY_PART;
     	$self->{property_selected_object} = $part;
         # TODO!
@@ -992,7 +992,7 @@ sub property_selection_changed {
 # Returns    : none
 # Comment     :
 #######################################################################
-sub loadAdditionalPartProperties {
+sub loadFastenerNutProperties {
     my $self = shift;
     my ($part) = @_;
     

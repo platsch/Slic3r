@@ -1,6 +1,3 @@
-#ifndef slic3r_AdditionalPart_hpp_
-#define slic3r_AdditionalPart_hpp_
-
 #include "libslic3r.h"
 #include "Point.hpp"
 #include "TriangleMesh.hpp"
@@ -11,45 +8,72 @@
 #include <sstream>
 #include <algorithm>
 #include <admesh/stl.h>
-#include "HexNutSizes.hpp"
-#include "SquareNutSizes.hpp"
-#include "AP.hpp"
 
-namespace Slic3r {
-
-enum PartOrientation {PO_FLAT, PO_UPRIGHT};
-static const std::vector<std::string> PartOrientationStrings = { "Flat", "Upright" }; // used for serialization to 3ds file
-
-class AdditionalPart;
-typedef std::vector<AdditionalPart*> AdditionalParts;
-
-class AdditionalPart : public AP
+namespace Slic3r
 {
-    public:
-    AdditionalPart(std::string name, std::string type);
-    ~AdditionalPart();
-    std::string getType(){return this->type;};
-    void setZRotation(double z);
-    void setPartOrientation(PartOrientation orientation);
-    void setPartOrientation(const std::string orientation);
-    const PartOrientation getPartOrientation();
+// Be sure to add new values in FastenerNut.xsp if changing this enum!
+enum PlacingMethod
+{
+    PM_AUTOMATIC,
+    PM_MANUAL,
+    PM_NONE
+};
+static const std::vector<std::string> PlacingMethodStrings = {"Automatic", "Manual", "None"}; // used for serialization to 3ds file
+class AdditionalPart
+{
+public:
+    virtual void printPartInfo();
+    unsigned int getPartID() { return this->partID; };
+    std::string getName() { return this->name; };
 
-    TriangleMesh getPartMesh();
+    double getFootprintHeight() { return this->footprintHeight; };
+    void setFootprintHeight(double height) { this->footprintHeight = height; };
+    void setSize(double x, double y);
+    void setSize(double x, double y, double z);
+    void setPosition(double x, double y, double z);
+    void setPartHeight(double height) { this->size[2] = height; };
+    double getPartHeight() { return this->size[2]; };
+    Pointf3 getPosition() { return this->position; };
+    void resetPosition();
+    void setRotation(double x, double y, double z);
+    Pointf3 getRotation() { return this->rotation; };
+    void setPartOrigin(double x, double y, double z); //internal position of the part, defines origin
+    void setVisibility(bool visible) { this->visible = visible; };
+    bool isVisible() { return this->visible; };
+    void setPlaced(bool placed) { this->placed = placed; };
+    bool isPlaced() { return this->placed; };
+    void setPlacingMethod(PlacingMethod method) { this->placingMethod = method; };
+    void setPlacingMethod(const std::string method);
+    const PlacingMethod getPlacingMethod() { return this->placingMethod; };
+    const std::string getPlacingMethodString();
+
+    virtual TriangleMesh getFootprintMesh();
+    virtual TriangleMesh getPartMesh();
+    virtual TriangleMesh getMesh();
+
     Polygon getHullPolygon(const double z_lower, const double z_upper, const double hull_offset);
 
-    const std::string getPlaceGcode(double print_z, std::string automaticGcode = "", std::string manualGcode = "");
-    const std::string getPlaceDescription(Pointf offset);
+    virtual const std::string getPlaceGcode(double print_z, std::string automaticGcode = "", std::string manualGcode = "");
+    virtual const std::string getPlaceDescription(Pointf offset);
+    void resetPrintedStatus();
 
-private:
-    std::string threadSize;
-    std::string type;
-    PartOrientation partOrientation;
+    stl_file generateCube(double x, double y, double z, double dx, double dy, double dz);
+    stl_file generateCylinder(double x, double y, double z, double r, double h);
+    stl_facet generateFacet(double v1x, double v1y, double v1z, double v2x, double v2y, double v2z, double v3x, double v3y, double v3z);
+    void merge_stl(stl_file *stl1, stl_file *stl2);
 
-    // Internal methods to generate a mesh of the object and footprint
-    stl_file generateHexNutBody(double x, double y, double z, double diameter, double height);
-    stl_file generateSquareNutBody(double x, double y, double z, double diameter, double height);
-};
+    std::string name;
+    static unsigned int s_idGenerator;
+    unsigned int partID;
+    double size[3];
+    bool visible;
+    bool placed;
+    PlacingMethod placingMethod;
+    bool printed; // indicates that this part is already included in the GCode
 
+    Pointf3 position;
+    Pointf3 rotation; // is it a good idea to use point as representation for a rotation?
+    double origin[3];
+    double footprintHeight; // should be set to the layer height of the object to match exactly one layer in the visualization
+    };
 }
-
-#endif

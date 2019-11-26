@@ -1,4 +1,4 @@
-package Slic3r::AdditionalPart;
+package Slic3r::FastenerNut;
 use strict;
 use warnings;
 

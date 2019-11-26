@@ -11,7 +11,7 @@
 #include <sstream>
 #include <algorithm>
 #include <admesh/stl.h>
-#include "AdditionalPart.hpp"
+#include "FastenerNut.hpp"
 
 
 namespace Slic3r {

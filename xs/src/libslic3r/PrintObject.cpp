@@ -332,7 +332,7 @@ void
 PrintObject::embed_electronic_parts()
 {
     ElectronicParts *partlist = this->_schematic->getPartlist();
-    AdditionalParts *additionalPartList = this->_schematic->getAdditionalPartlist();
+    FastenerNuts *fastenerNutList = this->_schematic->getFastenerNutlist();
     if(partlist->size() > 0) {
 
         // electronic parts are placed with respect to the objects bounding box center but the object
@@ -398,7 +398,7 @@ PrintObject::embed_electronic_parts()
             }
         }
     }
-    if(additionalPartList->size() > 0) {
+    if(fastenerNutList->size() > 0) {
 
         // electronic parts are placed with respect to the objects bounding box center but the object
         // uses the bounding box min point as origin, so we need to translate them.
@@ -416,7 +416,7 @@ PrintObject::embed_electronic_parts()
         for(auto &layer : this->layers) {
             for(auto &layerm : layer->regions) {
                 Polygons polygons;
-                for(const auto part : *additionalPartList) {
+                for(const auto part : *fastenerNutList) {
                     // only if this part is affected
                     if(part->isPlaced()) {
                         Polygon hull = part->getHullPolygon(layer->print_z - layer->height, layer->print_z, 0.4);

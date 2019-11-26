@@ -2,13 +2,13 @@
 
 %{
 #include <xsinit.h>
-#include "libslic3r/AdditionalPart.hpp"
+#include "libslic3r/FastenerNut.hpp"
 %}
 
-%name{Slic3r::Electronics::AdditionalPart} class AdditionalPart {
-    AdditionalPart(std::string name, std::string type);
-    //~AdditionalPart(); -- No destructor, perl garbage collector would destroy the object under certain circumstances
-    Clone<AdditionalPart> clone()
+%name{Slic3r::Electronics::FastenerNut} class FastenerNut {
+    FastenerNut(std::string name, std::string type);
+    //~FastenerNut(); -- No destructor, perl garbage collector would destroy the object under certain circumstances
+    Clone<FastenerNut> clone()
         %code{% RETVAL = THIS; %};
     int getPartID();
     std::string getName();
@@ -43,7 +43,7 @@
     void resetPrintedStatus();
 };
 
-%package{Slic3r::AdditionalPart};
+%package{Slic3r::FastenerNut};
 %{
 
 IV
