@@ -26,28 +26,28 @@ typedef std::vector<FastenerNut*> FastenerNuts;
 class FastenerNut : public AdditionalPart
 {
     public:
-    FastenerNut(std::string name, std::string type);
-    ~FastenerNut();
-    std::string getType(){return this->type;};
-    void setZRotation(double z);
-    void setPartOrientation(PartOrientation orientation);
-    void setPartOrientation(const std::string orientation);
-    const PartOrientation getPartOrientation();
+        FastenerNut(std::string name, std::string type);
+        ~FastenerNut();
+        std::string getType(){return this->type;};
+        void setZRotation(double z);
+        void setPartOrientation(PartOrientation orientation);
+        void setPartOrientation(const std::string orientation);
+        const PartOrientation getPartOrientation();
 
-    TriangleMesh getPartMesh();
-    Polygon getHullPolygon(const double z_lower, const double z_upper, const double hull_offset);
+        TriangleMesh getPartMesh();
+        Polygon getHullPolygon(const double z_lower, const double z_upper, const double hull_offset);
 
-    const std::string getPlaceGcode(double print_z, std::string automaticGcode = "", std::string manualGcode = "");
-    const std::string getPlaceDescription(Pointf offset);
+        const std::string getPlaceGcode(double print_z, std::string automaticGcode = "", std::string manualGcode = "");
+        const std::string getPlaceDescription(Pointf offset);
 
-private:
-    std::string threadSize;
-    std::string type;
-    PartOrientation partOrientation;
+    private:
+        std::string threadSize;
+        std::string type;
+        PartOrientation partOrientation;
 
-    // Internal methods to generate a mesh of the object and footprint
-    stl_file generateHexNutBody(double x, double y, double z, double diameter, double height);
-    stl_file generateSquareNutBody(double x, double y, double z, double diameter, double height);
+        // Internal methods to generate a mesh of the object and footprint
+        stl_file generateHexNutBody(double x, double y, double z, double diameter, double height);
+        stl_file generateSquareNutBody(double x, double y, double z, double diameter, double height);
 };
 
 }
