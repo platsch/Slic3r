@@ -93,14 +93,24 @@ ElectronicParts* Schematic::getPartlist()
     return &this->partlist;
 }
 
-FastenerNuts* Schematic::getFastenerNutlist()
+HexNuts* Schematic::getHexNutList()
 {
-    return &this->fastenerNutlist;
+    return &this->hexNutList;
 }
 
-void Schematic::addFastenerNut(std::string thread_size, std::string type)
+void Schematic::addHexNut(std::string thread_size)
 {
-    this->fastenerNutlist.push_back(new FastenerNut(thread_size, type));
+    this->hexNutList.push_back(new HexNut(thread_size));
+}
+
+SquareNuts* Schematic::getSquareNutList()
+{
+    return &this->squareNutList;
+}
+
+void Schematic::addSquareNut(std::string thread_size)
+{
+    this->squareNutList.push_back(new SquareNut(thread_size));
 }
 
 

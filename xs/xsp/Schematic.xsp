@@ -7,16 +7,19 @@
 
 %name{Slic3r::Electronics::Schematic} class Schematic {
     Clone<Schematic> clone()
-        %code{% RETVAL = THIS; %};        
+        %code{% RETVAL = THIS; %};
     void setFilename(std::string filename);
     std::string getFilename();
     void addElectronicPart(ElectronicPart* part);
     void addElectronicNet(ElectronicNet* net);
     ElectronicParts* getPartlist()
         %code{% RETVAL = THIS->getPartlist(); %};
-    FastenerNuts* getFastenerNutlist()
-        %code{% RETVAL = THIS->getFastenerNutlist(); %};
-    void addFastenerNut(std::string thread_size, std::string type);
+    HexNuts* getHexNutList()
+        %code{% RETVAL = THIS->getHexNutList(); %};
+    void addHexNut(std::string thread_size);
+    SquareNuts* getSquareNutList()
+        %code{% RETVAL = THIS->getSquareNutList(); %};
+    void addSquareNut(std::string thread_size);
     RubberBandPtrs* getRubberBands();
     void updateRubberBands();
     NetPointPtrs* getNetPoints();
@@ -30,7 +33,7 @@
         %code{% RETVAL = THIS->removeWire(rubberBandID); %};
     bool removeNetPoint(NetPoint* netPoint)
         %code{% RETVAL = THIS->removeNetPoint(netPoint); %};
-    
+
     bool write3deFile(std::string filename, std::string filebase);
     bool load3deFile(std::string filename);
 };

@@ -60,7 +60,8 @@ use utf8;
 
 use Slic3r::Print::State ':steps';
 use Slic3r::ElectronicPart qw(:PlacingMethods :ConnectionMethods);
-use Slic3r::FastenerNut qw(:PlacingMethods :PartOrientations);
+use Slic3r::HexNut qw(:PlacingMethods :PartOrientations);
+use Slic3r::SquareNut qw(:PlacingMethods :PartOrientations);
 use Slic3r::GUI::Electronics3DScene;
 use Slic3r::Config;
 use File::Basename qw(basename);
@@ -505,7 +506,14 @@ sub new {
 
     EVT_BUTTON($self, $self->{btn_add_nut}, sub { 
         my $selected_nut = @{$self->{nuts}}[$self->{nut_selector}->GetCurrentSelection()];
-        $self->{schematic}->addFastenerNut($selected_nut->{thread_size}, $selected_nut->{nut_type});
+        if($selected_nut->{nut_type} eq 'hexnut')
+        {
+            $self->{schematic}->addHexNut($selected_nut->{thread_size});
+        }
+        elsif ($selected_nut->{nut_type} eq 'squarenut')
+        {
+            $self->{schematic}->addSquareNut($selected_nut->{thread_size});
+        }
         $self->reload_tree;
     });
     
@@ -653,7 +661,17 @@ sub render_print {
         my $height =  $self->{layers_z}[$self->{slider}->GetValue];
         
         # Display nuts
-        foreach my $part (@{$self->{schematic}->getFastenerNutlist()}) {
+        foreach my $part (@{$self->{schematic}->getHexNutList()}) {
+        	if($part->isPlaced()) {
+                my $mesh = $part->getMesh();
+                my $offset = $self->{model_object}->_bounding_box->center;
+                $mesh->translate($offset->x, $offset->y, 0);
+                my $object_id = $self->canvas->load_electronic_part($mesh);
+                # lookup table
+                $self->{part_lookup}[$object_id] = $part;
+        	}
+        }
+        foreach my $part (@{$self->{schematic}->getSquareNutList()}) {
         	if($part->isPlaced()) {
                 my $mesh = $part->getMesh();
                 my $offset = $self->{model_object}->_bounding_box->center;
@@ -807,15 +825,11 @@ sub reload_tree {
     });
 
     if (defined $self->{schematic}) {
-    	my $additionPartList = $self->{schematic}->getFastenerNutlist();
-        if ($#{$additionPartList} >= 0) {
-            foreach my $part (@{$additionPartList}) {
-                my $icon = $squareIcon;
-                if($part->getType() eq "hexnut") {
-                    $icon = $hexIcon;
-                }
+    	my $hexNutList = $self->{schematic}->getHexNutList();
+        if ($#{$hexNutList} >= 0) {
+            foreach my $part (@{$hexNutList}) {
                 if($part->isPlaced()) {
-                    my $itemId = $tree->AppendItem($nutPlacedItemId, $part->getName(), $icon);
+                    my $itemId = $tree->AppendItem($nutPlacedItemId, $part->getName(), $hexIcon);
                     $tree->SetPlData($itemId, {
                         type        => 'nut',
                         partID		=> $part->getPartID(),
@@ -826,7 +840,31 @@ sub reload_tree {
 			        }
                 }
                 else {
-                    my $itemId = $tree->AppendItem($nutUnplacedItemId, $part->getName(), $icon);
+                    my $itemId = $tree->AppendItem($nutUnplacedItemId, $part->getName(), $hexIcon);
+                    $tree->SetPlData($itemId, {
+                        type        => 'nut',
+                        partID		=> $part->getPartID(),
+                        part        => $part,
+                    });
+                }
+            }
+        }
+        my $squareNutList = $self->{schematic}->getSquareNutList();
+        if ($#{$squareNutList} >= 0) {
+            foreach my $part (@{$squareNutList}) {
+                if($part->isPlaced()) {
+                    my $itemId = $tree->AppendItem($nutPlacedItemId, $part->getName(), $squareIcon);
+                    $tree->SetPlData($itemId, {
+                        type        => 'nut',
+                        partID		=> $part->getPartID(),
+                        part        => $part,
+                    });
+                    if($part->getPartID() == $selected_volume_idx) {
+			            $selectedId = $itemId;
+			        }
+                }
+                else {
+                    my $itemId = $tree->AppendItem($nutUnplacedItemId, $part->getName(), $squareIcon);
                     $tree->SetPlData($itemId, {
                         type        => 'nut',
                         partID		=> $part->getPartID(),
@@ -945,7 +983,7 @@ sub tree_selection_changed {
     			}
     		}
         }
-        $self->loadFastenerNutProperties($part);
+        $self->loadNutProperties($part);
     	$self->{property_selected_type} = PROPERTY_PART;
     	$self->{property_selected_object} = $part;
         # TODO!
@@ -992,7 +1030,7 @@ sub property_selection_changed {
 # Returns    : none
 # Comment     :
 #######################################################################
-sub loadFastenerNutProperties {
+sub loadNutProperties {
     my $self = shift;
     my ($part) = @_;
     
@@ -1018,7 +1056,7 @@ sub loadFastenerNutProperties {
     $prop = $self->{propgrid}->Append(new Wx::EnumProperty("Placing method", "Placing method", $placingMethod, $part->getPlacingMethod));
     $prop->Enable(0) if(!$part->isPlaced);
 
-	# position    
+	# position
     my $position = $part->getPosition();
     $self->{propgrid}->Append(new Wx::PropertyCategory("Position"));
     $prop = $self->{propgrid}->Append(new Wx::FloatProperty("X", "X", $position->x));

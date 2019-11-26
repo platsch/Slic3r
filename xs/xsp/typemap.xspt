@@ -180,10 +180,15 @@
 %typemap{Ref<ElectronicPart>}{simple};
 %typemap{Clone<ElectronicPart>}{simple};
 
-%typemap{FastenerNut*};
-%typemap{FastenerNuts*};
-%typemap{Ref<FastenerNut>}{simple};
-%typemap{Clone<FastenerNut>}{simple};
+%typemap{HexNut*};
+%typemap{HexNuts*};
+%typemap{Ref<HexNut>}{simple};
+%typemap{Clone<HexNut>}{simple};
+
+%typemap{SquareNut*};
+%typemap{SquareNuts*};
+%typemap{Ref<SquareNut>}{simple};
+%typemap{Clone<SquareNut>}{simple};
 
 %typemap{ElectronicNet*};
 %typemap{Ref<ElectronicNet>}{simple};

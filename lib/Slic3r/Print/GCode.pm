@@ -368,20 +368,26 @@ sub export {
 	        }
 	        print $fh ";</object>\n\n";
 	    }
-        my $nutPartlist = $object->schematic->getFastenerNutlist;
-		my $nutlistLength = @{$nutPartlist};
-		if ($nutlistLength > 0){
+        my $hexNutPartlist = $object->schematic->getHexNutList;
+        my $squareNutPartlist = $object->schematic->getSquareNutList;
+		my $hexNutlistLength = @{$hexNutPartlist};
+		my $squareNutlistLength = @{$squareNutPartlist};
+		if ($hexNutlistLength > 0 || $squareNutlistLength > 0 ){
 	    	my $bb = $self->objects->[0]->bounding_box;
 	    	# Currently only works for a single object on the plater!!!!!!!!!!!
 	    	my $copy = $self->objects->[0]->_shifted_copies->[0];
 	    	my $bb_offset = Slic3r::Pointf->new(unscale($bb->center->[0]+$copy->x), unscale($bb->center->[1]+$copy->y));
 	        print $fh "\n" . ';<object name="' . $object->model_object->name . '">' . "\n";
-	        foreach my $part (@{$nutPartlist}) {
+	        foreach my $part (@{$hexNutPartlist}) {
+	            print $fh $part->getPlaceDescription($bb_offset);
+	            $part->resetPrintedStatus;
+	        }
+            foreach my $part (@{$squareNutPartlist}) {
 	            print $fh $part->getPlaceDescription($bb_offset);
 	            $part->resetPrintedStatus;
 	        }
 	        print $fh ";</object>\n\n";
-	    }
+        }
 	}
 
 
@@ -712,7 +718,10 @@ sub process_layer {
         foreach my $part (@{$layer->object->schematic->getPartlist}) {
             $placing_gcode .= $part->getPlaceGcode($layer->print_z, "", $layer->object->config->conductive_pnp_manual_gcode);
         }
-        foreach my $part (@{$layer->object->schematic->getFastenerNutlist}) {
+        foreach my $part (@{$layer->object->schematic->getHexNutList}) {
+            $placing_gcode .= $part->getPlaceGcode($layer->print_z, "", $layer->object->config->conductive_pnp_manual_gcode);
+        }
+        foreach my $part (@{$layer->object->schematic->getSquareNutList}) {
             $placing_gcode .= $part->getPlaceGcode($layer->print_z, "", $layer->object->config->conductive_pnp_manual_gcode);
         }
         if(length($placing_gcode) > 0) {

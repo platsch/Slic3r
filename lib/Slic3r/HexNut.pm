@@ -1,4 +1,4 @@
-package Slic3r::FastenerNut;
+package Slic3r::HexNut;
 use strict;
 use warnings;
 

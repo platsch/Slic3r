@@ -1,24 +1,58 @@
-#include "FastenerNut.hpp"
+#include "HexNut.hpp"
 
 namespace Slic3r {
 
+HexNut::HexNut(std::string threadSize)
+{
+    this->partID = this->s_idGenerator++;
+    this->name = "M" + threadSize + " hexnut";
+    this->threadSize = threadSize;
+
+    this->position.x = 0.0;
+    this->position.y = 0.0;
+    this->position.z = 0.0;
+    this->rotation.x = 0.0;
+    this->rotation.y = 0.0;
+    this->rotation.z = 0.0;
+
+    HexNutSizes::getSize(threadSize, this->size);
+
+    this->visible = false;
+    this->placed = false;
+    this->placingMethod = PM_AUTOMATIC;
+    this->partOrientation = PO_FLAT;
+    this->printed = false;
+}
+
+HexNut::~HexNut()
+{
+}
+
 // Rotation angles in deg.
-void FastenerNut::setZRotation(double z)
+void HexNut::setZRotation(double z)
 {
     this->rotation.z = z;
 }
 
-const PartOrientation FastenerNut::getPartOrientation()
+const PartOrientation HexNut::getPartOrientation()
 {
     return this->partOrientation;
 }
 
-void FastenerNut::setPartOrientation(PartOrientation orientation)
+void HexNut::setPartOrientation(PartOrientation orientation)
 {
-    this->setRotation(0, 0, this->rotation.z);
+    this->partOrientation = orientation;
+    if (this->partOrientation == PO_UPRIGHT)
+    {
+        this->setRotation(90.0, 30.0, this->rotation.z);
+    }
+    else // flat
+    {
+        this->setRotation(0, 0, this->rotation.z);
+    }
 }
 
-void FastenerNut::setPartOrientation(const std::string orientation)
+void HexNut::setPartOrientation(const std::string orientation)
 {
     this->partOrientation = PO_FLAT;
     for (int i = 0; i < PartOrientationStrings.size(); i++)
@@ -30,10 +64,10 @@ void FastenerNut::setPartOrientation(const std::string orientation)
     }
 }
 
-TriangleMesh FastenerNut::getPartMesh()
+TriangleMesh HexNut::getPartMesh()
 {
     TriangleMesh mesh;
-    mesh.stl = this->generateCube(this->origin[0], this->origin[1], this->origin[2], this->size[0], this->size[1], this->size[2] - this->getFootprintHeight());
+    mesh.stl = this->generateHexNutBody(this->origin[0], this->origin[1], this->origin[2], this->size[0], this->size[2] - this->getFootprintHeight());
     mesh.repair();
 
     mesh.rotate_x(Geometry::deg2rad(this->rotation.x));
@@ -54,7 +88,7 @@ TriangleMesh FastenerNut::getPartMesh()
 
 /// Generates the hull polygon of this part between z_lower and z_upper
 /// hull_offset is an additional offset to widen the cavity to avoid collisions when inserting a part (unscaled value)
-Polygon FastenerNut::getHullPolygon(const double z_lower, const double z_upper, const double hull_offset)
+Polygon HexNut::getHullPolygon(const double z_lower, const double z_upper, const double hull_offset) const
 {
     Polygon result;
     // check if object is upright
@@ -71,6 +105,7 @@ Polygon FastenerNut::getHullPolygon(const double z_lower, const double z_upper, 
             double z = this->origin[1];
             double width = this->size[2];
 
+            // lower half affected?
             if (z_lower < this->position.z + this->size[1] / 2.0)
             {
                 double height = this->position.z - z_lower;
@@ -146,112 +181,50 @@ Polygon FastenerNut::getHullPolygon(const double z_lower, const double z_upper, 
     return result;
 }
 
-
 /* Returns the GCode to place this part and remembers this part as already "printed".
  * print_z is the current print layer, a part will only be printed if it's upper surface
  * will be below the current print layer after placing.
  */
-const std::string FastenerNut::getPlaceGcode(double print_z, std::string automaticGcode, std::string manualGcode)
+const std::string HexNut::getPlaceGcode(double print_z, std::string automaticGcode, std::string manualGcode)
 {
     std::ostringstream gcode;
 
-    if(this->placed && !this->printed && this->position.z + this->size[2] <= print_z) {
+    if (this->placed && !this->printed && this->position.z + this->size[2] <= print_z)
+    {
         this->printed = true;
-        if(this->placingMethod == PM_AUTOMATIC) {
+        if (this->placingMethod == PM_AUTOMATIC)
+        {
             gcode << ";Automatically place part nr " << this->partID << " " << this->getName() << "\n";
             gcode << "M361 P" << this->partID << "\n";
             gcode << automaticGcode << "\n";
         }
-        if(this->placingMethod == PM_MANUAL) {
+        if (this->placingMethod == PM_MANUAL)
+        {
             gcode << ";Manually place part nr " << this->partID << "\n";
             gcode << "M117 Insert component " << this->partID << " " << this->name << "\n";
             //gcode << "M363 P" << this->partID << "\n";
             gcode << manualGcode << "\n";
             // TODO: implement placeholder variable replacement
         }
-        if(this->placingMethod == PM_NONE) {
+        if (this->placingMethod == PM_NONE)
+        {
             gcode << ";Placing of part nr " << this->partID << " " << this->getName() << " is disabled\n";
         }
     }
     return gcode.str();
 }
 
-stl_file FastenerNut::generateSquareNutBody(double x, double y, double z, double diameter, double height)
-{
-    stl_file stl;
-    stl_initialize(&stl);
-    stl_facet facet;
-
-    double radius = diameter / 2.0;
-
-    // ground plane
-    facet = generateFacet(x - radius, y - radius, z,
-                          x - radius, y + radius, z,
-                          x + radius, y + radius, z);
-    stl_add_facet(&stl, &facet);
-    facet = generateFacet(x - radius, y - radius, z,
-                          x + radius, y + radius, z,
-                          x + radius, y - radius, z);
-    stl_add_facet(&stl, &facet);
-    // cover plane
-    facet = generateFacet(x - radius, y - radius, z + height,
-                          x - radius, y + radius, z + height,
-                          x + radius, y + radius, z + height);
-    stl_add_facet(&stl, &facet);
-    facet = generateFacet(x - radius, y - radius, z + height,
-                          x + radius, y + radius, z + height,
-                          x + radius, y - radius, z + height);
-    // stl_add_facet(&stl, &facet);
-    // side plane left
-    facet = generateFacet(x - radius, y - radius, z,
-                          x - radius, y + radius, z,
-                          x - radius, y + radius, z + height);
-    stl_add_facet(&stl, &facet);
-    facet = generateFacet(x - radius, y - radius, z + height,
-                          x - radius, y + radius, z + height,
-                          x - radius, y - radius, z);
-    stl_add_facet(&stl, &facet);
-    // side plane bottom
-    facet = generateFacet(x - radius, y - radius, z,
-                          x + radius, y - radius, z,
-                          x + radius, y - radius, z + height);
-    stl_add_facet(&stl, &facet);
-    facet = generateFacet(x - radius, y - radius, z + height,
-                          x + radius, y - radius, z + height,
-                          x - radius, y - radius, z);
-    stl_add_facet(&stl, &facet);
-    // side plane right
-    facet = generateFacet(x + radius, y - radius, z,
-                          x + radius, y + radius, z,
-                          x + radius, y + radius, z + height);
-    stl_add_facet(&stl, &facet);
-    facet = generateFacet(x + radius, y - radius, z + height,
-                          x + radius, y + radius, z + height,
-                          x + radius, y - radius, z);
-    stl_add_facet(&stl, &facet);
-    // side plane top
-    facet = generateFacet(x - radius, y + radius, z,
-                          x + radius, y + radius, z,
-                          x + radius, y + radius, z + height);
-    stl_add_facet(&stl, &facet);
-    facet = generateFacet(x - radius, y + radius, z + height,
-                          x + radius, y + radius, z + height,
-                          x - radius, y + radius, z);
-    stl_add_facet(&stl, &facet);
-
-    return stl;
-}
-
 /* Returns a description of this part in GCode format.
  * print_z parameter as in getPlaceGcode.
  */
 
-const std::string FastenerNut::getPlaceDescription(Pointf offset)
+const std::string HexNut::getPlaceDescription(Pointf offset)
 {
     std::ostringstream gcode;
-    if (this->printed) {
+    if (this->printed)
+    {
         gcode << ";<part id=\"" << this->partID << "\" name=\"" << this->name << "\">\n";
-        gcode << ";  <type identifier=\"nut\" thread_size=\"" << this->threadSize << "\"/>\n";
+        gcode << ";  <type identifier=\"hexnut\" thread_size=\"" << this->threadSize << "\"/>\n";
         gcode << ";  <position box=\"" << this->partID << "\"/>\n";
         if (this->partOrientation == PO_UPRIGHT)
         {
@@ -274,5 +247,38 @@ const std::string FastenerNut::getPlaceDescription(Pointf offset)
         gcode << ";</part>\n\n";
     }
     return gcode.str();
+}
+
+stl_file HexNut::generateHexNutBody(double x, double y, double z, double diameter, double height)
+{
+    stl_file stl;
+    stl_initialize(&stl);
+    stl_facet facet;
+
+    double radius = diameter / 2.0;
+
+    for(size_t i = 60; i <= 360; i += 60)
+    {
+        double rad = i / 180.0 * PI;
+        double next_rad = (i - 60) / 180.0 * PI;
+        facet = generateFacet(x, y, z, x + sin(rad) * radius, y + cos(rad) * radius, z, x + sin(next_rad) * radius, y + cos(next_rad) * radius, z); //bottom
+        stl_add_facet(&stl, &facet);
+
+        facet = generateFacet(
+            x + sin(rad) * radius,      y + cos(rad) * radius,      z,
+            x + sin(rad) * radius,      y + cos(rad) * radius,      z + height,
+            x + sin(next_rad) * radius, y + cos(next_rad) * radius, z); //bottom
+        stl_add_facet(&stl, &facet);
+        facet = generateFacet(
+            x + sin(rad) * radius,      y + cos(rad) * radius,      z + height,
+            x + sin(next_rad) * radius, y + cos(next_rad) * radius, z + height,
+            x + sin(next_rad) * radius, y + cos(next_rad) * radius, z); //bottom
+        stl_add_facet(&stl, &facet);
+
+        facet = generateFacet(x, y, z + height, x + sin(rad) * radius, y + cos(rad) * radius, z + height, x + sin(next_rad) * radius, y + cos(next_rad) * radius, z + height); //bottom
+        stl_add_facet(&stl, &facet);
+    }
+
+    return stl;
 }
 }

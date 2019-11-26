@@ -3,7 +3,8 @@
 
 #include "libslic3r.h"
 #include "ElectronicPart.hpp"
-#include "FastenerNut.hpp"
+#include "HexNut.hpp"
+#include "SquareNut.hpp"
 #include "ElectronicNet.hpp"
 #include "RubberBand.hpp"
 #include "NetPoint.hpp"
@@ -31,8 +32,10 @@ class Schematic
     ElectronicPart* getElectronicPart(std::string partName);
     void addElectronicNet(ElectronicNet* net);
     ElectronicParts* getPartlist();
-    FastenerNuts* getFastenerNutlist();
-    void addFastenerNut(std::string thread_size, std::string type);
+    HexNuts* getHexNutList();
+    void addHexNut(std::string thread_size);
+    SquareNuts* getSquareNutList();
+    void addSquareNut(std::string thread_size);
     RubberBandPtrs* getRubberBands() {return &this->rubberBands;};
     void updateRubberBands();
     NetPointPtrs* getNetPoints();
@@ -56,7 +59,8 @@ class Schematic
 
     ElectronicNets netlist;
     ElectronicParts partlist;
-    FastenerNuts fastenerNutlist;
+    HexNuts hexNutList;
+    SquareNuts squareNutList;
     std::string filename;
     RubberBandPtrs rubberBands;
     NetPointPtrs netPoints;

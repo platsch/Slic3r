@@ -250,9 +250,13 @@ ElectronicPart*                 O_OBJECT_SLIC3R
 Ref<ElectronicPart>             O_OBJECT_SLIC3R_T
 Clone<ElectronicPart>           O_OBJECT_SLIC3R_T
 
-FastenerNut*                 O_OBJECT_SLIC3R
-Ref<FastenerNut>             O_OBJECT_SLIC3R_T
-Clone<FastenerNut>           O_OBJECT_SLIC3R_T
+HexNut*                 O_OBJECT_SLIC3R
+Ref<HexNut>             O_OBJECT_SLIC3R_T
+Clone<HexNut>           O_OBJECT_SLIC3R_T
+
+SquareNut*                 O_OBJECT_SLIC3R
+Ref<SquareNut>             O_OBJECT_SLIC3R_T
+Clone<SquareNut>           O_OBJECT_SLIC3R_T
 
 ElectronicNet*                 O_OBJECT_SLIC3R
 Ref<ElectronicNet>             O_OBJECT_SLIC3R_T
@@ -305,7 +309,8 @@ PrintObjectPtrs*    T_PTR_ARRAYREF_PTR
 LayerPtrs*          T_PTR_ARRAYREF_PTR
 SupportLayerPtrs*   T_PTR_ARRAYREF_PTR
 ElectronicParts*    T_PTR_ARRAYREF_PTR
-FastenerNuts*    T_PTR_ARRAYREF_PTR
+HexNuts*    		T_PTR_ARRAYREF_PTR
+SquareNuts*    		T_PTR_ARRAYREF_PTR
 RubberBandPtrs*     T_PTR_ARRAYREF_PTR
 NetPointPtrs*     T_PTR_ARRAYREF_PTR
 

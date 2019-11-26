@@ -332,7 +332,8 @@ void
 PrintObject::embed_electronic_parts()
 {
     ElectronicParts *partlist = this->_schematic->getPartlist();
-    FastenerNuts *fastenerNutList = this->_schematic->getFastenerNutlist();
+    HexNuts *hexNutList = this->_schematic->getHexNutList();
+    SquareNuts *squareNutList = this->_schematic->getSquareNutList();
     if(partlist->size() > 0) {
 
         // electronic parts are placed with respect to the objects bounding box center but the object
@@ -398,7 +399,7 @@ PrintObject::embed_electronic_parts()
             }
         }
     }
-    if(fastenerNutList->size() > 0) {
+    if(hexNutList->size() > 0) {
 
         // electronic parts are placed with respect to the objects bounding box center but the object
         // uses the bounding box min point as origin, so we need to translate them.
@@ -416,7 +417,60 @@ PrintObject::embed_electronic_parts()
         for(auto &layer : this->layers) {
             for(auto &layerm : layer->regions) {
                 Polygons polygons;
-                for(const auto part : *fastenerNutList) {
+                for(const auto part : *hexNutList) {
+                    // only if this part is affected
+                    if(part->isPlaced()) {
+                        Polygon hull = part->getHullPolygon(layer->print_z - layer->height, layer->print_z, 0.4);
+
+                        if(hull.is_valid()) {
+                            hull.translate(bb_offset);
+                            polygons.push_back(hull);
+                        }
+
+                        // cut part from object polygon
+                        if(polygons.size() > 0){
+                            layerm->modify_slices(polygons, true);
+
+                            // Adjacent layers are possibly also affected due to combined infill
+                            // and/or solid TOP/BOTTOM shells -> mark all layers in this scope dirty.
+                            for(size_t layer_id = layer->id()-dirty_scope; layer_id <= layer->id()+dirty_scope; layer_id++) {
+                                if(layer_id > 0 && layer_id < this->layer_count()) {
+                                    this->get_layer(layer_id)->setDirty(true);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // make slices by merging all slices from layer regions
+        for(auto &layer : this->layers) {
+            if(layer->isDirty()) {
+                layer->make_slices();
+                layer->setDirty(false);
+            }
+        }
+    }
+
+    if(squareNutList->size() > 0) {
+        // electronic parts are placed with respect to the objects bounding box center but the object
+        // uses the bounding box min point as origin, so we need to translate them.
+        BoundingBox bb = this->bounding_box();
+        Point bb_offset = bb.center() - bb.min;
+        // scope for marking adjacent layers dirty
+        int dirty_scope = 1;
+        for(auto &region : this->print()->regions) {
+            dirty_scope = std::max<int>({dirty_scope,
+            region->config.infill_every_layers.getInt(),
+            region->config.top_solid_layers.getInt(),
+            region->config.bottom_solid_layers.getInt()});
+        }
+
+        for(auto &layer : this->layers) {
+            for(auto &layerm : layer->regions) {
+                Polygons polygons;
+                for (const auto part : *squareNutList)
+                {
                     // only if this part is affected
                     if(part->isPlaced()) {
                         Polygon hull = part->getHullPolygon(layer->print_z - layer->height, layer->print_z, 0.4);

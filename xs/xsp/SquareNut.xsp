@@ -1,0 +1,65 @@
+%module{Slic3r::XS};
+
+%{
+#include <xsinit.h>
+#include "libslic3r/SquareNut.hpp"
+%}
+
+%name{Slic3r::Electronics::SquareNut} class SquareNut {
+    SquareNut(std::string name);
+    //~SquareNut(); -- No destructor, perl garbage collector would destroy the object under certain circumstances
+    Clone<SquareNut> clone()
+        %code{% RETVAL = THIS; %};
+    int getPartID();
+    std::string getName();
+    std::string getType();
+    double getFootprintHeight();
+    void setFootprintHeight(double height);
+    void setSize(double x, double y, double z);
+    void setPosition(double x, double y, double z);
+    void setPartHeight(double height);
+    double getPartHeight();
+    Clone<Pointf3> getPosition();
+    void resetPosition();
+    void setRotation(double x, double y, double z);
+    void setZRotation(double z);
+    Clone<Pointf3> getRotation();
+    void setPartOrigin(double x, double y, double z);
+    void setVisibility(bool visible);
+    bool isVisible();
+    bool isPlaced();
+    void setPlaced(bool placed);
+    void setPlacingMethod(PlacingMethod method);
+    void setPartOrientation(PartOrientation orientation);
+    PlacingMethod getPlacingMethod();
+    PartOrientation getPartOrientation();
+    Clone<TriangleMesh> getFootprintMesh();
+    Clone<TriangleMesh> getPartMesh();
+    Clone<TriangleMesh> getMesh();
+    Clone<Polygon> getHullPolygon(double z_lower, double z_upper, double hull_offset);
+    std::string getPlaceGcode(double print_z, std::string automaticGcode, std::string manualGcode);
+    std::string getPlaceDescription(Pointf* offset)
+    	%code{% RETVAL = THIS->getPlaceDescription(*offset); %};
+    void resetPrintedStatus();
+};
+
+%package{Slic3r::SquareNut};
+%{
+
+IV
+_constant()
+  ALIAS:
+    PM_AUTOMATIC            = PM_AUTOMATIC
+    PM_MANUAL               = PM_MANUAL
+    PM_NONE                 = PM_NONE
+    CM_NONE                 = CM_NONE
+    CM_LAYER                = CM_LAYER
+    CM_PART                 = CM_PART
+    PO_FLAT                 = PO_FLAT
+    PO_UPRIGHT              = PO_UPRIGHT
+  PROTOTYPE:
+  CODE:
+    RETVAL = ix;
+  OUTPUT: RETVAL
+
+%}

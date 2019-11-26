@@ -14,7 +14,7 @@
 
 namespace Slic3r
 {
-// Be sure to add new values in FastenerNut.xsp if changing this enum!
+// Be sure to add new values in HexNut.xsp and SquareNut.xsp if changing this enum!
 enum PlacingMethod
 {
     PM_AUTOMATIC,
@@ -54,7 +54,7 @@ class AdditionalPart
         virtual TriangleMesh getPartMesh();
         virtual TriangleMesh getMesh();
 
-        Polygon getHullPolygon(const double z_lower, const double z_upper, const double hull_offset);
+        virtual Polygon getHullPolygon(const double z_lower, const double z_upper, const double hull_offset);
 
         virtual const std::string getPlaceGcode(double print_z, std::string automaticGcode = "", std::string manualGcode = "");
         virtual const std::string getPlaceDescription(Pointf offset);

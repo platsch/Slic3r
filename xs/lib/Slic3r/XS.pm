@@ -272,7 +272,8 @@ for my $class (qw(
         Slic3r::TriangleMesh
         Slic3r::Electronics::Schematic
         Slic3r::Electronics::ElectronicPart
-        Slic3r::Electronics::FastenerNut
+        Slic3r::Electronics::HexNut
+        Slic3r::Electronics::SquareNut
         Slic3r::Electronics::RubberBand
         Slic3r::Electronics::NetPoint
     ))
