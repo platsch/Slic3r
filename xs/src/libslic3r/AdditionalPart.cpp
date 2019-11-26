@@ -37,79 +37,10 @@ AdditionalPart::~AdditionalPart()
 {
 }
 
-// Initialization of static ID generator variable
-unsigned int AdditionalPart::s_idGenerator = 1;
-
-void AdditionalPart::printPartInfo()
-{
-    std::cout << "== Part name: " << this->name << " ==" << std::endl;
-    std::cout << "ID: " << this->partID << std::endl;
-}
-
-// Parts are currently represented only by a simple cube.
-// This redefines the size of this cube, which is
-// initially obtained from the input schematic file
-void AdditionalPart::setSize(double x, double y)
-{
-    setSize(x, y, this->size[2]);
-}
-
-void AdditionalPart::setSize(double x, double y, double z)
-{
-    this->size[0] = x;
-    this->size[1] = y;
-    this->size[2] = z;
-}
-
-void AdditionalPart::setPosition(double x, double y, double z)
-{
-    this->position.x = x;
-    this->position.y = y;
-    this->position.z = z;
-}
-
-// reset the part position and rotation to 0. To be used when a part is removed
-// from the object but remains part of the schematic.
-void AdditionalPart::resetPosition()
-{
-    this->position.x = 0.0;
-    this->position.y = 0.0;
-    this->position.z = 0.0;
-    this->rotation.x = 0.0;
-    this->rotation.y = 0.0;
-    this->rotation.z = 0.0;
-}
-
-// Rotation angles in deg. Behavior of 2/3 axis rotation still undefined.
-void AdditionalPart::setRotation(double x, double y, double z)
-{
-    this->rotation.x = x;
-    this->rotation.y = y;
-    this->rotation.z = z;
-}
-
 // Rotation angles in deg.
 void AdditionalPart::setZRotation(double z)
 {
     this->rotation.z = z;
-}
-
-// defines the origin of the part relative to it's body.
-void AdditionalPart::setPartOrigin(double x, double y, double z)
-{
-    this->origin[0] = x;
-    this->origin[1] = y;
-    this->origin[2] = z;
-}
-
-void AdditionalPart::setPlacingMethod(const std::string method)
-{
-    this->placingMethod = PM_NONE;
-    for(int i = 0; i < PlacingMethodStrings.size(); i++) {
-        if(method == PlacingMethodStrings[i]) {
-            this->placingMethod = (PlacingMethod)i;
-        }
-    }
 }
 
 const PartOrientation AdditionalPart::getPartOrientation()
@@ -149,27 +80,6 @@ void AdditionalPart::setPartOrientation(const std::string orientation)
     }
 }
 
-const std::string AdditionalPart::getPlacingMethodString()
-{
-    return PlacingMethodStrings[this->placingMethod];
-}
-
-TriangleMesh AdditionalPart::getFootprintMesh()
-{
-    TriangleMesh mesh;
-    stl_file stl;
-    stl_initialize(&stl);
-
-    mesh.stl = stl;
-    mesh.repair();
-
-    mesh.rotate_z(Geometry::deg2rad(this->rotation.z));
-    mesh.rotate_y(Geometry::deg2rad(this->rotation.y));
-    mesh.rotate_x(Geometry::deg2rad(this->rotation.x));
-    mesh.translate(this->position.x, this->position.y, this->position.z);
-    return mesh;
-}
-
 TriangleMesh AdditionalPart::getPartMesh()
 {
     TriangleMesh mesh;
@@ -195,21 +105,13 @@ TriangleMesh AdditionalPart::getPartMesh()
         double thickness = this->size[2];
         mesh.translate(this->position.x + thickness / 2.0 * -sin(Geometry::deg2rad(this->rotation.z)), this->position.y + thickness / 2.0 * cos(Geometry::deg2rad(this->rotation.z)), this->position.z + this->size[1] / 2.0);
     }
-    
-    return mesh;
-}
 
-TriangleMesh AdditionalPart::getMesh()
-{
-    TriangleMesh partMesh = this->getPartMesh();
-    TriangleMesh footprintMesh = this->getFootprintMesh();
-    partMesh.merge(footprintMesh);
-    return partMesh;
+    return mesh;
 }
 
 /// Generates the hull polygon of this part between z_lower and z_upper
 /// hull_offset is an additional offset to widen the cavity to avoid collisions when inserting a part (unscaled value)
-Polygon AdditionalPart::getHullPolygon(const double z_lower, const double z_upper, const double hull_offset) const
+Polygon AdditionalPart::getHullPolygon(const double z_lower, const double z_upper, const double hull_offset)
 {
     Polygon result;
     // check if object is upright
@@ -363,7 +265,6 @@ const std::string AdditionalPart::getPlaceDescription(Pointf offset)
         gcode << ";<part id=\"" << this->partID << "\" name=\"" << this->name << "\">\n";
         gcode << ";  <type identifier=\"" << this->type << "\" thread_size=\"" << this->threadSize << "\"/>\n";
         gcode << ";  <position box=\"" << this->partID << "\"/>\n";
-        // TODO height based on part orientation!!
         if (this->partOrientation == PO_UPRIGHT)
         {
             gcode << ";  <size height=\"" << this->size[1] << "\"/>\n";
@@ -385,11 +286,6 @@ const std::string AdditionalPart::getPlaceDescription(Pointf offset)
         gcode << ";</part>\n\n";
     }
     return gcode.str();
-}
-
-void AdditionalPart::resetPrintedStatus()
-{
-    this->printed = false;
 }
 
 stl_file AdditionalPart::generateHexNutBody(double x, double y, double z, double diameter, double height)
@@ -490,56 +386,4 @@ stl_file AdditionalPart::generateSquareNutBody(double x, double y, double z, dou
 
     return stl;
 }
-
-stl_file AdditionalPart::generateCylinder(double x, double y, double z, double r, double h)
-{
-    stl_file stl;
-    stl_initialize(&stl);
-    stl_facet facet;
-
-    int steps = 16;
-    double stepsize = ((360/steps)/180)*PI;
-    for(int i = 0; i < steps; i++) {
-        facet = generateFacet(x, y, z, x+r*cos((i-1)*stepsize), y+r*sin((i-1)*stepsize), z, x+r*cos(i*stepsize), y+r*sin(i*stepsize), z); //lower part
-        stl_add_facet(&stl, &facet);
-        facet = generateFacet(x+r*cos((i-1)*stepsize), y+r*sin((i-1)*stepsize), z, x+r*cos(i*stepsize), y+r*sin(i*stepsize), z, x+r*cos(i*stepsize), y+r*sin(i*stepsize), z+h); //outer part
-        stl_add_facet(&stl, &facet);
-        facet = generateFacet(x+r*cos((i-1)*stepsize), y+r*sin((i-1)*stepsize), z, x+r*cos((i-1)*stepsize), y+r*sin((i-1)*stepsize), z+h, x+r*cos(i*stepsize), y+r*sin(i*stepsize), z+h); //outer part
-        stl_add_facet(&stl, &facet);
-        facet = generateFacet(x, y, z+h, x+r*cos((i-1)*stepsize), y+r*sin((i-1)*stepsize), z+h, x+r*cos(i*stepsize), y+r*sin(i*stepsize), z+h); //upper part
-        stl_add_facet(&stl, &facet);
-    }
-    return stl;
-}
-
-stl_facet AdditionalPart::generateFacet(double v1x, double v1y, double v1z, double v2x, double v2y, double v2z, double v3x, double v3y, double v3z)
-{
-    stl_facet facet;
-    // initialize without normal
-    facet.normal.x = 0.0;
-    facet.normal.y = 0.0;
-    facet.normal.z = 0.0;
-
-    facet.vertex[0].x = v1x;
-    facet.vertex[0].y = v1y;
-    facet.vertex[0].z = v1z;
-
-    facet.vertex[1].x = v2x;
-    facet.vertex[1].y = v2y;
-    facet.vertex[1].z = v2z;
-
-    facet.vertex[2].x = v3x;
-    facet.vertex[2].y = v3y;
-    facet.vertex[2].z = v3z;
-
-    return facet;
-}
-
-void AdditionalPart::merge_stl(stl_file* stl, stl_file* other)
-{
-    for(int i = 0; i < other->stats.number_of_facets; i++) {
-        stl_add_facet(stl, &other->facet_start[i]);
-    }
-}
-
 }
