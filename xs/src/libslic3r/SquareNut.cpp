@@ -90,9 +90,6 @@ namespace Slic3r {
     /// hull_offset is an additional offset to widen the cavity to avoid collisions when inserting a part (unscaled value)
     Polygon SquareNut::getHullPolygon(const double z_lower, const double z_upper, const double hull_offset) const
     {
-        printf("get hull polygon\n");
-        printf("origin %d %d %d \n", origin[0], origin[1], origin[2]);
-        printf("size %d %d %d \n", size[0], size[1], size[2]);
         Polygon result;
         // check if object is upright
         if (this->partOrientation == PO_UPRIGHT)
