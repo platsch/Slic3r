@@ -111,8 +111,8 @@ Polygon HexNut::getHullPolygon(const double z_lower, const double z_upper, const
             // lower half affected?
             if (z_lower < this->position.z + this->size[1] / 2.0)
             {
-                double height = this->position.z - z_lower;
-                double crossSectionLength = radius / 2.0 + height / tan(Geometry::deg2rad(120));
+                double height = this->position.z - z_lower - height / 2.0;
+                double crossSectionLength = radius / 2.0 - tan(Geometry::deg2rad(30)) * height;
 
                 points.push_back(Point(scale_(x + crossSectionLength), scale_(z - width)));
                 points.push_back(Point(scale_(x + crossSectionLength), scale_(z)));
