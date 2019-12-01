@@ -14,6 +14,9 @@ namespace Slic3r {
         this->rotation.x = 0.0;
         this->rotation.y = 0.0;
         this->rotation.z = 0.0;
+        this->origin[0] = 0.0;
+        this->origin[1] = 0.0;
+        this->origin[2] = 0.0;
 
         SquareNutSizes::getSize(threadSize, this->size);
 
