@@ -80,6 +80,7 @@ ElectronicWireRouter::route(const RubberBand* rb, const Point3 offset, bool auto
                 }
              }
             graph.infill_surfaces_map[print_z] = &(contours->back());
+            graph.infill_wire_surfaces_map[print_z] = &(contours->front());
             graph.slices_surfaces_map[print_z] = ewg.get_layer_slices();
 
             // debug output graph

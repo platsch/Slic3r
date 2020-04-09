@@ -58,6 +58,7 @@ public:
 
     InterlayerOverlaps interlayer_overlaps;
     ExpolygonsMap infill_surfaces_map;  // pointer to infill area polygons for vertex generation in A*
+    ExpolygonsMap infill_wire_surfaces_map;  // pointer to infill area polygons including perimeter wires to check whether vertices are crossing a hole
     ExpolygonsMap slices_surfaces_map;  // pointer to slices area polygons, including perimeters for vertex generation in A*
 
 private:
@@ -73,7 +74,7 @@ private:
 
 
 
-// Euclidean distance heuristic for routing graph
+// Euclidian distance heuristic for routing graph
 template <class Graph, class CostType, class LocMap>
 class distance_heuristic : public boost::astar_heuristic<Graph, CostType>
 {
@@ -103,6 +104,7 @@ public:
     astar_visitor(Vertex goal,
             Graph* graph,
             Surfaces slices_surfaces,
+            Surfaces infill_wire_surfaces,
             Surfaces infill_surfaces,
             const std::vector<coord_t> &z_positions,
             InterlayerOverlaps *interlayer_overlaps,
@@ -112,7 +114,7 @@ public:
             const double routing_interlayer_factor,
             const double layer_overlap,
             const double overlap_tolerance)
-    : m_goal(goal), graph(graph), slices_surfaces(slices_surfaces), infill_surfaces(infill_surfaces), z_positions(z_positions), interlayer_overlaps(interlayer_overlaps), step_distance(step_distance), point_index(point_index), routing_explore_weight_factor(routing_explore_weight_factor), routing_interlayer_factor(routing_interlayer_factor), layer_overlap(layer_overlap), overlap_tolerance(overlap_tolerance), debug(true), debug_trigger(true), debug_100(false), iteration(0) {}
+    : m_goal(goal), graph(graph), slices_surfaces(slices_surfaces), infill_wire_surfaces(infill_wire_surfaces), infill_surfaces(infill_surfaces), z_positions(z_positions), interlayer_overlaps(interlayer_overlaps), step_distance(step_distance), point_index(point_index), routing_explore_weight_factor(routing_explore_weight_factor), routing_interlayer_factor(routing_interlayer_factor), layer_overlap(layer_overlap), overlap_tolerance(overlap_tolerance), debug(false), debug_trigger(true), debug_100(false), iteration(0) {}
 
     void black_target(Edge e, BoostGraph const& g) {
  /*       std::cout << "REOPEN VERTEX!!! " << e << std::endl;
@@ -182,14 +184,16 @@ public:
         }
 
         if(u == m_goal) {
-            for(const coord_t &z : this->z_positions) {
+        /*    for(const coord_t &z : this->z_positions) {
                 std::ostringstream ss;
                 ss << "final_graph" << z << ".svg";
                 std::string filename = ss.str();
                 SVG svg_graph(filename.c_str());
-                this->graph->fill_svg(&svg_graph, z, *infill_surfaces[z], u);
+                this->graph->fill_svg(&svg_graph, z, *slices_surfaces[z], u);
+                //this->graph->fill_svg(&svg_graph, z, *infill_surfaces[z]);
                 svg_graph.Close();
             }
+            */
 
             throw found_goal();
         }
@@ -273,6 +277,7 @@ public:
                 if(this->graph->nearest_point(p, &nearest)) {
                     if(p.distance_to(nearest) <= overlap_tolerance) {
                         lower_trace.append((Point)nearest);
+                        // we should consider computing also the lower weight to check which one is higher...!
                         lower_weight += w;
                     }else{
                         traverse_lower = false;
@@ -337,39 +342,41 @@ public:
 
     Point3s generate_grid_points(const Point3& p) {
         Point3s result;
+        Point3 p_g = p;
+        p_g.translate(step_distance/2, step_distance/2, 0);
 
         // generate grid candidates
         Point spacing(step_distance, step_distance);
         Point base(0, 0);
-        result.push_back(p);
+        result.push_back(p_g);
         result.back().translate(step_distance, 0, 0);
         result.back().align_to_grid(spacing, base);
         if(!infill_surfaces[p.z]->contains_b(result.back())) result.pop_back();
-        result.push_back(p);
+        result.push_back(p_g);
         result.back().translate(step_distance, -step_distance, 0);
         result.back().align_to_grid(spacing, base);
         if(!infill_surfaces[p.z]->contains_b(result.back())) result.pop_back();
-        result.push_back(p);
+        result.push_back(p_g);
         result.back().translate(0, -step_distance, 0);
         result.back().align_to_grid(spacing, base);
         if(!infill_surfaces[p.z]->contains_b(result.back())) result.pop_back();
-        result.push_back(p);
+        result.push_back(p_g);
         result.back().translate(-step_distance, -step_distance, 0);
         result.back().align_to_grid(spacing, base);
         if(!infill_surfaces[p.z]->contains_b(result.back())) result.pop_back();
-        result.push_back(p);
+        result.push_back(p_g);
         result.back().translate(-step_distance, 0, 0);
         result.back().align_to_grid(spacing, base);
         if(!infill_surfaces[p.z]->contains_b(result.back())) result.pop_back();
-        result.push_back(p);
+        result.push_back(p_g);
         result.back().translate(-step_distance, step_distance, 0);
         result.back().align_to_grid(spacing, base);
         if(!infill_surfaces[p.z]->contains_b(result.back())) result.pop_back();
-        result.push_back(p);
+        result.push_back(p_g);
         result.back().translate(0, step_distance, 0);
         result.back().align_to_grid(spacing, base);
         if(!infill_surfaces[p.z]->contains_b(result.back())) result.pop_back();
-        result.push_back(p);
+        result.push_back(p_g);
         result.back().translate(step_distance, step_distance, 0);
         result.back().align_to_grid(spacing, base);
         if(!infill_surfaces[p.z]->contains_b(result.back())) result.pop_back();
@@ -388,8 +395,8 @@ public:
         }
 
         // is this point inside material (including perimeters)?
-        //if(this->slices_surfaces[p.z]->contains_b(nearest)) {
-        if(this->infill_surfaces[p.z]->contains_b(nearest)) {
+        if(this->slices_surfaces[p.z]->contains_b(nearest)) {
+        //if(this->infill_surfaces[p.z]->contains_b(nearest)) {
             // add p to graph, gets vertex handle if p already exists
             Vertex u;
             this->graph->add_vertex(nearest, &u);
@@ -397,16 +404,28 @@ public:
 
             // add vertices in 45° steps if they are inside the infill region
             Point3s pts;
-            if(this->infill_surfaces[p.z]->contains_b(p)) { // is this point inside infill?
-                pts = generate_grid_points(p);
+            if(this->infill_surfaces[p.z]->contains_b(nearest)) { // is this point inside infill?
+                pts = generate_grid_points(nearest);
             }
 
             // check existing points within grid distance
             Points near_pts;
-            if(this->graph->points_in_boxrange(p, this->step_distance, &near_pts)) {
+
+            // dummy variables
+            Line line(nearest, nearest);
+
+            if(this->graph->points_in_boxrange(nearest, this->step_distance, &near_pts)) {
                 for(Point &pt : near_pts) {
                     if(this->slices_surfaces[p.z]->contains_b(pt)) { // skip points outside of material
-                        pts.push_back(Point3(pt, p.z));
+                        // and test if this edge crosses a boundary. If yes: skip.
+                        // for performance reasons we just do a simplified test an check whether the mid-point is inside polygon
+                        line.b = pt;
+                        // TODO: this should be checked against plastic infill region, not wire (inflated slices) infill?
+                        // to avoid shortcuts at angles
+                        if(this->infill_wire_surfaces[p.z]->contains(line.midpoint())) {
+                        //if(this->infill_surfaces[p.z]->contains(line.midpoint())) {
+                            pts.push_back(Point3(pt, p.z));
+                        }
                     }
                 }
             }
@@ -443,6 +462,7 @@ private:
     Vertex m_goal;
     Graph* graph;
     Surfaces slices_surfaces;
+    Surfaces infill_wire_surfaces;
     Surfaces infill_surfaces;
     const std::vector<coord_t> z_positions;
     InterlayerOverlaps *interlayer_overlaps;

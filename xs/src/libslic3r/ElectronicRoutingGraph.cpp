@@ -151,6 +151,7 @@ ElectronicRoutingGraph::astar_route(
             goal,
             this,
             this->slices_surfaces_map,
+            this->infill_wire_surfaces_map,
             this->infill_surfaces_map,
             this->z_positions,
             &this->interlayer_overlaps,
