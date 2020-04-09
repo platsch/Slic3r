@@ -75,24 +75,102 @@ private:
 
 
 // Euclidian distance heuristic for routing graph
-template <class Graph, class CostType, class LocMap>
+template <class Graph, class CostType, class LocMap, class PredMap>
 class distance_heuristic : public boost::astar_heuristic<Graph, CostType>
 {
 public:
     typedef typename boost::graph_traits<Graph>::vertex_descriptor Vertex;
-    distance_heuristic(LocMap l, Vertex goal, const double astar_factor)
-        : m_location(l), m_goal(goal), astar_factor(astar_factor) {}
+    distance_heuristic(LocMap l,
+            PredMap p,
+            Vertex goal,
+            Vertex start,
+            const double astar_factor,
+            const coord_t step_distance,
+            const std::vector<coord_t> &z_positions,
+            const double routing_interlayer_factor)
+        : m_location(l), m_pred(p), m_start(start), m_goal(goal), astar_factor(astar_factor), step_distance(step_distance), z_positions(z_positions), routing_interlayer_factor(routing_interlayer_factor) {}
     CostType operator()(Vertex u)
     {
         CostType dx = m_location[m_goal].x - m_location[u].x;
         CostType dy = m_location[m_goal].y - m_location[u].y;
-        CostType dz = m_location[m_goal].z - m_location[u].z;
-        return ::sqrt(dx * dx + dy * dy + dz * dz)*astar_factor;
+        CostType dz = std::abs(m_location[m_goal].z - m_location[u].z);
+
+        // z cost is much higher due to interlayer-factor, so we compensate for this factor
+        coord_t min_z = std::min(m_location[u].z, m_location[m_goal].z);
+        coord_t max_z = std::max(m_location[u].z, m_location[m_goal].z);
+        unsigned int z_hops = 0;
+
+        // how many remaining layer-changes do we expect?
+        for (std::vector<coord_t>::const_iterator z = this->z_positions.begin(); z != this->z_positions.end(); ++z) {
+            if(*z > min_z && *z <= max_z) {
+                z_hops++;
+            }
+            if(*z > max_z) break;
+        }
+        CostType const_dz = z_hops * scale_(routing_interlayer_factor);
+
+        // slightly prefer z-positions equally distributed along the x/y path
+        double z_corr = 0.0;
+        double z_corr_neg = 0.0;
+        CostType dz_full = std::abs(m_location[m_goal].z - m_location[m_start].z);
+        CostType dxy = ::sqrt(dx * dx + dy * dy);
+        if(dz_full > 0) {
+            CostType dx_full = m_location[m_goal].x - m_location[m_start].x;
+            CostType dy_full = m_location[m_goal].y - m_location[m_start].y;
+            CostType dxy_full = ::sqrt(dx_full * dx_full + dy_full * dy_full);
+            if(dxy_full > 0) {
+                double xy_ratio = dxy / dxy_full;
+                double z_ratio = std::min((1.0 * dz / dz_full), 1.0); // limit if dz_full is small
+                double xyz_ratio = xy_ratio - z_ratio;
+                //std::cout << "xy_ratio: " << xy_ratio << " z_ratio: " << z_ratio << " xyz_ratio: " << xyz_ratio << std::endl;
+                z_corr = std::abs(1.0 * xyz_ratio * (10*step_distance));// + scale_(routing_interlayer_factor)));
+            }
+        }
+
+
+        // punish strong turns
+        CostType angle_corr = 0;
+        if(m_pred[u] != u && m_pred[m_pred[u]] != m_pred[u]) { // do we have at least 3 points?
+
+            Point a = m_location[m_pred[m_pred[u]]];
+            Point b = m_location[m_pred[u]];
+            Point c = m_location[u];
+
+            Vector ab = a.vector_to(b);
+            Vector bc = b.vector_to(c);
+            double dot_product = ab.x*bc.x + ab.y*bc.y;
+
+            double angle = acos(dot_product / (a.distance_to(b) * b.distance_to(c)));
+            // catch instabilities with angle ~ 0
+            if(isnan(angle)) angle = 0.0;
+            // slightly nudge high angles
+            if(angle > 0.79 && angle <= 1.57) { // >45° - <90°
+                angle_corr = 1*step_distance;
+            }
+            if(angle > 1.57 && angle <= 2.35) { // >= 90°
+                angle_corr = 10*step_distance;
+            }
+            if(angle > 2.35 || Line(a, b).contains(c)) { // >= 135°
+                angle_corr = 100*step_distance;
+            }
+        }
+
+        //CostType result = (::sqrt(dx * dx + dy * dy + dz * dz)+const_dz+z_corr)*astar_factor;
+        CostType result = (::sqrt(dx * dx + dy * dy + dz * dz)+z_corr+const_dz+angle_corr)*astar_factor;
+        //CostType result = (dxy+dz+const_dz+z_corr+angle_corr)*astar_factor;
+        //std::cout << "final distance: " << result << std::endl << std::endl;
+
+        return result;
     }
 private:
     LocMap m_location;
+    PredMap m_pred;
+    Vertex m_start;
     Vertex m_goal;
-    double astar_factor;
+    const double astar_factor;
+    const coord_t step_distance;
+    const std::vector<coord_t> z_positions;
+    const double routing_interlayer_factor;
 };
 
 // Visitor that terminates when we find the goal

@@ -162,7 +162,15 @@ ElectronicRoutingGraph::astar_route(
             layer_overlap,
             overlap_tolerance);
     // distance heuristic
-    distance_heuristic<routing_graph_t, coord_t, boost::property_map<routing_graph_t, Point3 PointVertex::*>::type> dist_heuristic(this->vertex_index, goal, astar_factor);
+    distance_heuristic<routing_graph_t, coord_t, boost::property_map<routing_graph_t, Point3 PointVertex::*>::type, boost::property_map<routing_graph_t, routing_vertex_t PointVertex::*>::type> dist_heuristic(
+            this->vertex_index,
+            predmap,
+            goal,
+            start,
+            astar_factor,
+            grid_step_size,
+            this->z_positions,
+            routing_interlayer_factor);
 
     // init start vertex
     this->graph[start].distance = 0;
