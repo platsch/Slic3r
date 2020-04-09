@@ -299,7 +299,7 @@ ElectronicWireGenerator::generate_wires()
 
         if(pl.points.size() < 1) {
             std::cerr << "ERROR: routed wire has no endpoint! This should never happen, probably a loop." << std::endl;
-            std::cerr << "remaining lines are: " << std::endl;
+            std::cerr << "remaining lines are (layer " << this->get_print_z() << "): " << std::endl;
             for(Line &l : lines) {
                 std::cerr << l.wkt() << std::endl;
             }
