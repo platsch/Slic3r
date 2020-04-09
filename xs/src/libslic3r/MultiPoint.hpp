@@ -42,7 +42,14 @@ class MultiPoint
     void append(const Point &point);
     void append(const Points &points);
     void append(const Points::const_iterator &begin, const Points::const_iterator &end);
+    /// Try to insert this point. Returns false if point is on no line.
+    bool insert(const Point &point);
     bool intersection(const Line& line, Point* intersection) const;
+    /// returns the first intersection with the given line i.e. the intersection
+    /// with minimal distance to line.a
+    bool first_intersection(const Line& line, Point* intersection, bool* ccw) const;
+    /// inserts new points if the distance between two adjacent points is below min_dist. Returns true if new points where inserted.
+    bool upsample(const double min_dist);
     std::string dump_perl() const;
     
     static Points _douglas_peucker(const Points &points, const double tolerance);

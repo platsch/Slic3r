@@ -360,6 +360,7 @@ PrintObject::embed_electronic_parts()
                         if(hull.is_valid()) {
                             hull.translate(bb_offset);
                             polygons.push_back(hull);
+                            layer->electronic_component_polyons.push_back(hull);
                         }
 
                         // perl debug code, should be translated
@@ -407,6 +408,7 @@ void PrintObject::make_electronic_wires()
     // pointer to partlist
     ElectronicParts* partlist = this->_schematic->getPartlist();
 
+    // check whether we have any electronic parts, otherwise skip wire creation
     if(partlist->size() > 0) {
         // amount of overlap for wire split points to have extrusion ends at wire endpoints
         coord_t extrusion_overlap = scale_(this->print()->default_object_config.conductive_wire_extrusion_overlap);
@@ -414,6 +416,14 @@ void PrintObject::make_electronic_wires()
         coord_t overlap_min_extrusion_length = scale_(this->print()->default_object_config.conductive_wire_overlap_min_extrusion_length);
         // amount of overlap for inter-layer connections of sloped wires
         coord_t layer_overlap = scale_(this->print()->default_object_config.conductive_wire_slope_overlap);
+        coord_t grid_step_size = std::min(layer_overlap, scale_(this->print()->default_object_config.conductive_grid_resolution));
+        const double conductive_wire_bed_width = this->print()->default_object_config.conductive_wire_bed_width;
+        const double conductive_wire_channel_width = this->print()->default_object_config.conductive_wire_channel_width;
+
+        const double conductive_wire_routing_astar_factor = this->print()->default_object_config.conductive_wire_routing_astar_factor;
+        const double conductive_wire_routing_perimeter_factor = this->print()->default_object_config.conductive_wire_routing_perimeter_factor;
+        const double conductive_wire_routing_hole_factor = this->print()->default_object_config.conductive_wire_routing_hole_factor;
+        const double conductive_wire_routing_interlayer_factor = this->print()->default_object_config.conductive_wire_routing_interlayer_factor;
 
         // initialize values for flow calculation
         ConfigOptionFloatOrPercent extrusion_width = this->print()->default_object_config.conductive_wire_extrusion_width;
@@ -428,117 +438,160 @@ void PrintObject::make_electronic_wires()
         top_layer->upper_layer = additional_layer;
         additional_layer->lower_layer = top_layer;
 
-
         // initialize layerRegions for spare layer
         int region_count = this->print()->regions.size();
         for(int i = 0; i < region_count; i++) {
             additional_layer->add_region(this->print()->get_region(i));
         }
 
-
-        FOREACH_LAYER(this, layer_it) {
+        // collect unrouted wires (could be parallelized, access to schematic is const
+        FOREACH_LAYER(this, layer) {
             double z_top, z_bottom;
-            Polylines channels;
 
-            // if upper_layer is defined, get channels to create a "bed" by offsetting only a small amount
-            Layer* layer = (*layer_it)->upper_layer;
+            z_top = (*layer)->print_z;
+            z_bottom = z_top - (*layer)->height;
+            (*layer)->unrouted_wires = this->_schematic->getChannels(z_bottom, z_top, layer_overlap);
 
-            for(int i = 0; i < 2; i++) {
-                if(layer != NULL) {
-                    z_top = layer->print_z;
-                    z_bottom = z_top - layer->height;
-                    channels = this->_schematic->getChannels(z_bottom, z_top, extrusion_overlap, first_extrusion_overlap, overlap_min_extrusion_length, layer_overlap);
+            // translate to objects origin
+            for(auto &pl : (*layer)->unrouted_wires) {
+            //for (Polylines::iterator pl = channels.begin(); pl != channels.end(); ++pl) {
+                pl.translate(this->size.x/2, this->size.y/2);
+            }
+        }
 
-                    // translate to objects origin
-                    for (Polylines::iterator pl = channels.begin(); pl != channels.end(); ++pl) {
-                        pl->translate(this->size.x/2, this->size.y/2);
-                    }
+        // Final wire generation. Raw rubberband-based wires
+        // are routed by contour following, clipped, longest segment first etc.
+        ElectronicWireRouter ewr(layer_overlap,
+                conductive_wire_routing_astar_factor,
+                conductive_wire_routing_perimeter_factor,
+                conductive_wire_routing_hole_factor,
+                conductive_wire_routing_interlayer_factor,
+                grid_step_size,
+                this->layer_count() + 1);
+        FOREACH_LAYER(this, layer) {
+            ElectronicWireGenerator ewg(
+                    (*layer),
+                    ewr.last_ewg(),
+                    extrusion_width,
+                    extrusion_overlap,
+                    first_extrusion_overlap,
+                    overlap_min_extrusion_length,
+                    conductive_wire_bed_width,
+                    conductive_wire_channel_width,
+                    grid_step_size);
+            ewr.append_wire_generator(ewg);
+        }
 
-                    // offset and remove bed or channel
-                    if(channels.size() > 0) {
-                        Polygons channel_polygons = offset(channels, scale_(0.01));
-                        // double offsetting for channels. 1 step generates a polygon from the polyline,
-                        // 2. step extends the polygon to avoid cropped angles.
-                        if(i > 0) {
-                            //SVG svg2("polygon_low_offset.svg");
-                            //svg2.draw(channel_polygons, "red");
-                            //svg2.Close();
-                            //std::cout << "nr of polygons after polyline offset: " << channel_polygons.size() << std::endl;
-                            channel_polygons = offset(channel_polygons, scale_(extrusion_width/2 + this->print()->default_object_config.conductive_wire_channel_width/2 - 0.01));
-                            //SVG svg("polygon.svg");
-                            //svg.draw(channel_polygons, "red");
-                            //svg.draw(channels, "green");
-                            //svg.Close();
-                        }
+        RubberBandPtrs* rbs = this->_schematic->getRubberBands();
+        // translate to objects origin
+        Point3 offset(this->size.x/2, this->size.y/2);
+        for (auto rb : *rbs) {
+            if(rb->isWired()) {
+                ewr.route(rb, offset, this->print()->default_object_config.conductive_wire_autorouting);
+            }
+        }
 
-                        FOREACH_LAYERREGION((*layer_it), layerm) {
-                            (*layerm)->modify_slices(channel_polygons, false);
-                        }
-                        (*layer_it)->setDirty(true);
-                    }
+        // generate actual wires
+        ewr.generate_wires();
+
+        // make beds and channels
+        FOREACH_LAYER(this, layer) {
+/*            // if upper_layer is defined, get channels to create a "bed" by offsetting only a small amount
+            Layer* upper_layer = (*layer)->upper_layer;
+            Polygons bed_polygons;
+            Polygons channel_polygons;
+
+            // generate a bed by offsetting a small amount to trigger perimeter generation
+            if (upper_layer != nullptr) {
+                if(upper_layer->wires.size() > 0) {
+                    bed_polygons = offset(upper_layer->wires, scale_(0.01));
+                    (*layer)->setDirty(true);
                 }
-                // only 2 loops, first is upper_layer second is current layer
-                layer = (*layer_it);
             }
 
+            // double offsetting for channels. 1 step generates a polygon from the polyline,
+            // 2. step extends the polygon to avoid cropped angles.
+            if((*layer)->wires.size() > 0) {
+                channel_polygons = offset((*layer)->wires, scale_(0.01));
+                //SVG svg2("polygon_low_offset.svg");
+                //svg2.draw(channel_polygons, "red");
+                //svg2.Close();
+                //std::cout << "nr of polygons after polyline offset: " << channel_polygons.size() << std::endl;
+                channel_polygons = offset(channel_polygons, scale_(extrusion_width/2 + conductive_wire_channel_width/2 - 0.01));
+                //SVG svg("polygon.svg");
+                //svg.draw(channel_polygons, "red");
+                //svg.draw(channels, "green");
+                //svg.Close();
+                (*layer)->setDirty(true);
+            }
+
+            // remove beds and channels from layer
+            FOREACH_LAYERREGION((*layer), layerm) {
+                (*layerm)->modify_slices(bed_polygons, false);
+                (*layerm)->modify_slices(channel_polygons, false);
+            }
+*/
             // create extrusion objects for this layer
-            Flow flow = Flow::new_from_config_width(frConductiveWire, extrusion_width, nozzle_diameter, layer->height, 0);
+            Flow flow = Flow::new_from_config_width(frConductiveWire, extrusion_width, nozzle_diameter, (*layer)->height, 0);
             // Currently not using the standard flow object, because the conductive ink can't be modelled as rectangle with semicircles at the end.
             // Instead, simple use the volume of the rect.
 
             // clear old wires
-            layer->wires.clear();
+            (*layer)->wire_extrusions.clear();
 
             // generate extrusion objects for each wire
-            for (Polylines::iterator channel_pl = channels.begin(); channel_pl != channels.end(); ++channel_pl) {
-                if(channel_pl->points.size() > 1) {
-
-                    // clip start and end of each trace by extrusion_width/2 to achieve correct line endpoints
-                    channel_pl->clip_start(scale_(extrusion_width/2));
-                    channel_pl->clip_end(scale_(extrusion_width/2));
-
+            for(auto &channel_pl : (*layer)->wires) {
+                if(channel_pl.points.size() > 1) {
                     ExtrusionPath path(erConductiveWire);
-                    path.polyline = *channel_pl;
+                    path.polyline = channel_pl;
                     path.mm3_per_mm = flow.mm3_per_mm();
                     //path.mm3_per_mm = extrusion_width * layer->height;
                     path.width = extrusion_width;
-                    path.height = layer->height;
-
-                    layer->wires.append(path);
+                    path.height = (*layer)->height;
+                    (*layer)->wire_extrusions.append(path);
                 }
             }
-            // generate contact points for SMD pins
-            for (ElectronicParts::const_iterator part = partlist->begin(); part != partlist->end(); ++part) {
 
-                double print_z = layer->print_z;
+            // generate contact points for SMD pins
+            for(const auto &part : *partlist) {
+                double print_z = (*layer)->print_z;
                 // use a very high print_z value for last layer to catch all remaining parts
-                if(layer->id() == this->layer_count()-1) {
+                if((*layer)->id() == this->layer_count()-1) {
                     print_z = 999999;
                 }
-                Point3s connection_points = (*part)->getConnectionPoints(print_z);
-                for (Point3s::iterator point = connection_points.begin(); point != connection_points.end(); ++point) {
-                    point->translate(this->size.x/2, this->size.y/2, 0); // translate to objects origin
+
+                Point3s connection_points = part->getConnectionPointsLayer(print_z);
+                for(auto &point : connection_points) {
+                    point.translate(this->size.x/2, this->size.y/2, 0); // translate to objects origin
                     ExtrusionPoint epoint(erConductiveWire);
-                    epoint.point = *point;
-                    //epoint.mm3_per_mm = flow.mm3_per_mm(); // is generated automatically by the ExtrusionPoint object
+                    epoint.point = point;
+                    //epoint.mm3_per_mm is generated automatically by the ExtrusionPoint object
                     epoint.width = extrusion_width;
-                    epoint.height = (*part)->getFootprintHeight(); //layer->height;
-                    layer->wires.append(epoint);
+                    epoint.height = part->getFootprintHeight(); //layer->height;
+                    (*layer)->wire_extrusions.append(epoint);
                 }
             }
         }
 
         // remove top layer if empty
         top_layer = this->layers.back();
-        if(top_layer->wires.empty()) {
+        if(top_layer->wire_extrusions.empty()) {
             this->delete_layer(this->layer_count()-1);
             // remove invalid reference from n-1 layer
             this->layers.back()->upper_layer = NULL;
         }
 
         // reset parts printed status
-        for (ElectronicParts::const_iterator part = partlist->begin(); part != partlist->end(); ++part) {
-            (*part)->resetPrintedStatus();
+        for(auto &part : *partlist) {
+            part->resetPrintedStatus();
+        }
+
+        // make slices by merging all slices from layer regions
+        for(auto &layer : this->layers) {
+            if(layer->isDirty()) {
+                layer->make_slices();
+                layer->setDirty(false);
+            }
         }
 
         // make slices by merging all slices from layer regions
@@ -1063,7 +1116,21 @@ void PrintObject::_slice()
         }
         this->delete_layer(int(this->layers.size()) - 1);
     }
-    
+
+    // remove collinear points from slice polygons (artifacts from stl-triangulation)
+    std::queue<SurfaceCollection*> queue;
+    for (Layer* layer : this->layers) {
+        for (LayerRegion* layerm : layer->regions) {
+            queue.push(&layerm->slices);
+        }
+    }
+    parallelize<SurfaceCollection*>(
+        queue,
+        boost::bind(&Slic3r::SurfaceCollection::remove_collinear_points, _1),
+        this->_print->config.threads.value
+    );
+
+
     // Apply size compensation and perform clipping of multi-part objects.
     const coord_t xy_size_compensation = scale_(this->config.xy_size_compensation.value);
     for (Layer* layer : this->layers) {

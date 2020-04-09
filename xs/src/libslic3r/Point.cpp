@@ -344,11 +344,24 @@ operator*(double scalar, const Point& point2)
     return Point(scalar * point2.x, scalar * point2.y);
 }
 
+std::ostream&
+operator<<(std::ostream &stm, const Point &point)
+{
+    return stm << point.x << "," << point.y;
+}
+
 bool
 Point3::operator==(const Point3& rhs) const
 {
     return this->coincides_with(rhs);
 }
+
+std::ostream&
+operator<<(std::ostream &stm, const Point3 &point3)
+{
+    return stm << point3.x << "," << point3.y << "," << point3.z;
+}
+
 
 std::string
 Point3::wkt() const
@@ -388,6 +401,21 @@ void
 Point3::rotate_z(double angle, const Point3 &center)
 {
     Point::rotate(angle, Point(center.x, center.y));
+}
+
+bool
+Point3::coincides_with_epsilon(const Point3 &point) const
+{
+    return Point::coincides_with_epsilon(point) && std::abs(this->z - point.z) < SCALED_EPSILON;
+}
+
+double
+Point3::distance_to(const Point3 &point) const
+{
+    double dx = ((double)point.x - this->x);
+    double dy = ((double)point.y - this->y);
+    double dz = ((double)point.z - this->z);
+    return sqrt(dx*dx + dy*dy + dz*dz);
 }
 
 std::ostream&
@@ -454,6 +482,12 @@ Pointf::rotate(double angle, const Pointf &center)
     this->y = center.y + c * (cur_y - center.y) + s * (cur_x - center.x);
 }
 
+bool
+Pointf::coincides_with_epsilon(const Pointf &point) const
+{
+    return std::abs(this->x - point.x) < EPSILON && std::abs(this->y - point.y) < EPSILON;
+}
+
 Pointf
 Pointf::negative() const
 {
@@ -472,6 +506,12 @@ Pointf3::wkt() const
     std::ostringstream ss;
     ss << "POINTF3(" << this->x << " " << this->y << " " << this->z << ")";
     return ss.str();
+}
+
+Point3
+Pointf3::scaled_point3() const
+{
+    return Point3(scale_(this->x), scale_(this->y), scale_(this->z));
 }
 
 void
@@ -504,6 +544,12 @@ void
 Pointf3::rotate_z(double angle, const Pointf3 &center)
 {
     Pointf::rotate(angle, Pointf(center.x, center.y));
+}
+
+bool
+Pointf3::coincides_with_epsilon(const Pointf3 &point) const
+{
+    return Pointf::coincides_with(Pointf(point)) && std::abs(this->z - point.z) < EPSILON;
 }
 
 double

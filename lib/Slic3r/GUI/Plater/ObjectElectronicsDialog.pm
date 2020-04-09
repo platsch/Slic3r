@@ -966,7 +966,6 @@ sub loadButtonPressed {
     	my $parser = XML::LibXML->new();
         my $xmldoc = $parser->parse_file($filename);
         for my $files ($xmldoc->findnodes('/electronics/filename')) {
-            print "file to be opened: " . $path . $files->getAttribute('source') . "\n";
             Slic3r::Electronics::Filereaders::Eagle->readFile($path . $files->getAttribute('source'), $self->{schematic}, $self->{config});
         }
     	$self->{schematic}->load3deFile($filename);

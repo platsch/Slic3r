@@ -151,6 +151,58 @@ Line::parallel_to(const Line &line) const {
     return this->parallel_to(line.direction());
 }
 
+bool
+Line::overlap_with(const Line &other, Line* line) const
+{
+    bool result = false;
+    if(!this->coincides_with(other)) {
+        if(this->a.distance_to(other) < SCALED_EPSILON) {
+            line->a = this->a;
+            result = true;
+        }else if(other.a.distance_to(*this) < SCALED_EPSILON){
+            line->a = other.a;
+            result = true;
+        }
+        if(result) {
+            result = false;
+            if(this->b.distance_to(other) < SCALED_EPSILON) {
+                line->b = this->b;
+                result = true;
+            }else if(other.b.distance_to(*this) < SCALED_EPSILON){
+                line->b = other.b;
+                result = true;
+            }
+        }
+        // filter lines with contact at only one endpoint
+        if(line->length() < EPSILON) result = false;
+
+    }
+    return result;
+}
+
+bool
+Line::contains(const Line &other) const
+{
+    bool result = false;
+    if(!this->coincides_with(other)) {
+        if(other.a.distance_to(*this) < SCALED_EPSILON && // other endpoint is on this line?
+                !other.a.coincides_with_epsilon(this->a) && // endpoints should not be the same,
+                !other.a.coincides_with_epsilon(this->b) && // we are looking for a real overlap
+                other.b.distance_to(*this) < SCALED_EPSILON &&
+                !other.b.coincides_with_epsilon(this->a) &&
+                !other.b.coincides_with_epsilon(this->b)) {
+            result = true;
+        }
+    }
+    return result;
+}
+
+bool
+Line::contains(const Point &point) const
+{
+    return (point.distance_to(*this) < SCALED_EPSILON);
+}
+
 Vector
 Line::vector() const
 {
@@ -216,6 +268,36 @@ double
 Line::ccw(const Point& point) const
 {
     return point.ccw(*this);
+}
+
+std::ostream&
+operator<<(std::ostream &stm, const Line3 &line3)
+{
+    return stm << "LINESTRING(" << line3.a.x << " " << line3.a.y << " " << line3.a.z << ","
+        << line3.b.x << " " << line3.b.y << " " << line3.b.z << ")";
+}
+
+void
+Line3::translate(double x, double y, double z)
+{
+    this->a.translate(x, y, z);
+    this->b.translate(x, y, z);
+}
+
+double
+Line3::length() const
+{
+    return this->a.distance_to(this->b);
+}
+
+Point3
+Line3::intersect_plane(coord_t z) const
+{
+    return Point3(
+        this->a.x + (this->b.x - this->a.x) * (z - this->a.z) / (this->b.z - this->a.z),
+        this->a.y + (this->b.y - this->a.y) * (z - this->a.z) / (this->b.z - this->a.z),
+        z
+    );
 }
 
 Pointf3

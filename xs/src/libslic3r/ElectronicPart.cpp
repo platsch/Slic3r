@@ -367,36 +367,60 @@ const std::string ElectronicPart::getPlaceGcode(double print_z, std::string auto
     return gcode.str();
 }
 
-/* Returns a set of points with coordinates of all pads in scaled coordinates
- * if the connection method is not set to none and if the print_z is
- * higher than the base or upper surface (depending on the connection method).
- * Requires resetPrintedStatus() before being executed again.
- */
-Point3s ElectronicPart::getConnectionPoints(const double print_z)
+
+Point3s ElectronicPart::getConnectionPointsLayer(const double print_z)
 {
     Point3s result;
     // part affected?
     if(this->placed && !this->connected) {
         // matching height?
-        if((this->connectionMethod == CM_LAYER && print_z - this->position.z > EPSILON)
-            || (this->connectionMethod == CM_PART && this->position.z + this->size[2] <= print_z)) {
-
-            for (Padlist::const_iterator pad = this->padlist.begin(); pad != this->padlist.end(); ++pad) {
-                result.push_back(Point3(scale_(pad->position[0]), scale_(pad->position[1]), scale_(pad->position[2])));
-            }
-
-            for (Point3s::iterator it = result.begin(); it != result.end(); ++it) {
-                // rotate points
-                it->rotate_z(Geometry::deg2rad(this->rotation.z));
-
-                // apply object translation
-                it->translate(scale_(this->position.x), scale_(this->position.y), scale_(this->position.z));
-            }
-
-            // remember status
-            this->connected = true;
+        if(this->connectionMethod == CM_LAYER && print_z - this->position.z > EPSILON) {
+            result = this->_getConnectionPoints();
         }
     }
+
+    return result;
+}
+
+Point3s ElectronicPart::getConnectionPointsPart()
+{
+    Point3s result;
+    // part affected?
+    if(this->placed && !this->connected) {
+        // matching height?
+        if(this->connectionMethod == CM_PART) {
+            result = this->_getConnectionPoints();
+        }
+    }
+
+    return result;
+}
+
+
+
+/* Returns a set of points with coordinates of all pads in scaled coordinates
+ * if the connection method is not set to none and if the print_z is
+ * higher than the base or upper surface (depending on the connection method).
+ * Requires resetPrintedStatus() before being executed again.
+ */
+Point3s ElectronicPart::_getConnectionPoints()
+{
+    Point3s result;
+
+    for (Padlist::const_iterator pad = this->padlist.begin(); pad != this->padlist.end(); ++pad) {
+        result.push_back(Point3(scale_(pad->position[0]), scale_(pad->position[1]), scale_(pad->position[2])));
+    }
+
+    for (Point3s::iterator it = result.begin(); it != result.end(); ++it) {
+        // rotate points
+        it->rotate_z(Geometry::deg2rad(this->rotation.z));
+
+        // apply object translation
+        it->translate(scale_(this->position.x), scale_(this->position.y), scale_(this->position.z));
+    }
+
+    // remember status
+    this->connected = true;
 
     return result;
 }

@@ -149,6 +149,21 @@ MultiPoint::append(const Points::const_iterator &begin, const Points::const_iter
 }
 
 bool
+MultiPoint::insert(const Point &point)
+{
+    bool result = false;
+    for (Points::iterator it = points.begin(); it != points.end()-1; ++it) {
+        Line l(*it, *(it+1));
+        if(point.distance_to(l) < SCALED_EPSILON) {
+            this->points.insert(it+1, point);
+            result = true;
+            break;
+        }
+    }
+    return result;
+}
+
+bool
 MultiPoint::intersection(const Line& line, Point* intersection) const
 {
     Lines lines = this->lines();
@@ -156,6 +171,51 @@ MultiPoint::intersection(const Line& line, Point* intersection) const
         if (it->intersection(line, intersection)) return true;
     }
     return false;
+}
+
+bool
+MultiPoint::first_intersection(const Line& line, Point* intersection, bool* ccw) const
+{
+    bool result = false;
+    Lines lines = this->lines();
+    Point p;
+    *intersection = line.b;
+    for (Lines::const_iterator it = lines.begin(); it != lines.end(); ++it) {
+        if (it->intersection(line, &p)) {
+            // lines intersect
+            if(line.a.distance_to(p) < line.a.distance_to(*intersection)) {
+                // intersection is closer to start of line than all other intersections
+                *intersection = p;
+                // ccw test is always positive or negative at this point since coincident / parallel lines don't intersect
+                *ccw = it->ccw(line.a) > 0 ? true : false;
+                result = true;
+            }
+        }
+    }
+    return result;
+}
+
+bool
+MultiPoint::upsample(const double min_dist)
+{
+    bool result = false;
+    // append first point to close loop
+    points.push_back(points.front());
+    for (Points::iterator it = points.begin(); it != points.end()-1; ++it) {
+        double dist = (*it).distance_to(*(it+1));
+        if(dist > min_dist) {
+            Line l(*it, *(it+1));
+            int new_points = std::ceil(dist/min_dist)-1;
+            double spacing = dist / (new_points+1);
+            for(int i = 1; i <= new_points; i++) {
+                it = this->points.insert(it+1, l.point_at(i * spacing));
+            }
+            result = true;
+        }
+    }
+    // remove duplicated last point
+    points.pop_back();
+    return result;
 }
 
 std::string

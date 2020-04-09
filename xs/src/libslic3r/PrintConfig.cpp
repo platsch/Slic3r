@@ -196,6 +196,28 @@ PrintConfigDef::PrintConfigDef()
     def->height = 120;
     def->default_value = new ConfigOptionString("G91\nG1 Z10 F2000\nG90\nM0\n");
 
+    def = this->add("conductive_grid_resolution", coFloat);
+    def->label = "Grid resolution";
+    def->tooltip = "Grid resolution for wire routing. Limited by slope overlap.";
+    def->sidetext = "mm";
+    def->cli = "conductive_grid_resolution=f";
+    def->min = 0.1;
+    def->default_value = new ConfigOptionFloat(1.5);
+
+    def = this->add("conductive_wire_autorouting", coBool);
+    def->label = "Autorouting";
+    def->tooltip = "Use local autorouting, i.e: between each pair of waypoints.";
+    def->cli = "conductive-wire-autorouting!";
+    def->default_value = new ConfigOptionBool(false);
+
+    def = this->add("conductive_wire_bed_width", coFloat);
+    def->label = "Trench width for beds";
+    def->tooltip = "Usualy should be a very small value > 0, can be increased to mitigate overextrusion during bed generation";
+    def->sidetext = "mm";
+    def->cli = "conductive-wire-bed-width=f";
+    def->min = 0.01;
+    def->default_value = new ConfigOptionFloat(0.01);
+
     def = this->add("conductive_wire_channel_width", coFloat);
     def->label = "Channel width";
     def->tooltip = "The absolute amount a channel for a conductive wire will be expanded additional to the extrusion width.";
@@ -243,6 +265,38 @@ PrintConfigDef::PrintConfigDef()
     def->cli = "conductive_wire_overlap_min_extrusion_length=f";
     def->min = 0;
     def->default_value = new ConfigOptionFloat(0.0);
+
+    def = this->add("conductive_wire_routing_astar_factor", coFloat);
+    def->label = "A* heuristic";
+    def->tooltip = "Controls how much A* is 'dragged' towards the target. Values > 1 generate non-optimal but faster solutions";
+    def->sidetext = "";
+    def->cli = "conductive_wire_astar_perimeter_factor=f";
+    def->min = 0;
+    def->default_value = new ConfigOptionFloat(1.0);
+
+    def = this->add("conductive_wire_routing_perimeter_factor", coFloat);
+    def->label = "Routing perimeter factor";
+    def->tooltip = "Outer perimeters will be weighed with n * factor to draw routing towards infill.";
+    def->sidetext = "";
+    def->cli = "conductive_wire_routing_perimeter_factor=f";
+    def->min = 0;
+    def->default_value = new ConfigOptionFloat(0.1);
+
+    def = this->add("conductive_wire_routing_hole_factor", coFloat);
+    def->label = "Routing hole factor";
+    def->tooltip = "Holes in the object are weighed by this factor, a high value causes the algorithm to avoid crossing holes.";
+    def->sidetext = "";
+    def->cli = "conductive_wire_routing_hole_factor=f";
+    def->min = 0;
+    def->default_value = new ConfigOptionFloat(2.0);
+
+    def = this->add("conductive_wire_routing_interlayer_factor", coFloat);
+    def->label = "Routing interlayer factor";
+    def->tooltip = "How much should we avoid layer changes?.";
+    def->sidetext = "";
+    def->cli = "conductive_wire_routing_interlayer_factor=f";
+    def->min = 0;
+    def->default_value = new ConfigOptionFloat(5.0);
 
     def = this->add("conductive_wire_slope_overlap", coFloat);
     def->label = "Slope overlap";

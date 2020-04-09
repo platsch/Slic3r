@@ -23,6 +23,8 @@ my @cflags = qw(-D_GLIBCXX_USE_C99 -DHAS_BOOL -DNOGDI -DSLIC3RXS -DBOOST_ASIO_DI
 if ($cpp_guess->is_gcc)	{
 	# GCC is pedantic with c++11 std, so undefine strict ansi to get M_PI back
 	push @cflags, qw(-U__STRICT_ANSI__);
+	# required by boost if __STRICT_ANSI__ is undefined. https://svn.boost.org/trac10/ticket/9240
+	push @cflags, qw(-fext-numeric-literals);
 }
 
 # std=c++11 Enforce usage of C++11 (required now). Minimum compiler supported: gcc 4.9, clang 3.3, MSVC 14.0

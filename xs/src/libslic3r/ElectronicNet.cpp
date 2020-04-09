@@ -232,7 +232,7 @@ bool ElectronicNet::waypointsConnected(const unsigned int netPointKeyA, const un
 /*
  * How many connections are going from / to this waypoint?
  */
-const unsigned int ElectronicNet::wayointDegree(const unsigned int waypointID)
+const unsigned int ElectronicNet::waypointDegree(const unsigned int waypointID)
 {
     vertex_t v = this->netPointIndex[waypointID];
     return boost::degree(v, this->netGraph);
@@ -251,7 +251,7 @@ RubberBandPtrs* ElectronicNet::generateWiredRubberBands()
 
         unsigned int aId = netGraphIndex[boost::source(*ei, this->netGraph)];
         unsigned int bId = netGraphIndex[boost::target(*ei, this->netGraph)];
-        RubberBand* rb = new RubberBand(this->name, &this->netPoints[aId], &this->netPoints[bId], true);
+        RubberBand* rb = new RubberBand(this->name, &this->netPoints[aId], &this->netPoints[bId], waypointDegree(aId), waypointDegree(bId), true);
         this->wiredRubberBands.push_back(rb);
     }
 
@@ -309,7 +309,7 @@ RubberBandPtrs* ElectronicNet::getUnwiredRubberbands()
                     }
                 }
             }
-            RubberBand* rb = new RubberBand(this->getName(), &this->netPoints[netPointA], &this->netPoints[netPointB], false);
+            RubberBand* rb = new RubberBand(this->getName(), &this->netPoints[netPointA], &this->netPoints[netPointB], waypointDegree(netPointA), waypointDegree(netPointB), false);
             this->unwiredRubberBands.push_back(rb);
         }
     }

@@ -32,8 +32,13 @@ class ExPolygon
     bool contains(const Polyline &polyline) const;
     bool contains(const Point &point) const;
     bool contains_b(const Point &point) const;
+    /** Find the first (closest) intersection of Line with this ExPolygon.
+        match returns a reference to the intersecting Polygon for further processing. **/
+    bool first_intersection(const Line& line, Point* intersection, bool* ccw, Polygon** match);
     bool has_boundary_point(const Point &point) const;
     BoundingBox bounding_box() const { return this->contour.bounding_box(); };
+    /// removes collinear points within SCALED_EPSILON tolerance
+    void remove_colinear_points();
     void remove_vertical_collinear_points(coord_t tolerance);
     void simplify_p(double tolerance, Polygons* polygons) const;
     Polygons simplify_p(double tolerance) const;

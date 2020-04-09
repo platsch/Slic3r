@@ -58,6 +58,7 @@ constexpr auto SCALED_EPSILON = scale_(EPSILON);
 constexpr auto RESOLUTION = 0.0125;
 constexpr auto SCALED_RESOLUTION = scale_(RESOLUTION);
 constexpr auto PI = 3.141592653589793238;
+constexpr coord_t INF = std::numeric_limits<coord_t>::max();
 // When extruding a closed loop, the loop is interrupted and shortened a bit to reduce the seam.
 constexpr auto LOOP_CLIPPING_LENGTH_OVER_NOZZLE_DIAMETER = 0.15;
 // Maximum perimeter length for the loop to apply the small perimeter speed. 
