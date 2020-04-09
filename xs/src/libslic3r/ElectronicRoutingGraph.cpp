@@ -41,7 +41,16 @@ ElectronicRoutingGraph::add_edge(const Line3& l, routing_edge_t* edge, const dou
         routing_vertex_t vertex_a = this->point_index.at(l.a); // unordered_map::at throws an out-of-range
         routing_vertex_t vertex_b = this->point_index.at(l.b); // unordered_map::at throws an out-of-range
         coord_t distance = l.length() * edge_weight_factor;
-        *edge = boost::add_edge(vertex_a, vertex_b, distance, this->graph).first;
+
+        // does this edge already exist? If yes, use lowest weight
+        std::pair<routing_edge_t, bool> existing_edge = boost::edge(vertex_a, vertex_b, this->graph);
+        if(existing_edge.second) {
+            *edge = existing_edge.first;
+            boost::property_map<routing_graph_t, boost::edge_weight_t>::type weightmap = boost::get(boost::edge_weight_t(), this->graph);
+            weightmap[*edge] = std::min(weightmap[*edge], distance);
+        }else{
+            *edge = boost::add_edge(vertex_a, vertex_b, distance, this->graph).first;
+        }
     } catch (const std::out_of_range& oor) {
         std::cerr << "Unable to find vertex for point while adding an edge: " << oor.what() << '\n';
         std::cout << "Line was: " << l << std::endl;
@@ -85,7 +94,7 @@ ElectronicRoutingGraph::nearest_point(const Point3& dest, Point3* point)
             *point = Point3(query_result.front(), dest.z);
             result = true;
         }else{
-            std::cerr << "WARNING: point " << dest << " is not in spatial index!" << std::endl;
+            //std::cerr << "nearest_point WARNING: point " << dest << " is not in spatial index!" << std::endl;
         }
     }
     return result;
@@ -101,7 +110,7 @@ ElectronicRoutingGraph::points_in_boxrange(const Point3& dest, const coord_t ran
         if(points->size() > 0) {
             result = true;
         }else{
-            std::cerr << "WARNING: point " << dest << " is not in spatial index!" << std::endl;
+            //std::cerr << "points_in_boxrange WARNING: point " << dest << " is not in spatial index!" << std::endl;
         }
     }
     return result;
