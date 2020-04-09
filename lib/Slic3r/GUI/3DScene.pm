@@ -1432,6 +1432,12 @@ sub load_print_object_toolpaths {
         foreach my $copy (@{ $object->_shifted_copies }) {
             foreach my $layerm (@{$layer->regions}) {
                 if ($object->step_done(STEP_PERIMETERS)) {
+	                my $color = $color_by_extruder
+	                    ? $self->colors->[ ($object->print->default_region_config->conductive_wire_extruder-1) % @{$self->colors} ]
+	                    : $self->colors->[3];
+	                $add->($layer->wire_extrusions, $top_z, $copy, $color);
+                }
+                if ($object->step_done(STEP_PERIMETERS)) {
                     my $color = $color_by_extruder
                         ? $self->colors->[ ($layerm->region->config->perimeter_extruder-1) % @{$self->colors} ]
                         : $self->colors->[0];
@@ -1461,13 +1467,6 @@ sub load_print_object_toolpaths {
                         $add->($layerm->fills, $top_z, $copy, $color);
                     }
                 }
-            }
-
-            if (!$layer->isa('Slic3r::Layer::Support') && $object->step_done(STEP_PERIMETERS)) {
-                my $color = $color_by_extruder
-                    ? $self->colors->[ ($object->print->default_region_config->conductive_wire_extruder-1) % @{$self->colors} ]
-                    : $self->colors->[3];
-                $add->($layer->wire_extrusions, $top_z, $copy, $color);
             }
             
             if ($layer->isa('Slic3r::Layer::Support') && $object->step_done(STEP_SUPPORTMATERIAL)) {
