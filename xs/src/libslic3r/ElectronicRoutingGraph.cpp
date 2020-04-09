@@ -257,7 +257,7 @@ void
 ElectronicRoutingGraph::fill_svg(SVG* svg, const coord_t z, const ExPolygonCollection& s, const routing_vertex_t& current_v) const
 {
     //background (infill)
-    svg->draw(s, "black");
+    svg->draw(s, "rgb(216,229,229)"); // bright background, dark vertices
     boost::graph_traits<routing_graph_t>::edge_iterator ei, ei_end;
     for (boost::tie(ei, ei_end) = edges(this->graph); ei != ei_end; ++ei) {
         if(this->graph[boost::source(*ei, this->graph)].point.z == z || this->graph[boost::target(*ei, this->graph)].point.z == z) {
@@ -265,14 +265,23 @@ ElectronicRoutingGraph::fill_svg(SVG* svg, const coord_t z, const ExPolygonColle
             boost::property_map<routing_graph_t, boost::edge_weight_t>::const_type EdgeWeightMap = boost::get(boost::edge_weight_t(), this->graph);
             coord_t weight = boost::get(EdgeWeightMap, *ei);
             double w = weight / l.length();
-            int w_int = std::min((int)((w-1)*200), 255);
+
             std::ostringstream ss;
-            ss << "rgb(" << 100 << "," << w_int << "," << w_int << ")";
+
+            // bright background, dark vertices
+            int w_int = std::min((int)((w-1.0)*800), 255);
+            ss << "rgb(" << w_int << "," << 0 << "," << 0 << ")";
+
+            // dark background, bright vertices
+            //int w_int = std::min((int)((w-0.9)*1000), 255);
+            //ss << "rgb(" << 100 << "," << w_int << "," << w_int << ")";
+
             std::string color = ss.str();
 
             // interlayer-connections
             if(this->graph[boost::source(*ei, this->graph)].point.z != this->graph[boost::target(*ei, this->graph)].point.z) {
                 color = "green";
+                continue;
             }
 
             //std::cout << "color: " << color << std::endl;
@@ -281,23 +290,26 @@ ElectronicRoutingGraph::fill_svg(SVG* svg, const coord_t z, const ExPolygonColle
             //}else{
             //    svg_graph.draw(l,  "blue", scale_(0.1));
             //}
-            svg->draw(l,  color, scale_(0.1));
+            svg->draw(l,  color, scale_(0.15));
         }
     }
 
     // draw current route
     if(current_v) {
         auto predmap = boost::get(&PointVertex::predecessor, this->graph);
-        Point last_point = (Point)this->graph[current_v].point;
-        for(routing_vertex_t v = current_v;; v = predmap[v]) {
-            Line l = Line(last_point, (Point)this->graph[v].point);
-            svg->draw(l,  "blue", scale_(0.07));
-            last_point = (Point)this->graph[v].point;
-            if(predmap[v] == v)
-                break;
+        if(predmap[current_v] != current_v) {
+            Point last_point = (Point)this->graph[current_v].point;
+            for(routing_vertex_t v = current_v;; v = predmap[v]) {
+                Line l = Line(last_point, (Point)this->graph[v].point);
+                //svg->draw(l,  "blue", scale_(0.07));
+                svg->draw(l,  "blue", scale_(0.2));
+                last_point = (Point)this->graph[v].point;
+                if(predmap[v] == v)
+                    break;
+            }
         }
         // highlight current vertex
-        svg->draw((Point)this->graph[current_v].point, "blue", scale_(0.15));
+        svg->draw((Point)this->graph[current_v].point, "blue", scale_(0.25));
     }
 }
 

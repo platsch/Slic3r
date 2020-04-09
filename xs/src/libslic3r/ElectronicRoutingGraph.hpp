@@ -234,13 +234,14 @@ public:
             ss << print_z;
             ss << ".svg";
             std::string filename = ss.str();
-            BoundingBox bb = BoundingBox(Point(0, 0), Point(100000, 1000000));
+            BoundingBox bb = BoundingBox(Point(0, 0), Point(50000, 500000));
             if(((Points)*(infill_surfaces[print_z])).size() > 3) {
-                BoundingBox bb = infill_surfaces[print_z]->convex_hull().bounding_box();
+                //BoundingBox bb = infill_surfaces[print_z]->convex_hull().bounding_box();
             }
             bb.offset(scale_(5));
-            SVG svg_graph(filename.c_str(), bb);
-            this->graph->fill_svg(&svg_graph, print_z, *infill_surfaces[print_z], u);
+            SVG svg_graph(filename.c_str());
+            //this->graph->fill_svg(&svg_graph, print_z, *infill_wire_surfaces[print_z], u);
+            this->graph->fill_svg(&svg_graph, print_z, *slices_surfaces[print_z], u);
             //svg_graph.draw(*infill_surfaces[print_z], "black");
             svg_graph.Close();
 
