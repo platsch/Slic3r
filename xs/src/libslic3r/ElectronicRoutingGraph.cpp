@@ -138,8 +138,12 @@ ElectronicRoutingGraph::astar_route(
 {
     bool result = false;
 
-    routing_vertex_t start = this->point_index[start_p];
-    routing_vertex_t goal = this->point_index[goal_p];
+    // ensure both vertices actually exist. E.g. for vertical rubberbands no segments are added
+    // to the graph as they would have length 0.
+    routing_vertex_t start;
+    routing_vertex_t goal;
+    this->add_vertex(start_p, &start);
+    this->add_vertex(goal_p, &goal);
 
     std::cout << "start: " << start_p << " goal: " << goal_p << std::endl;
 
