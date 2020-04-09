@@ -7,7 +7,8 @@
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/graph_traits.hpp>
 #include <boost/graph/graphviz.hpp>
-#include <boost/graph/astar_search.hpp>
+//#include <boost/graph/astar_search.hpp>
+#include "astar_search.hpp"
 
 #include <boost/geometry.hpp>
 #include <boost/geometry/geometries/register/point.hpp>
@@ -296,38 +297,16 @@ public:
 
                 //coord_t distance = upper_trace.length() * this->routing_interlayer_factor;
                 coord_t distance = upper_weight + scale_(this->routing_interlayer_factor);
+
+
                 // we directly add the edge to get the length correct. (not just point-to point distance)
-                routing_edge_t edge = boost::add_edge(point_index->at(a), point_index->at(b_upper), distance, g_i).first;
-                (*this->interlayer_overlaps)[edge] = std::make_pair(this_trace, upper_trace);
-                //std::cout << "upper_trace weight: " << upper_weight << " vs length: " << upper_trace.length() << " vs factor: " << scale_(this->routing_interlayer_factor) << std::endl;
+                std::pair<routing_edge_t, bool> existing_edge = boost::edge(point_index->at(a), point_index->at(b_upper), g);
+                if(!existing_edge.second) {
+                    routing_edge_t edge = boost::add_edge(point_index->at(a), point_index->at(b_upper), distance, g_i).first;
+                    (*this->interlayer_overlaps)[edge] = std::make_pair(this_trace, upper_trace);
 
-             /*   // debug output graph
-                std::ostringstream ss;
-                ss << "interlayer_";
-                ss << print_z;
-                ss << ".svg";
-                std::string filename = ss.str();
-                BoundingBox bb = infill_surfaces[print_z]->convex_hull().bounding_box();
-                bb.offset(scale_(5));
-                SVG svg_graph(filename.c_str(), bb);
-                this->graph->fill_svg(&svg_graph, print_z, *infill_surfaces[print_z], u);
-                svg_graph.draw(this_trace, "red", scale_(0.08));
-                svg_graph.draw(upper_trace, "orange", scale_(0.06));
-                svg_graph.Close();
-
-                std::cout << "from " << this_trace.first_point() << " to " << this_trace.last_point() << std::endl;
-                std::cout << "u: " << u << std::endl;
-
-                char h = 'h';
-                char ch;
-                if(!debug_100) {
-                    std::cin >> ch;
+                    g_i[point_index->at(a)].cost = 0;
                 }
-
-                if(ch == h) {
-                    debug_100 = true;
-                }
-             */
                 traverse_upper = false;
             }
             // add lower edge connections
@@ -338,9 +317,16 @@ public:
 
                 //coord_t distance = lower_trace.length() * this->routing_interlayer_factor;
                 coord_t distance = lower_weight + scale_(this->routing_interlayer_factor);
+
                 // we directly add the edge to get the length correct. (not just point-to point distance)
-                routing_edge_t edge = boost::add_edge(point_index->at(a), point_index->at(b_lower), distance, g_i).first;
-                (*this->interlayer_overlaps)[edge] = std::make_pair(lower_trace, this_trace);
+                std::pair<routing_edge_t, bool> existing_edge = boost::edge(point_index->at(a), point_index->at(b_lower), g);
+                if(!existing_edge.second) {
+                    routing_edge_t edge = boost::add_edge(point_index->at(a), point_index->at(b_lower), distance, g_i).first;
+                    (*this->interlayer_overlaps)[edge] = std::make_pair(lower_trace, this_trace);
+
+                    g_i[point_index->at(a)].cost = 0;
+                }
+
                 traverse_lower = false;
             }
 
