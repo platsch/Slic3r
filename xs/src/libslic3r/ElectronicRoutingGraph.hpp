@@ -2,6 +2,7 @@
 #define slic3r_ElectronicRoutingGraph_hpp_
 
 #include "Polygon.hpp"
+#include "ExPolygonCollection.hpp"
 #include  "SVG.hpp"
 
 #include <boost/graph/adjacency_list.hpp>

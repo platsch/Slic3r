@@ -275,7 +275,7 @@ void
 ElectronicRoutingGraph::fill_svg(SVG* svg, const coord_t z, const ExPolygonCollection& s, const routing_vertex_t& current_v) const
 {
     //background (infill)
-    svg->draw(s, "rgb(216,229,229)"); // bright background, dark vertices
+    svg->draw((ExPolygons&) s, "rgb(216,229,229)"); // bright background, dark vertices
     boost::graph_traits<routing_graph_t>::edge_iterator ei, ei_end;
     for (boost::tie(ei, ei_end) = edges(this->graph); ei != ei_end; ++ei) {
         if(this->graph[boost::source(*ei, this->graph)].point.z == z || this->graph[boost::target(*ei, this->graph)].point.z == z) {
