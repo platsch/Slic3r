@@ -188,7 +188,8 @@ ElectronicRoutingGraph::astar_route(
     // init start vertex
     this->graph[start].distance = 0;
     this->graph[start].cost = dist_heuristic(start);
-
+    double length = 0;
+    double overlap_length = 0;
     try {
         // call astar named parameter interface
         astar_search_no_init
@@ -248,11 +249,14 @@ ElectronicRoutingGraph::astar_route(
                     routed_wire.append(*p);
                 }
                 (*route_map)[last_z].push_back(routed_wire);
+                length += routed_wire.length();
                 routed_wire.points.clear();
 
                 for (Points::iterator p = this_overlap.points.begin(); p != this_overlap.points.end()-1; ++p) {
                     routed_wire.append(*p);
                 }
+                overlap_length += routed_wire.length();
+
             }
             last_z = this->vertex_index[v].z;
             last_v = v;
@@ -260,9 +264,10 @@ ElectronicRoutingGraph::astar_route(
         }
 
         (*route_map)[last_z].push_back(routed_wire);
+        length += routed_wire.length();
         result = true;
     }
-
+    std::cout << "path length: " << unscale(length-overlap_length) << " wire length: " << unscale(length) << std::endl;
     return result;
 }
 
