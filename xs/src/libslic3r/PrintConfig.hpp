@@ -365,6 +365,9 @@ class GCodeConfig : public virtual StaticPrintConfig
     ConfigOptionFloat               max_print_speed;
     ConfigOptionFloat               max_volumetric_speed;
     ConfigOptionString              notes;
+    ConfigOptionBools               pneumatic_extruder;
+    ConfigOptionStrings             pneumatic_extrusion_preamble;
+    ConfigOptionStrings             pneumatic_extrusion_postamble;
     ConfigOptionFloat               pressure_advance;
     ConfigOptionString              printer_notes;
     ConfigOptionFloats              retract_length;
@@ -406,6 +409,9 @@ class GCodeConfig : public virtual StaticPrintConfig
         OPT_PTR(max_print_speed);
         OPT_PTR(max_volumetric_speed);
         OPT_PTR(notes);
+        OPT_PTR(pneumatic_extruder);
+        OPT_PTR(pneumatic_extrusion_preamble);
+        OPT_PTR(pneumatic_extrusion_postamble);
         OPT_PTR(pressure_advance);
         OPT_PTR(printer_notes);
         OPT_PTR(retract_length);

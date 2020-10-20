@@ -1257,6 +1257,7 @@ sub options {
         use_volumetric_e
         start_gcode end_gcode before_layer_gcode layer_gcode toolchange_gcode between_objects_gcode
         nozzle_diameter extruder_offset min_layer_height max_layer_height
+        pneumatic_extruder pneumatic_extrusion_preamble pneumatic_extrusion_postamble
         retract_length retract_lift retract_speed retract_restart_extra retract_before_travel retract_layer_change wipe
         retract_length_toolchange retract_restart_extra_toolchange retract_lift_above retract_lift_below
         printer_settings_id
@@ -1501,7 +1502,7 @@ sub _extruders_count_changed {
     $self->_update;
 }
 
-sub _extruder_options { qw(nozzle_diameter min_layer_height max_layer_height extruder_offset retract_length retract_lift retract_lift_above retract_lift_below retract_speed retract_restart_extra retract_before_travel wipe
+sub _extruder_options { qw(nozzle_diameter min_layer_height max_layer_height extruder_offset pneumatic_extruder pneumatic_extrusion_preamble pneumatic_extrusion_postamble retract_length retract_lift retract_lift_above retract_lift_below retract_speed retract_restart_extra retract_before_travel wipe
     retract_layer_change retract_length_toolchange retract_restart_extra_toolchange) }
 
 sub _build_extruder_pages {
@@ -1540,6 +1541,10 @@ sub _build_extruder_pages {
             $optgroup->append_single_option_line('extruder_offset', $extruder_idx);
         }
         {
+            my $optgroup = $page->new_optgroup('Extruder type');
+            $optgroup->append_single_option_line('pneumatic_extruder', $extruder_idx);
+        }
+        {
             my $optgroup = $page->new_optgroup('Retraction');
             $optgroup->append_single_option_line($_, $extruder_idx)
                 for qw(retract_length retract_lift);
@@ -1560,6 +1565,17 @@ sub _build_extruder_pages {
             my $optgroup = $page->new_optgroup('Retraction when tool is disabled (advanced settings for multi-extruder setups)');
             $optgroup->append_single_option_line($_, $extruder_idx)
                 for qw(retract_length_toolchange retract_restart_extra_toolchange);
+        }
+        {
+            my $optgroup = $page->new_optgroup('Pneumatic extruder settings');
+            my $preamble_option = $optgroup->get_option('pneumatic_extrusion_preamble', $extruder_idx);
+            $preamble_option->full_width(1);
+            $preamble_option->height(150);
+            $optgroup->append_single_option_line($preamble_option);
+            my $postamble_option = $optgroup->get_option('pneumatic_extrusion_postamble', $extruder_idx);
+            $postamble_option->full_width(1);
+            $postamble_option->height(150);
+            $optgroup->append_single_option_line($postamble_option);
         }
     }
     
@@ -1663,6 +1679,14 @@ sub _update {
         my $toolchange_retraction = $config->get_at('retract_length_toolchange', $i) > 0;
         $self->get_field('retract_restart_extra_toolchange', $i)->toggle
             ($have_multiple_extruders && $toolchange_retraction);
+
+        # This must happen at the end to overwrite previous toggles
+        my $have_pneumatic_extruder = $config->get_at('pneumatic_extruder', $i);
+        $self->get_field($_, $i)->toggle(!$have_pneumatic_extruder)
+            for qw(retract_length retract_lift retract_lift_above retract_lift_below retract_speed retract_restart_extra retract_before_travel wipe
+            retract_layer_change retract_length_toolchange retract_restart_extra_toolchange);
+        $self->get_field($_, $i)->toggle($have_pneumatic_extruder)
+            for qw(pneumatic_extrusion_preamble pneumatic_extrusion_postamble);
     }
 }
 

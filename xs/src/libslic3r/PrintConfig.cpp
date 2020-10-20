@@ -1114,6 +1114,42 @@ PrintConfigDef::PrintConfigDef()
     def->min = 0;
     def->default_value = new ConfigOptionInt(3);
 
+    def = this->add("pneumatic_extruder", coBools);
+    def->label = "Pressure driven extruder";
+    def->tooltip = "Is this a standard filament or air pressure driven extruder?";
+    def->cli = "pneumatic_extruder!";
+    {
+        ConfigOptionBools* opt = new ConfigOptionBools();
+        opt->values.push_back(false);
+        def->default_value = opt;
+   }
+
+    def = this->add("pneumatic_extrusion_preamble", coStrings);
+    def->label = "Extrusion preamble";
+    def->tooltip = "This will be injected before every pressure driven extrusion line. Open valve, set pressure, wait, etc...";
+    def->multiline = true;
+    def->full_width = true;
+    def->height = 120;
+    def->cli = "pneumatic_extrusion_preamble=s@";
+    {
+        ConfigOptionStrings* opt = new ConfigOptionStrings();
+        opt->values.push_back(";Extrusion Preamble\nM400  ;  Sync printer queue\nM42 P2 S255  ; open pressure nozzle\nG4 P110  ;  wait for material flow");
+        def->default_value = opt;
+    }
+
+    def = this->add("pneumatic_extrusion_postamble", coStrings);
+    def->label = "Extrusion postamble";
+    def->tooltip = "This will be injected after every pressure driven extrusion line. Close valve, set pressure, wait, etc...";
+    def->multiline = true;
+    def->full_width = true;
+    def->height = 120;
+    def->cli = "pneumatic_extrusion_postamble=s@";
+    {
+        ConfigOptionStrings* opt = new ConfigOptionStrings();
+        opt->values.push_back(";Extrusion Postamble\nM400  ;  Sync printer queue\nM42 P2 S0  ; close pressure nozzle");
+        def->default_value = opt;
+    }
+
     def = this->add("post_process", coStrings);
     def->label = "Post-processing scripts";
     def->tooltip = "If you want to process the output G-code through custom scripts, just list their absolute paths here. Separate multiple scripts on individual lines. Scripts will be passed the absolute path to the G-code file as the first argument, and they can access the Slic3r config settings by reading environment variables.";
