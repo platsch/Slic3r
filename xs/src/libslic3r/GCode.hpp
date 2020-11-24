@@ -111,6 +111,7 @@ class GCode {
     bool needs_zmove(const Polyline &travel);
     std::string retract(bool toolchange = false);
     std::string unretract();
+    Polyline compensate_nonplanar_z(const Polyline &path) const;
     std::string set_extruder(unsigned int extruder_id);
     Pointf point_to_gcode(const Point &point);
     Pointf3 point3_to_gcode(const Point &point);

@@ -4,6 +4,8 @@
 #include <cstdlib>
 #include <math.h>
 
+#include "SVG.hpp"
+
 #define FLAVOR_IS(val) this->config.gcode_flavor == val
 
 namespace Slic3r {
@@ -502,7 +504,13 @@ GCode::extrude(const ExtrusionPath &path, std::string description, double speed)
 std::string
 GCode::_extrude(ExtrusionPath path, std::string description, double speed)
 {
+    // apply Douglas-Peucker to reduce resolution to a reasonable point density
     path.simplify(SCALED_RESOLUTION);
+
+    if(this->config.nonplanar_layers) {
+        // try to compensate for the effect of nozzle dragging through the surface on falling slopes
+        path.polyline = this->compensate_nonplanar_z(path.polyline);
+    }
     
     std::string gcode;
     
@@ -772,6 +780,144 @@ GCode::unretract()
     gcode += this->writer.unlift();
     gcode += this->writer.unretract();
     return gcode;
+}
+
+/* In cases where the extruder prints a downward nonplanar extrusion, the nozzle
+   drags through the deposited plastic with its flat round surface.
+   This method is an attempt to compensate for this effect, by slightly lifting the nozzle
+   on downward slopes, depending on the nozzle diameter.
+   Iterates over a 3D-polyline and returns a new polyline object including the computed offsets.
+*/
+Polyline
+GCode::compensate_nonplanar_z(const Polyline &path) const
+{
+    Polyline result; // z-level corrected points
+    if(path.points.size() > 2) {
+
+        double nozzle_diameter = EXTRUDER_CONFIG(nozzle_diameter);
+
+        // iterate over sets of two adjacent extrusion lines
+        Points::const_iterator lpoint = path.points.begin();
+        Points::const_iterator llpoint = path.points.begin();
+        for (Points::const_iterator point = ++path.points.begin(); point != path.points.end(); ++point) {
+
+            // extrusions with negative inclination
+            if(lpoint->z > point->z) {
+                Line l(*lpoint, *point); // l and ll a re-generated in every iteration to represent the original state
+                Line ll(*llpoint, *lpoint);
+                coord_t elevation = std::abs(scale_(std::sin(l.angle()) * nozzle_diameter));
+                coord_t lelevation = std::abs(scale_(std::sin(ll.angle()) * nozzle_diameter));
+                l.translate(0, 0, elevation);
+                // point a
+                if(lpoint == path.points.begin()) {
+                    // first point of this extrusion line, just elevate
+                    result.append(l.a);
+                }else{
+                    // other points, we have to take care of the previous line.
+                    // project both lines to a flat surface and compute intersection with elevated line,
+                    // then insert new segment for smooth transition to new offset, aligned with the extrusion
+                    // in cases where the toolpath is not straight
+                    coord_t length = lpoint->horizontal_distance_to(*point);
+                    coord_t llength = llpoint->horizontal_distance_to(*lpoint);
+                    Line flat_ll(Point(-llength, llpoint->z - lpoint->z), Point(0, 0));
+                    Line flat_l(Point(0, 0), Point(length, point->z - lpoint->z));
+                    flat_l.translate(0, elevation);
+                    if(ll.angle() < 0) {
+                        flat_ll.translate(0, lelevation);
+                    }
+
+                    Point intersection;
+                    if(flat_l.intersection_infinite(flat_ll, &intersection)) { // returns false for parallel lines, in that case we don't need to insert a point
+                        coord_t dist = flat_l.a.distance_to(intersection);
+                        if(dist < l.length()) {
+                            result.append(l.point_at(dist));
+                        }
+                    }
+                }
+
+                // point b
+                result.append(l.b);
+
+                // check if we need to extend to intersect with the following extrusion
+                Points::const_iterator npoint = point+1;
+                if(npoint != path.points.end()) {
+                    Line nl(*point, *npoint);
+                    // for angles < 0: next line also requires offset and will be treated in next iteration, just add elevated point
+                    if(nl.angle() >= 0) {
+                        // next line has 0 or positive inclination, extend current line to intersection
+                        coord_t length = lpoint->horizontal_distance_to(*point);
+                        coord_t nlength = point->horizontal_distance_to(*npoint);
+                        Line flat_l(Point(-length, lpoint->z - point->z), Point(0, 0));
+                        Line flat_nl(Point(0, 0), Point(nlength, npoint->z - point->z));
+                        flat_l.translate(0, elevation);
+                        Point intersection;
+                        if(flat_l.intersection_infinite(flat_nl, &intersection)) {
+                            coord_t dist = intersection.distance_to(Point(0, 0));
+                            if(dist < nl.length()) {
+                               result.append(nl.point_at(dist));
+                            }
+                        }else{
+                            std::cout << "WARNING: unable to compute intersection for elevated nonplanar extrusion, this should never happen!" << std::endl;
+                        }
+                    }
+                }
+
+                // debugging code, outputs 2D visualizations of the original and modified gcode from above
+                // and projected to the y-axis in each iteration
+                if(false) {
+                    BoundingBox bb(path.points);
+                    SVG svg("nonplanar_elevation.svg", bb, scale_(1.), true);
+                    SVG svgtd("nonplanar_topdown.svg", bb, scale_(1.), true);
+                    // draw entire extrusion
+                    Points::const_iterator ppsvg = path.points.begin();
+                    for (Points::const_iterator psvg = ++path.points.begin(); psvg != path.points.end(); ++psvg) {
+                        Line l;
+                        l.a = Point(ppsvg->x, bb.max.y - ppsvg->z);
+                        l.b = Point(psvg->x, bb.max.y - psvg->z);
+                        svg.draw(l, "grey");
+                        ppsvg = psvg;
+                    }
+                    svgtd.draw(path, "grey");
+                    // draw current lines
+                    svg.draw(Line(Point(llpoint->x, bb.max.y - llpoint->z), Point(lpoint->x, bb.max.y - lpoint->z)), "black", scale_(0.05));
+                    svg.draw(Line(Point(lpoint->x, bb.max.y - lpoint->z), Point(point->x, bb.max.y - point->z)), "black", scale_(0.05));
+                    svgtd.draw(Line(*llpoint, *lpoint), "black", scale_(0.05));
+                    svgtd.draw(Line(*lpoint, *point), "black", scale_(0.05));
+
+                    // draw resulting toolpath
+                    Points::iterator pcsvg = result.points.begin();
+                    for (Points::iterator csvg = ++result.points.begin(); csvg != result.points.end(); ++csvg) {
+                        Line l;
+                        l.a = Point(pcsvg->x, bb.max.y - pcsvg->z);
+                        l.b = Point(csvg->x, bb.max.y - csvg->z);
+                        svg.draw(l, "red", scale_(0.03));
+
+                        Line l2(*pcsvg, *csvg);
+                        svgtd.draw(l2, "red", scale_(0.03));
+
+                        pcsvg = csvg;
+                    }
+
+                    svg.Close();
+                    svgtd.Close();
+                    char ch;
+                    std::cin >> ch;
+                }
+            }else{ // all other extrusions go unmodified
+                if(lpoint == path.points.begin()) {
+                    // first point of this extrusion line
+                    result.append(*lpoint);
+                }
+                result.append(*point);
+            }
+
+            llpoint = lpoint;
+            lpoint = point;
+        }
+    }else{
+        result = path;
+    }
+    return result;
 }
 
 std::string
