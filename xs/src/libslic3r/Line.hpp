@@ -25,6 +25,7 @@ class Line
     operator Polyline() const;
     void scale(double factor);
     void translate(double x, double y);
+    void translate(double x, double y, double z);
     void rotate(double angle, const Point &center);
     void reverse();
     double length() const;

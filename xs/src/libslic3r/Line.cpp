@@ -46,6 +46,13 @@ Line::translate(double x, double y)
 }
 
 void
+Line::translate(double x, double y, double z)
+{
+    this->a.translate(x, y, z);
+    this->b.translate(x, y, z);
+}
+
+void
 Line::rotate(double angle, const Point &center)
 {
     this->a.rotate(angle, center);
@@ -90,6 +97,8 @@ Line::point_at(double distance, Point* point) const
         point->x = this->a.x + (this->b.x - this->a.x) * distance / len;
     if (this->a.y != this->b.y)
         point->y = this->a.y + (this->b.y - this->a.y) * distance / len;
+    if (this->a.z != this->b.z)
+        point->z = this->a.z + (this->b.z - this->a.z) * distance / len;
 }
 
 Point
