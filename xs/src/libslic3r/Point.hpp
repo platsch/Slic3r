@@ -72,6 +72,7 @@ class Point
     bool nearest_waypoint(const Points &points, const Point &dest, Point* point) const;
     double distance_to(const Point &point) const;
     double distance_to(const Line &line) const;
+    double horizontal_distance_to(const Point &point) const;
     double perp_distance_to(const Line &line) const;
     double ccw(const Point &p1, const Point &p2) const;
     double ccw(const Line &line) const;

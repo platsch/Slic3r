@@ -217,6 +217,15 @@ Point::distance_to(const Line &line) const
     return this->distance_to(projection);
 }
 
+// just omit the z-dimension
+double
+Point::horizontal_distance_to(const Point &point) const
+{
+    double dx = ((double)point.x - this->x);
+    double dy = ((double)point.y - this->y);
+    return sqrt(dx*dx + dy*dy);
+}
+
 double
 Point::perp_distance_to(const Line &line) const
 {
