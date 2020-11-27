@@ -507,7 +507,7 @@ GCode::_extrude(ExtrusionPath path, std::string description, double speed)
     // apply Douglas-Peucker to reduce resolution to a reasonable point density
     path.simplify(SCALED_RESOLUTION);
 
-    if(this->config.nonplanar_layers) {
+    if(this->config.nonplanar_layers && this->config.nonplanar_z_compensation) {
         // try to compensate for the effect of nozzle dragging through the surface on falling slopes
         path.polyline = this->compensate_nonplanar_z(path.polyline);
     }

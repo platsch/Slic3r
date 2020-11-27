@@ -94,6 +94,12 @@ PrintConfigDef::PrintConfigDef()
     def->min = 0;
     def->default_value = new ConfigOptionFloat(10.0);
 
+    def = this->add("nonplanar_z_compensation", coBool);
+    def->label = "Z-compensation on negative slopes";
+    def->category = "Layers and Perimeters";
+    def->tooltip = "In cases where the extruder prints a downward nonplanar extrusion, the nozzle drags through the deposited plastic with its flat round surface. This option is an attempt to compensate for this effect, by slightly lifting the nozzle on downward slopes, depending on the nozzle diameter.";
+    def->cli = "nonplanar_z_compensation!";
+    def->default_value = new ConfigOptionBool(false);
 
     def = this->add("avoid_crossing_perimeters", coBool);
     def->label = "Avoid crossing perimeters";

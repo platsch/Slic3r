@@ -163,6 +163,7 @@ class PrintObjectConfig : public virtual StaticPrintConfig
     ConfigOptionFloat               nonplanar_minimal_area;
     ConfigOptionFloat               nonplanar_layers_height;
     ConfigOptionFloat               nonplanar_layers_ignore_collision_size;
+    ConfigOptionBool                nonplanar_z_compensation;
     ConfigOptionBool                dont_support_bridges;
     ConfigOptionFloatOrPercent      extrusion_width;
     ConfigOptionFloatOrPercent      first_layer_height;
@@ -206,6 +207,7 @@ class PrintObjectConfig : public virtual StaticPrintConfig
         OPT_PTR(nonplanar_minimal_area);
         OPT_PTR(nonplanar_layers_height);
         OPT_PTR(nonplanar_layers_ignore_collision_size);
+        OPT_PTR(nonplanar_z_compensation);
         OPT_PTR(dont_support_bridges);
         OPT_PTR(extrusion_width);
         OPT_PTR(first_layer_height);
