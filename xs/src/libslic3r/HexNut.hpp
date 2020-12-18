@@ -31,7 +31,7 @@ class HexNut : public FastenerNut
         const PartOrientation getPartOrientation();
 
         TriangleMesh getPartMesh();
-        Polygon getHullPolygon(const double z_lower, const double z_upper, const double hull_offset) const;
+        Polygon getHullPolygon(const double z_lower, const double z_upper, const double hull_offset, const bool apply_translation = true) const;
 
         const std::string getPlaceGcode(double print_z, std::string automaticGcode = "", std::string manualGcode = "");
         const std::string getPlaceDescription(Pointf offset);

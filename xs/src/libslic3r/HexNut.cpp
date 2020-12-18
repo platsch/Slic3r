@@ -91,7 +91,7 @@ TriangleMesh HexNut::getPartMesh()
 
 /// Generates the hull polygon of this part between z_lower and z_upper
 /// hull_offset is an additional offset to widen the cavity to avoid collisions when inserting a part (unscaled value)
-Polygon HexNut::getHullPolygon(const double z_lower, const double z_upper, const double hull_offset) const
+Polygon HexNut::getHullPolygon(const double z_lower, const double z_upper, const double hull_offset, const bool apply_translation) const
 {
     Polygon result;
     // check if object is upright
@@ -132,19 +132,21 @@ Polygon HexNut::getHullPolygon(const double z_lower, const double z_upper, const
 
             result = offset(Polygons(result), scale_(hull_offset), 100000, ClipperLib::jtSquare).front();
 
-            // rotate polygon
-            result.rotate(Geometry::deg2rad(this->rotation.z), Point(0, 0));
+            if(apply_translation) {
+                // rotate polygon
+                result.rotate(Geometry::deg2rad(this->rotation.z), Point(0, 0));
 
-            // apply object translation
-            if (this->partOrientation == PO_UPRIGHT)
-            {
-                double thickness = this->size[2];
-                result.translate(scale_(this->position.x + thickness / 2.0 * -sin(Geometry::deg2rad(this->rotation.z))), scale_(this->position.y + thickness / 2.0 * cos(Geometry::deg2rad(this->rotation.z))));
-            }
-            else
-            {
-                result.translate(scale_(this->position.x), scale_(this->position.y));
+                // apply object translation
+                if (this->partOrientation == PO_UPRIGHT)
+                {
+                    double thickness = this->size[2];
+                    result.translate(scale_(this->position.x + thickness / 2.0 * -sin(Geometry::deg2rad(this->rotation.z))), scale_(this->position.y + thickness / 2.0 * cos(Geometry::deg2rad(this->rotation.z))));
+                }
+                else
+                {
+                    result.translate(scale_(this->position.x), scale_(this->position.y));
 
+                }
             }
         }
     }
@@ -173,11 +175,13 @@ Polygon HexNut::getHullPolygon(const double z_lower, const double z_upper, const
             // apply margin to have some space between part an extruded plastic
             result = offset(Polygons(result), scale_(hull_offset), 100000, ClipperLib::jtSquare).front();
 
-            // rotate polygon
-            result.rotate(Geometry::deg2rad(this->rotation.z), Point(0,0));
+            if(apply_translation) {
+                // rotate polygon
+                result.rotate(Geometry::deg2rad(this->rotation.z), Point(0,0));
 
-            // apply object translation
-            result.translate(scale_(this->position.x), scale_(this->position.y));
+                // apply object translation
+                result.translate(scale_(this->position.x), scale_(this->position.y));
+            }
         }
     }
 
@@ -229,19 +233,27 @@ const std::string HexNut::getPlaceDescription(Pointf offset)
         gcode << ";<part id=\"" << this->partID << "\" name=\"" << this->name << "\">\n";
         gcode << ";  <type identifier=\"hexnut\" thread_size=\"" << this->threadSize << "\"/>\n";
         gcode << ";  <position box=\"" << this->partID << "\"/>\n";
+        double z_pos = this->position.z;
         if (this->partOrientation == PO_UPRIGHT)
         {
             gcode << ";  <size height=\"" << this->size[1] << "\"/>\n";
+            z_pos += this->size[1] / 2.0;
         }
-        else
+        if (this->partOrientation == PO_FLAT)
         {
             gcode << ";  <size height=\"" << this->size[2] << "\"/>\n";
+            z_pos += this->size[2] / 2.0;
         }
+        std::cout << "z_pos: " << z_pos << std::endl;
+        Polygon shape = this->getHullPolygon(z_pos, z_pos+EPSILON, 0, false);
         gcode << ";  <shape>\n";
-        gcode << ";    <point x=\"" << (this->origin[0] - this->size[0] / 2.0) << "\" y=\"" << (this->origin[1] - this->size[1] / 2.0) << "\"/>\n";
-        gcode << ";    <point x=\"" << (this->origin[0] - this->size[0] / 2.0) << "\" y=\"" << (this->origin[1] + this->size[1] / 2.0) << "\"/>\n";
-        gcode << ";    <point x=\"" << (this->origin[0] + this->size[0] / 2.0) << "\" y=\"" << (this->origin[1] + this->size[1] / 2.0) << "\"/>\n";
-        gcode << ";    <point x=\"" << (this->origin[0] + this->size[0] / 2.0) << "\" y=\"" << (this->origin[1] - this->size[1] / 2.0) << "\"/>\n";
+        for(Points::const_iterator p = shape.points.begin(); p != shape.points.end(); ++p) {
+         gcode << ";    <point x=\"" << unscale(p->x) << "\" y=\"" << unscale(p->y) << "\"/>\n";
+        }
+        //gcode << ";    <point x=\"" << (this->origin[0] - this->size[0] / 2.0) << "\" y=\"" << (this->origin[1] - this->size[1] / 2.0) << "\"/>\n";
+        //gcode << ";    <point x=\"" << (this->origin[0] - this->size[0] / 2.0) << "\" y=\"" << (this->origin[1] + this->size[1] / 2.0) << "\"/>\n";
+        //gcode << ";    <point x=\"" << (this->origin[0] + this->size[0] / 2.0) << "\" y=\"" << (this->origin[1] + this->size[1] / 2.0) << "\"/>\n";
+        //gcode << ";    <point x=\"" << (this->origin[0] + this->size[0] / 2.0) << "\" y=\"" << (this->origin[1] - this->size[1] / 2.0) << "\"/>\n";
         gcode << ";  </shape>\n";
         gcode << ";  <destination x=\"" << this->position.x + offset.x << "\" y=\"" << this->position.y + offset.y << "\" z=\"" << this->position.z << "\"/>\n";
         gcode << ";  <orientation orientation=\"" << PartOrientationStrings[this->partOrientation] << "\"/>\n";
