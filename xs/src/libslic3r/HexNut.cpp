@@ -98,7 +98,7 @@ Polygon HexNut::getHullPolygon(const double z_lower, const double z_upper, const
     if (this->partOrientation == PO_UPRIGHT)
     {
         // part affected?
-        if (z_lower >= this->position.z && z_upper < this->position.z + this->size[1] + EPSILON)
+        if ((z_upper - this->position.z > EPSILON) && z_lower < (this->position.z + this->size[1]))
         {
             Points points;
 
@@ -111,7 +111,8 @@ Polygon HexNut::getHullPolygon(const double z_lower, const double z_upper, const
             // lower half affected?
             if (z_lower < this->position.z + this->size[1] / 2.0)
             {
-                double height = this->position.z - z_lower;
+                //double height = this->position.z - z_lower;
+                double height = this->position.z - z_upper;
                 double crossSectionLength = radius - tan(Geometry::deg2rad(30)) * height * 2;
 
                 points.push_back(Point(scale_(x + crossSectionLength / 2.0), scale_(z - width)));
@@ -196,7 +197,11 @@ const std::string HexNut::getPlaceGcode(double print_z, std::string automaticGco
 {
     std::ostringstream gcode;
 
-    if (this->placed && !this->printed && this->position.z + this->size[2] <= print_z)
+    double height = 0;
+    if (this->partOrientation == PO_UPRIGHT) height = this->size[1];
+    if (this->partOrientation == PO_FLAT) height = this->size[2];
+
+    if (this->placed && !this->printed && this->position.z + height <= print_z)
     {
         this->printed = true;
         if (this->placingMethod == PM_AUTOMATIC)
@@ -244,7 +249,6 @@ const std::string HexNut::getPlaceDescription(Pointf offset)
             gcode << ";  <size height=\"" << this->size[2] << "\"/>\n";
             z_pos += this->size[2] / 2.0;
         }
-        std::cout << "z_pos: " << z_pos << std::endl;
         Polygon shape = this->getHullPolygon(z_pos, z_pos+EPSILON, 0, false);
         gcode << ";  <shape>\n";
         for(Points::const_iterator p = shape.points.begin(); p != shape.points.end(); ++p) {

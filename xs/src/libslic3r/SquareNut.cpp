@@ -98,7 +98,7 @@ namespace Slic3r {
         if (this->partOrientation == PO_UPRIGHT)
         {
             // part affected?
-            if (z_lower >= this->position.z && z_upper < this->position.z + this->size[1] + EPSILON)
+            if ((z_upper - this->position.z > EPSILON) && z_lower < (this->position.z + this->size[1]))
             {
                 Points points;
 
@@ -173,7 +173,11 @@ namespace Slic3r {
     {
         std::ostringstream gcode;
 
-        if (this->placed && !this->printed && this->position.z + this->size[2] <= print_z)
+        double height = 0;
+        if (this->partOrientation == PO_UPRIGHT) height = this->size[1];
+        if (this->partOrientation == PO_FLAT) height = this->size[2];
+
+        if (this->placed && !this->printed && this->position.z + height <= print_z)
         {
             this->printed = true;
             if (this->placingMethod == PM_AUTOMATIC)
